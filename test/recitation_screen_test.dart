@@ -55,7 +55,7 @@ void main() {
         child: const MaterialApp(
           home: Directionality(
             textDirection: TextDirection.rtl,
-            child: RecitationScreen(surahNumber: 1),
+            child: RecitationScreen.surah(1),
           ),
         ),
       ),

@@ -12,24 +12,33 @@ class Mistake {
   final String message;
 }
 
-/// Listens to the reciter and keeps the comparison with the surah up to
+/// Listens to the reciter and keeps the comparison with the text up to
 /// date.
 ///
 /// Recognizers stop after a pause, so listening restarts by itself until the
-/// reciter presses stop. The text of every finished session is kept and the
-/// comparison always runs over everything heard since the start.
+/// reciter presses stop. Each finished listening session is compared once,
+/// from where the previous one ended, so long surahs stay fast.
 class RecitationSession extends ChangeNotifier {
   RecitationSession({
     required this.listener,
+    required this.expected,
     required this.surahName,
-    required List<String> ayahs,
-  }) : expected = wordsOfAyahs(ayahs) {
-    _result = alignRecitation(expected, const []);
+  }) : _multiSurah =
+           expected.map((w) => w.surah).where((s) => s > 0).toSet().length > 1 {
+    _clear();
   }
 
   final SpeechListener listener;
-  final String surahName;
   final List<ExpectedWord> expected;
+  final String Function(int surah) surahName;
+  final bool _multiSurah;
+
+  /// Words compared so far, from finished listening sessions.
+  late List<WordResult> _base;
+  final _extrasAtEnd = <String>[];
+
+  /// Index of the first word not reached by a finished session.
+  int _pos = 0;
 
   final _committed = <String>[];
   String _current = '';
@@ -51,8 +60,11 @@ class RecitationSession extends ChangeNotifier {
   bool get isListening => _wantListening;
   List<Mistake> get mistakes => List.unmodifiable(_mistakes);
 
-  /// Everything heard so far, for showing to the reciter.
-  String get heardText => [..._committed, _current].join(' ').trim();
+  /// The last words heard, for showing to the reciter.
+  String get heardText {
+    final words = [..._committed, _current].join(' ').trim().split(' ');
+    return words.skip(words.length > 20 ? words.length - 20 : 0).join(' ');
+  }
 
   Future<void> start() async {
     error = null;
@@ -83,8 +95,7 @@ class RecitationSession extends ChangeNotifier {
   /// Clears everything heard, to recite again from the start.
   Future<void> reset() async {
     if (_wantListening) await stop();
-    _committed.clear();
-    _current = '';
+    _clear();
     _alerted.clear();
     _mistakes.clear();
     error = null;
@@ -98,11 +109,9 @@ class RecitationSession extends ChangeNotifier {
         onResult: (text, isFinal) {
           if (id != _sessionId) return;
           _current = text;
-          if (isFinal) {
-            _commit();
-            _restart();
-          }
+          if (isFinal) _commit();
           _update();
+          if (isFinal) _restart();
         },
       );
     } catch (e) {
@@ -110,12 +119,65 @@ class RecitationSession extends ChangeNotifier {
     }
   }
 
+  void _clear() {
+    _committed.clear();
+    _current = '';
+    _base = [
+      for (final w in expected) WordResult(word: w, status: WordStatus.pending),
+    ];
+    _extrasAtEnd.clear();
+    _pos = 0;
+    _result = RecitationResult(words: _base);
+  }
+
   /// Keeps the current session's text and ignores anything it still sends.
   void _commit() {
     _sessionId++;
-    if (_current.trim().isNotEmpty) _committed.add(_current.trim());
+    final text = _current.trim();
     _current = '';
+    if (text.isEmpty) return;
+    _committed.add(text);
+    final (from, sub) = _alignFromPos(text, settled: true);
+    _base = _overlay(_base, from, sub);
+    if (from + sub.words.length == expected.length) {
+      _extrasAtEnd.addAll(sub.extrasAtEnd);
+    }
+    _pos = from + sub.progress;
   }
+
+  /// Compares [text] with the words from [_pos] on, in a window long enough
+  /// for everything that was said.
+  (int, RecitationResult) _alignFromPos(String text, {required bool settled}) {
+    final heard = text.split(RegExp(r'\s+'));
+    final end = (_pos + 2 * heard.length + 30).clamp(0, expected.length);
+    final window = expected.sublist(_pos, end);
+    var sub = alignRecitation(window, heard, settled: settled);
+    if (end < expected.length && sub.extrasAtEnd.isNotEmpty) {
+      // Left over past a window that is not the end of the text. The window
+      // is twice as long as what was heard, so this is only noise; drop it.
+      sub = RecitationResult(words: sub.words);
+    }
+    return (_pos, sub);
+  }
+
+  List<WordResult> _overlay(
+    List<WordResult> base,
+    int from,
+    RecitationResult sub,
+  ) => [
+    ...base.take(from),
+    for (var k = 0; k < sub.words.length; k++)
+      WordResult(
+        word: sub.words[k].word,
+        status: sub.words[k].status,
+        heard: sub.words[k].heard,
+        extrasBefore: [
+          ...base[from + k].extrasBefore,
+          ...sub.words[k].extrasBefore,
+        ],
+      ),
+    ...base.skip(from + sub.words.length),
+  ];
 
   void _onSessionDone() {
     _commit();
@@ -163,8 +225,16 @@ class RecitationSession extends ChangeNotifier {
   }
 
   void _update() {
-    final heard = heardText.split(RegExp(r'\s+'));
-    _result = alignRecitation(expected, heard, settled: _current.isEmpty);
+    var words = _base;
+    var extrasAtEnd = _extrasAtEnd;
+    if (_current.trim().isNotEmpty) {
+      final (from, sub) = _alignFromPos(_current, settled: false);
+      words = _overlay(_base, from, sub);
+      if (from + sub.words.length == expected.length) {
+        extrasAtEnd = [..._extrasAtEnd, ...sub.extrasAtEnd];
+      }
+    }
+    _result = RecitationResult(words: words, extrasAtEnd: extrasAtEnd);
     if (_result.isComplete && _wantListening) {
       _wantListening = false;
       listener.stop();
@@ -183,7 +253,7 @@ class RecitationSession extends ChangeNotifier {
           Mistake(
             i,
             'كلمة زائدة «${w.extrasBefore.join(' ')}» قبل «${w.text}» '
-            '(الآية ${w.ayah})',
+            '(${_where(w)})',
           ),
         );
       }
@@ -192,13 +262,13 @@ class RecitationSession extends ChangeNotifier {
           'wrong:$i:${w.heard}',
           Mistake(
             i,
-            'خطأ في الآية ${w.ayah}: سمعت «${w.heard}» والصواب «${w.text}»',
+            'خطأ في ${_where(w)}: سمعت «${w.heard}» والصواب «${w.text}»',
           ),
         );
       } else if (w.status == WordStatus.skipped) {
         _alert(
           'skipped:$i',
-          Mistake(i, 'نسيت كلمة «${w.text}» في الآية ${w.ayah}'),
+          Mistake(i, 'نسيت كلمة «${w.text}» في ${_where(w)}'),
         );
       }
     }
@@ -207,10 +277,21 @@ class RecitationSession extends ChangeNotifier {
         'end:${_result.extrasAtEnd.join(' ')}',
         Mistake(
           words.length - 1,
-          'كلمات زائدة بعد نهاية السورة: «${_result.extrasAtEnd.join(' ')}»',
+          'كلمات زائدة بعد النهاية: «${_result.extrasAtEnd.join(' ')}»',
         ),
       );
     }
+  }
+
+  /// Where a word is, e.g. "الآية 5" or "الآية 5 من سورة البقرة".
+  String _where(WordResult w) {
+    final place = switch (w.word.kind) {
+      WordKind.ayah => 'الآية ${w.ayah}',
+      WordKind.basmala => 'البسملة',
+      WordKind.istiadha => 'الاستعاذة',
+    };
+    if (!_multiSurah || w.surah == 0) return place;
+    return '$place من سورة ${surahName(w.surah)}';
   }
 
   void _alert(String key, Mistake mistake) {
