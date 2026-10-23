@@ -58,12 +58,9 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
     if (mushaf == null || surahs == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    final current = mushaf.page(_page);
     return Scaffold(
       appBar: AppBar(
-        title: Text(surahs[current.firstAyah.surah - 1].name),
         actions: [
-          Center(child: Text('الجزء ${mushaf.juzOfPage(_page)}')),
           IconButton(
             tooltip: 'انتقال إلى صفحة',
             icon: const Icon(Icons.numbers),
@@ -99,6 +96,8 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
                     onPageChanged: (i) => _onPageChanged(i + 1),
                     itemBuilder: (context, i) => _PageSlot(
                       page: mushaf.page(i + 1),
+                      juz: mushaf.juzOfPage(i + 1),
+                      hizb: mushaf.hizbOfPage(i + 1),
                       surahs: surahs,
                       selected: _selected,
                       onAyahTap: (a) =>
@@ -194,6 +193,8 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
 class _PageSlot extends ConsumerWidget {
   const _PageSlot({
     required this.page,
+    required this.juz,
+    required this.hizb,
     required this.surahs,
     required this.selected,
     required this.onAyahTap,
@@ -201,6 +202,8 @@ class _PageSlot extends ConsumerWidget {
   });
 
   final MushafPage page;
+  final int juz;
+  final int hizb;
   final List<Surah> surahs;
   final AyahRef? selected;
   final ValueChanged<AyahRef> onAyahTap;
@@ -218,14 +221,56 @@ class _PageSlot extends ConsumerWidget {
         if (snapshot.connectionState != ConnectionState.done) {
           return const Center(child: CircularProgressIndicator());
         }
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
-          child: MushafPageView(
-            page: page,
-            surahName: (s) => surahs[s - 1].name,
-            selected: selected,
-            onAyahTap: onAyahTap,
-            onAyahLongPress: onAyahLongPress,
+        final style = Theme.of(context).textTheme.titleSmall
+            ?.copyWith(color: Theme.of(context).colorScheme.primary);
+        return LayoutBuilder(
+          builder: (context, box) => Center(
+            child: SizedBox(
+              // Keep the header as wide as the text block, also on wide
+              // screens where the page sits in the middle.
+              width: mushafTextWidth(box.maxWidth - 16, box.maxHeight - 36),
+              child: Column(
+                children: [
+                  // Running header, as printed: surah on the right, juz and
+                  // hizb on the left.
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            'سورة ${surahs[page.firstAyah.surah - 1].name}',
+                            style: style,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            'الجزء $juz · الحزب $hizb',
+                            style: style,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 8),
+                  Expanded(
+                    child: MushafPageView(
+                      page: page,
+                      surahName: (s) => surahs[s - 1].name,
+                      selected: selected,
+                      onAyahTap: onAyahTap,
+                      onAyahLongPress: onAyahLongPress,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         );
       },
