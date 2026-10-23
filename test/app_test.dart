@@ -42,6 +42,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('المصحف'), findsOneWidget);
+    await tester.tap(find.text('تسميع'));
+    await tester.pumpAndSettle();
+    expect(find.text('تسميع سورة الفاتحة'), findsOneWidget);
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+
     final dir = Directionality.of(tester.element(find.text('المصحف')));
     expect(dir, TextDirection.rtl);
 

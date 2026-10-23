@@ -25,9 +25,9 @@ class HomeScreen extends ConsumerWidget {
         appBar: AppBar(
           title: const Text('المصحف'),
           actions: [
-            IconButton(
-              tooltip: 'تسميع الفاتحة',
+            FilledButton.tonalIcon(
               icon: const Icon(Icons.mic),
+              label: const Text('تسميع'),
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => const RecitationScreen(surahNumber: 1),
