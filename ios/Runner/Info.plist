@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>يستمع التطبيق إلى تلاوتك ليصحح حفظك.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>يحوّل التطبيق تلاوتك إلى نص ليقارنه بالمصحف وينبهك على الأخطاء.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
