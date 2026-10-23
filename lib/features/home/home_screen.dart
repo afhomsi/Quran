@@ -7,6 +7,7 @@ import '../../data/quran_models.dart';
 import '../../data/quran_repository.dart';
 import '../../data/reading_state.dart';
 import '../mushaf/mushaf_screen.dart';
+import '../recitation/recitation_screen.dart';
 
 /// Index of the mushaf: surahs, juz and bookmarks, plus "continue reading".
 class HomeScreen extends ConsumerWidget {
@@ -24,6 +25,15 @@ class HomeScreen extends ConsumerWidget {
         appBar: AppBar(
           title: const Text('المصحف'),
           actions: [
+            IconButton(
+              tooltip: 'تسميع الفاتحة',
+              icon: const Icon(Icons.mic),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const RecitationScreen(surahNumber: 1),
+                ),
+              ),
+            ),
             IconButton(
               tooltip: 'انتقال إلى صفحة',
               icon: const Icon(Icons.numbers),
