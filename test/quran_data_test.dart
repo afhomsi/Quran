@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hifz/data/mushaf_models.dart';
 import 'package:hifz/data/mushaf_repository.dart';
+import 'package:hifz/data/quarters.dart';
 import 'package:hifz/data/quran_repository.dart';
 
 void main() {
@@ -56,6 +57,21 @@ void main() {
       expect(mushaf.juzOfPage(21), 1);
       expect(mushaf.juzOfPage(22), 2);
       expect(mushaf.juzOfPage(604), 30);
+    });
+
+    test('splits into 240 quarters that line up with the juz', () {
+      expect(rubStarts, hasLength(240));
+      for (var j = 0; j < 30; j++) {
+        expect(rubStarts[j * 8], juzStarts[j]);
+      }
+      for (var i = 1; i < rubStarts.length; i++) {
+        expect(rubStarts[i - 1] < rubStarts[i], isTrue);
+      }
+      expect(mushaf.rubStartPage(1), 1);
+      expect(mushaf.rubStartPage(2), 5);
+      expect(mushaf.hizbOfPage(1), 1);
+      expect(mushaf.hizbOfPage(22), 3);
+      expect(mushaf.hizbOfPage(604), 60);
     });
 
     test('has a surah name line for every surah', () {

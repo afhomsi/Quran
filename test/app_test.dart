@@ -48,8 +48,9 @@ void main() {
     await tester.tap(find.text('البقرة'));
     await tester.pumpAndSettle();
 
-    expect(find.text('سورة البقرة'), findsOneWidget);
-    expect(find.text('الجزء 1'), findsOneWidget);
+    // Running header plus the surah name line at the top of the page.
+    expect(find.text('سورة البقرة'), findsNWidgets(2));
+    expect(find.text('الجزء 1 · الحزب 1'), findsOneWidget);
     expect(find.text('2'), findsOneWidget);
     expect(prefs.getInt('last_page'), 2);
 
@@ -68,5 +69,49 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('2'), findsOneWidget);
     expect(prefs.getInt('last_page'), 2);
+  });
+
+  testWidgets('searches the index and opens the result', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final mushaf = parseMushaf(File(mushafLayoutAssetPath).readAsStringSync());
+    final surahs = parseSurahs(File(quranAssetPath).readAsStringSync());
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          mushafProvider.overrideWith((ref) async => mushaf),
+          surahsProvider.overrideWith((ref) async => surahs),
+          pageFontsProvider.overrideWithValue(_FakePageFonts()),
+        ],
+        child: const HifzApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Without diacritics or hamza, as people type.
+    await tester.enterText(find.byType(TextField), 'الكهف');
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(ListTile, 'الكهف'), findsOneWidget);
+    expect(find.widgetWithText(ListTile, 'البقرة'), findsNothing);
+
+    await tester.tap(find.text('الأرباع'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '٣٠');
+    await tester.pumpAndSettle();
+    expect(find.text('الحزب 30'), findsOneWidget);
+    expect(find.text('ربع الحزب 30'), findsOneWidget);
+
+    await tester.tap(find.text('الصفحات'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '293');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('الصفحة 293'));
+    await tester.pumpAndSettle();
+    // Al-Kahf starts below the last ayah of al-Isra on this page.
+    expect(find.text('سورة الإسراء'), findsOneWidget);
+    expect(find.text('سورة الكهف'), findsOneWidget);
+    expect(prefs.getInt('last_page'), 293);
   });
 }
