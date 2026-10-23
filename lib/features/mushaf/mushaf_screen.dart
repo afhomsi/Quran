@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -69,21 +70,60 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
           ),
         ],
       ),
-      body: SafeArea(
-        child: PageView.builder(
-          controller: _controller,
-          itemCount: mushafPageCount,
-          onPageChanged: (i) => _onPageChanged(i + 1),
-          itemBuilder: (context, i) => _PageSlot(
-            page: mushaf.page(i + 1),
-            surahs: surahs,
-            selected: _selected,
-            onAyahTap: (a) =>
-                setState(() => _selected = _selected == a ? null : a),
-            onAyahLongPress: (a) => _showAyahActions(context, a, surahs),
+      body: CallbackShortcuts(
+        // Pages turn right to left, so the left arrow goes forward.
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.arrowLeft): _nextPage,
+          const SingleActivator(LogicalKeyboardKey.arrowRight): _previousPage,
+        },
+        child: Focus(
+          autofocus: true,
+          child: SafeArea(
+            child: Column(
+              children: [
+                Expanded(
+                  child: PageView.builder(
+                    controller: _controller,
+                    // Let a mouse drag turn pages too, not only touch.
+                    scrollBehavior: ScrollConfiguration.of(
+                      context,
+                    ).copyWith(dragDevices: PointerDeviceKind.values.toSet()),
+                    itemCount: mushafPageCount,
+                    onPageChanged: (i) => _onPageChanged(i + 1),
+                    itemBuilder: (context, i) => _PageSlot(
+                      page: mushaf.page(i + 1),
+                      surahs: surahs,
+                      selected: _selected,
+                      onAyahTap: (a) =>
+                          setState(() => _selected = _selected == a ? null : a),
+                      onAyahLongPress: (a) =>
+                          _showAyahActions(context, a, surahs),
+                    ),
+                  ),
+                ),
+                _PageBar(
+                  page: _page,
+                  onPrevious: _page > 1 ? _previousPage : null,
+                  onNext: _page < mushafPageCount ? _nextPage : null,
+                ),
+              ],
+            ),
           ),
         ),
       ),
+    );
+  }
+
+  void _nextPage() => _turnTo(_page + 1);
+
+  void _previousPage() => _turnTo(_page - 1);
+
+  void _turnTo(int page) {
+    if (page < 1 || page > mushafPageCount) return;
+    _controller.animateToPage(
+      page - 1,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
     );
   }
 
@@ -173,28 +213,54 @@ class _PageSlot extends ConsumerWidget {
         }
         return Padding(
           padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
-          child: Column(
-            children: [
-              Expanded(
-                child: MushafPageView(
-                  page: page,
-                  surahName: (s) => surahs[s - 1].name,
-                  selected: selected,
-                  onAyahTap: onAyahTap,
-                  onAyahLongPress: onAyahLongPress,
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(4),
-                child: Text(
-                  '${page.number}',
-                  style: Theme.of(context).textTheme.labelLarge,
-                ),
-              ),
-            ],
+          child: MushafPageView(
+            page: page,
+            surahName: (s) => surahs[s - 1].name,
+            selected: selected,
+            onAyahTap: onAyahTap,
+            onAyahLongPress: onAyahLongPress,
           ),
         );
       },
+    );
+  }
+}
+
+/// Previous and next page buttons around the page number. The previous
+/// page is on the right, as in a printed mushaf.
+class _PageBar extends StatelessWidget {
+  const _PageBar({required this.page, this.onPrevious, this.onNext});
+
+  final int page;
+  final VoidCallback? onPrevious;
+  final VoidCallback? onNext;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        IconButton(
+          tooltip: 'الصفحة السابقة',
+          // Chevrons mirror in right-to-left layouts, so this one points
+          // right, away from the page number.
+          icon: const Icon(Icons.chevron_left),
+          onPressed: onPrevious,
+        ),
+        SizedBox(
+          width: 56,
+          child: Text(
+            '$page',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+        ),
+        IconButton(
+          tooltip: 'الصفحة التالية',
+          icon: const Icon(Icons.chevron_right),
+          onPressed: onNext,
+        ),
+      ],
     );
   }
 }
