@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'mushaf_models.dart';
+import 'quarters.dart';
 
 const mushafLayoutAssetPath = 'assets/mushaf/layout.json';
 const mushafPageCount = 604;
@@ -42,10 +43,21 @@ class Mushaf {
 
   int juzStartPage(int juz) => pageOf(juzStarts[juz - 1]);
 
+  int rubStartPage(int rub) => pageOf(rubStarts[rub - 1]);
+
   /// The juz that the first ayah of [page] belongs to.
-  int juzOfPage(int page) {
+  int juzOfPage(int page) => _indexOf(juzStarts, page);
+
+  /// The quarter (1 to 240) that the first ayah of [page] belongs to.
+  int rubOfPage(int page) => _indexOf(rubStarts, page);
+
+  /// The hizb (1 to 60) that the first ayah of [page] belongs to.
+  int hizbOfPage(int page) => (rubOfPage(page) - 1) ~/ 4 + 1;
+
+  /// 1-based index of the last of [starts] at or before the top of [page].
+  int _indexOf(List<AyahRef> starts, int page) {
     final first = this.page(page).firstAyah;
-    return juzStarts.lastIndexWhere((s) => !(first < s)) + 1;
+    return starts.lastIndexWhere((s) => !(first < s)) + 1;
   }
 }
 

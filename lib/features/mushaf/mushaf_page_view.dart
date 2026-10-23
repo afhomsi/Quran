@@ -11,6 +11,16 @@ const _linePitchEm = 1.6;
 
 const _linesPerPage = 15;
 
+/// Width of the printed text block when a page gets [width] by [height].
+/// A tall screen is limited by its width, a wide one by its height.
+double mushafTextWidth(double width, double height) {
+  final fontSize = [
+    width / _lineWidthEm,
+    height / _linesPerPage / _linePitchEm,
+  ].reduce((a, b) => a < b ? a : b);
+  return fontSize * _lineWidthEm;
+}
+
 /// Draws one mushaf page line by line, as printed in the Madinah mushaf.
 class MushafPageView extends StatelessWidget {
   const MushafPageView({
@@ -33,10 +43,8 @@ class MushafPageView extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, box) {
         final lineHeight = box.maxHeight / _linesPerPage;
-        final fontSize = [
-          box.maxWidth / _lineWidthEm,
-          lineHeight / _linePitchEm,
-        ].reduce((a, b) => a < b ? a : b);
+        final fontSize =
+            mushafTextWidth(box.maxWidth, box.maxHeight) / _lineWidthEm;
         return Column(
           // Pages 1 and 2 have only a few lines, set in the middle.
           mainAxisAlignment: MainAxisAlignment.center,
