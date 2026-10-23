@@ -1,6 +1,6 @@
 # حفظ — Hifz
 
-A Flutter app for iOS and Android that helps you memorize the Quran.
+A Flutter app for iOS and Android (also runs in Chrome for testing) that helps you memorize the Quran.
 Offline-first, Hafs riwayah.
 
 ## Status
@@ -23,7 +23,7 @@ off, and ayah bookmarks. See the roadmap below.
 ```sh
 flutter pub get
 flutter test
-flutter run
+flutter run              # or: flutter run -d chrome
 ```
 
 Code layout:

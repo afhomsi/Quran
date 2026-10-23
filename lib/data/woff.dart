@@ -1,5 +1,6 @@
-import 'dart:io' show ZLibCodec;
 import 'dart:typed_data';
+
+import 'package:archive/archive.dart' show ZLibDecoder;
 
 /// Converts a WOFF 1.0 font to the plain TrueType/OpenType (sfnt) bytes that
 /// [FontLoader] accepts on every platform.
@@ -14,7 +15,8 @@ Uint8List woffToSfnt(Uint8List woff) {
   final numTables = src.getUint16(12);
 
   final tables = <({int tag, int checksum, Uint8List data})>[];
-  final zlib = ZLibCodec();
+  // Pure Dart zlib, so this also runs on the web, where dart:io is missing.
+  final zlib = ZLibDecoder();
   for (var i = 0; i < numTables; i++) {
     final entry = 44 + i * 20;
     final offset = src.getUint32(entry + 4);
@@ -25,7 +27,7 @@ Uint8List woffToSfnt(Uint8List woff) {
       tag: src.getUint32(entry),
       checksum: src.getUint32(entry + 16),
       data: compLength < origLength
-          ? Uint8List.fromList(zlib.decode(raw))
+          ? Uint8List.fromList(zlib.decodeBytes(raw))
           : raw,
     ));
   }
