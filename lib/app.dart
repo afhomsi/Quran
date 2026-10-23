@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
-import 'features/surahs/surah_list_screen.dart';
+import 'features/home/home_screen.dart';
 
 class HifzApp extends StatelessWidget {
   const HifzApp({super.key});
@@ -16,7 +16,7 @@ class HifzApp extends StatelessWidget {
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
       theme: _theme(Brightness.light),
       darkTheme: _theme(Brightness.dark),
-      home: const SurahListScreen(),
+      home: const HomeScreen(),
     );
   }
 
