@@ -20,7 +20,7 @@ class _FakePageFonts extends PageFonts {
 }
 
 void main() {
-  testWidgets('opens a surah in the mushaf and remembers the page', (
+  testWidgets('opens a surah, turns pages and remembers the page', (
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
@@ -50,6 +50,22 @@ void main() {
 
     expect(find.text('سورة البقرة'), findsOneWidget);
     expect(find.text('الجزء 1'), findsOneWidget);
+    expect(find.text('2'), findsOneWidget);
+    expect(prefs.getInt('last_page'), 2);
+
+    await tester.tap(find.byTooltip('الصفحة التالية'));
+    await tester.pumpAndSettle();
+    expect(find.text('3'), findsOneWidget);
+    expect(prefs.getInt('last_page'), 3);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    await tester.pumpAndSettle();
+    expect(find.text('4'), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('الصفحة السابقة'));
+    await tester.pumpAndSettle();
     expect(find.text('2'), findsOneWidget);
     expect(prefs.getInt('last_page'), 2);
   });
