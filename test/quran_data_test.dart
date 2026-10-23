@@ -1,21 +1,69 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hifz/data/mushaf_models.dart';
+import 'package:hifz/data/mushaf_repository.dart';
 import 'package:hifz/data/quran_repository.dart';
 
 void main() {
-  final surahs = parseSurahs(File(quranAssetPath).readAsStringSync());
+  group('bundled text', () {
+    final surahs = parseSurahs(File(quranAssetPath).readAsStringSync());
 
-  test('bundled text has 114 surahs and 6236 ayahs', () {
-    expect(surahs, hasLength(114));
-    expect(surahs.fold<int>(0, (n, s) => n + s.ayahCount), 6236);
+    test('has 114 surahs and 6236 ayahs', () {
+      expect(surahs, hasLength(114));
+      expect(surahs.fold<int>(0, (n, s) => n + s.ayahCount), 6236);
+    });
+
+    test('surah metadata is parsed', () {
+      expect(surahs.first.number, 1);
+      expect(surahs.first.ayahCount, 7);
+      expect(surahs.first.isMeccan, isTrue);
+      expect(surahs[1].ayahCount, 286);
+      expect(surahs[1].isMeccan, isFalse);
+    });
   });
 
-  test('surah metadata is parsed', () {
-    expect(surahs.first.number, 1);
-    expect(surahs.first.ayahCount, 7);
-    expect(surahs.first.isMeccan, isTrue);
-    expect(surahs[1].ayahCount, 286);
-    expect(surahs[1].isMeccan, isFalse);
+  group('mushaf layout', () {
+    final mushaf = parseMushaf(File(mushafLayoutAssetPath).readAsStringSync());
+
+    test('has 604 pages of at most 15 lines', () {
+      expect(mushaf.pages, hasLength(604));
+      expect(mushaf.pages.every((p) => p.lines.length <= 15), isTrue);
+      expect(mushaf.pages.where((p) => p.lines.length == 15).length, 602);
+    });
+
+    test('places every ayah, in order, with one end marker each', () {
+      final words = mushaf.pages.expand((p) => p.words).toList();
+      final ends = words.where((w) => w.isAyahEnd).map((w) => w.ayah).toList();
+      expect(ends, hasLength(6236));
+      for (var i = 1; i < ends.length; i++) {
+        expect(ends[i - 1] < ends[i], isTrue, reason: '${ends[i]}');
+      }
+    });
+
+    test('finds pages of surahs, juz and ayat', () {
+      expect(mushaf.surahStartPage(1), 1);
+      expect(mushaf.surahStartPage(2), 2);
+      expect(mushaf.surahStartPage(18), 293);
+      expect(mushaf.surahStartPage(114), 604);
+      expect(mushaf.juzStartPage(2), 22);
+      expect(mushaf.juzStartPage(30), 582);
+      expect(mushaf.pageOf(const AyahRef(2, 255)), 42);
+    });
+
+    test('knows the juz of each page', () {
+      expect(mushaf.juzOfPage(1), 1);
+      expect(mushaf.juzOfPage(21), 1);
+      expect(mushaf.juzOfPage(22), 2);
+      expect(mushaf.juzOfPage(604), 30);
+    });
+
+    test('has a surah name line for every surah', () {
+      final headers = mushaf.pages
+          .expand((p) => p.lines)
+          .whereType<SurahNameLine>()
+          .map((l) => l.surah);
+      expect(headers, List.generate(114, (i) => i + 1));
+    });
   });
 }
