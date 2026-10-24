@@ -19,7 +19,7 @@ const _model = 'quran-base';
 /// The model's files and their approximate sizes, for showing progress.
 const _files = {
   '$_model-encoder.int8.onnx': 29104812,
-  '$_model-decoder.int8.onnx': 130659024,
+  '$_model-decoder.small.onnx': 77757706,
   '$_model-tokens.txt': 816730,
   'silero_vad.onnx': 643854,
 };
@@ -283,7 +283,7 @@ void _worker((SendPort, String) args) {
         model: sherpa.OfflineModelConfig(
           whisper: sherpa.OfflineWhisperModelConfig(
             encoder: '$dir/$_model-encoder.int8.onnx',
-            decoder: '$dir/$_model-decoder.int8.onnx',
+            decoder: '$dir/$_model-decoder.small.onnx',
             language: 'ar',
             task: 'transcribe',
           ),

@@ -62,8 +62,6 @@ jobs:
           done
           python check.py ${{ matrix.name }} ${{ matrix.name }}-decoder.int8.onnx $clips
           python check.py ${{ matrix.name }} ${{ matrix.name }}-decoder.small.onnx $clips
-          python inspect_model.py ${{ matrix.name }}-decoder.onnx \
-            ${{ matrix.name }}-decoder.int8.onnx ${{ matrix.name }}-decoder.small.onnx
       - name: Publish
         if: github.event_name != 'pull_request'
         working-directory: tool/asr
