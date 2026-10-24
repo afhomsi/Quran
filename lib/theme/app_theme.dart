@@ -87,6 +87,7 @@ ThemeData appTheme(Brightness brightness) {
       labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
       iconTheme: WidgetStateProperty.resolveWith(
         (states) => IconThemeData(
+          size: 26,
           color: states.contains(WidgetState.selected)
               ? scheme.onSecondaryContainer
               : scheme.onSurfaceVariant,

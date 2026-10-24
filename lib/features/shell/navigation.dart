@@ -95,15 +95,17 @@ class AppNavigationBar extends ConsumerWidget {
         }
         ref.read(appTabProvider.notifier).select(AppTab.values[i]);
       },
+      // Every tab is outlined, and filled when chosen, so all five weigh the
+      // same.
       destinations: [
         NavigationDestination(
-          icon: const Icon(Icons.import_contacts_rounded),
+          icon: const Icon(Icons.auto_stories_outlined),
           selectedIcon: Badge(
             label: const Icon(Icons.keyboard_arrow_up_rounded, size: 12),
             padding: EdgeInsets.zero,
             backgroundColor: Theme.of(context).colorScheme.secondary,
             textColor: Theme.of(context).colorScheme.onSecondary,
-            child: const Icon(Icons.import_contacts_rounded),
+            child: const Icon(Icons.auto_stories_rounded),
           ),
           label: t.tabRead,
         ),
@@ -113,7 +115,7 @@ class AppNavigationBar extends ConsumerWidget {
           label: t.tabKhatma,
         ),
         NavigationDestination(
-          icon: const Icon(Icons.format_list_numbered_rtl_rounded),
+          icon: const Icon(Icons.format_list_bulleted_rounded),
           label: t.tabIndex,
         ),
         NavigationDestination(
@@ -122,7 +124,8 @@ class AppNavigationBar extends ConsumerWidget {
           label: t.tabBookmarks,
         ),
         NavigationDestination(
-          icon: const Icon(Icons.grid_view_rounded),
+          icon: const Icon(Icons.handyman_outlined),
+          selectedIcon: const Icon(Icons.handyman_rounded),
           label: t.tabMore,
         ),
       ],
