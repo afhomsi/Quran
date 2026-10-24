@@ -89,8 +89,8 @@ class SettingsScreen extends ConsumerWidget {
               if (settings.autoPageTurn)
                 Slider(
                   value: settings.autoPageSeconds.toDouble(),
-                  min: 15,
-                  max: 300,
+                  min: minAutoPageSeconds.toDouble(),
+                  max: maxAutoPageSeconds.toDouble(),
                   divisions: 19,
                   label: t.autoPageEvery(settings.autoPageSeconds),
                   onChanged: (v) =>

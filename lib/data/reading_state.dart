@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'mushaf_models.dart';
+import 'mushaf_repository.dart' show mushafPageCount;
 
 /// Overridden in `main` with the instance loaded at startup.
 final sharedPreferencesProvider = Provider<SharedPreferences>(
@@ -28,7 +29,11 @@ const _bookmarksKey = 'bookmarks';
 /// The page the reader was last on, so the app can resume there.
 class LastPageNotifier extends Notifier<int?> {
   @override
-  int? build() => ref.watch(sharedPreferencesProvider).getInt(_lastPageKey);
+  int? build() {
+    final page = ref.watch(sharedPreferencesProvider).getInt(_lastPageKey);
+    // A page outside the mushaf, e.g. from an edited backup, is ignored.
+    return page != null && page >= 1 && page <= mushafPageCount ? page : null;
+  }
 
   void set(int page) {
     state = page;
@@ -47,7 +52,7 @@ class BookmarksNotifier extends Notifier<List<AyahRef>> {
     for (final s
         in ref.watch(sharedPreferencesProvider).getStringList(_bookmarksKey) ??
             const <String>[])
-      AyahRef.parse(s),
+      ?AyahRef.tryParse(s),
   ];
 
   bool contains(AyahRef ayah) => state.contains(ayah);

@@ -29,11 +29,11 @@ class MarkersNotifier extends Notifier<Map<MarkerKind, AyahRef>> {
     final raw = ref.watch(sharedPreferencesProvider).getString(_markersKey);
     return readStored(
       raw,
+      // Entries that are not a marker on an ayah of the mushaf are left
+      // out, so a damaged backup cannot point the app at a missing page.
       (json) => {
         for (final e in (json as Map).entries)
-          MarkerKind.values.byName(e.key as String): AyahRef.parse(
-            e.value as String,
-          ),
+          ?MarkerKind.values.asNameMap()[e.key]: ?AyahRef.tryParse(e.value),
       },
       const {},
     );
@@ -86,10 +86,11 @@ class HighlightsNotifier extends Notifier<Map<AyahRef, int>> {
       raw,
       (json) => {
         for (final e in (json as Map).entries)
-          AyahRef.parse(e.key as String): (e.value as int).clamp(
-            0,
-            highlightColors.length - 1,
-          ),
+          if ((AyahRef.tryParse(e.key), e.value) case (
+            final ayah?,
+            final int color,
+          ))
+            ayah: color.clamp(0, highlightColors.length - 1),
       },
       const {},
     );
@@ -119,6 +120,10 @@ final highlightsProvider =
       HighlightsNotifier.new,
     );
 
+/// The longest note kept, in characters, so a huge restored backup cannot
+/// slow the app down.
+const maxNoteLength = 10000;
+
 /// The reader's own notes on ayat, in the order they were written.
 class NotesNotifier extends Notifier<Map<AyahRef, String>> {
   @override
@@ -128,7 +133,13 @@ class NotesNotifier extends Notifier<Map<AyahRef, String>> {
       raw,
       (json) => {
         for (final e in (json as Map).entries)
-          AyahRef.parse(e.key as String): e.value as String,
+          if ((AyahRef.tryParse(e.key), e.value) case (
+            final ayah?,
+            final String text,
+          ))
+            ayah: text.length > maxNoteLength
+                ? text.substring(0, maxNoteLength)
+                : text,
       },
       const {},
     );
@@ -137,7 +148,12 @@ class NotesNotifier extends Notifier<Map<AyahRef, String>> {
   /// Saves [text] as the note on [ayah]; blank text deletes the note.
   void set(AyahRef ayah, String text) {
     final notes = {...state}..remove(ayah);
-    if (text.trim().isNotEmpty) notes[ayah] = text.trim();
+    final trimmed = text.trim();
+    if (trimmed.isNotEmpty) {
+      notes[ayah] = trimmed.length > maxNoteLength
+          ? trimmed.substring(0, maxNoteLength)
+          : trimmed;
+    }
     state = notes;
     ref
         .read(sharedPreferencesProvider)

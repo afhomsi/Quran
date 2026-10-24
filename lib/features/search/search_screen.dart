@@ -42,6 +42,21 @@ class _QuranSearchScreenState extends ConsumerState<QuranSearchScreen> {
     setState(() {});
   }
 
+  /// The last search made and what it found. Typing redraws the screen
+  /// at once, for the clear button, and must not search all the ayat again
+  /// on every letter before the pause.
+  (QuranSearchIndex, String, SearchOptions)? _searched;
+  var _hits = const <SearchHit>[];
+
+  List<SearchHit> _search(QuranSearchIndex index) {
+    final key = (index, _query, _options);
+    if (key != _searched) {
+      _searched = key;
+      _hits = index.search(_query, _options);
+    }
+    return _hits;
+  }
+
   void _setOptions(SearchOptions options) =>
       setState(() => _options = _lastOptions = options);
 
@@ -73,7 +88,7 @@ class _QuranSearchScreenState extends ConsumerState<QuranSearchScreen> {
               error: (e, _) => _Message('$e'),
               data: (index) => _Results(
                 index: index,
-                hits: index.search(_query, _options),
+                hits: _search(index),
                 empty: SearchQuery(_query, _options).isEmpty,
                 help: _options.mode == SearchMode.meaning
                     ? t.searchMeaningHelp

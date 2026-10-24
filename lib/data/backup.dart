@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../settings/app_settings.dart';
+import 'mushaf_models.dart';
+import 'mushaf_repository.dart' show mushafPageCount;
 
 const _lastPageKey = 'last_page';
 const _bookmarksKey = 'bookmarks';
@@ -34,9 +36,19 @@ String exportBackup(SharedPreferences prefs) {
   });
 }
 
+/// The largest backup restored, in characters. A real one, with a full
+/// recitation history and many notes, is far smaller; anything bigger is
+/// not this app's and could only slow the phone down.
+const maxBackupLength = 5 * 1024 * 1024;
+
 /// Restores what [exportBackup] wrote. Returns false, and changes nothing,
 /// when [text] is not a backup of this app.
+///
+/// The text comes from outside the app, so nothing in it is trusted: each
+/// value is checked, and values that are wrong are left out. Data saved as
+/// JSON is checked again when it is read (see `readStored`).
 Future<bool> importBackup(SharedPreferences prefs, String text) async {
+  if (text.length > maxBackupLength) return false;
   final Map<String, dynamic> backup;
   try {
     final decoded = jsonDecode(text.trim());
@@ -50,11 +62,13 @@ Future<bool> importBackup(SharedPreferences prefs, String text) async {
   final lastPage = backup['last_page'];
   final bookmarks = backup['bookmarks'];
   final settings = backup['settings'];
-  if (lastPage is int) await prefs.setInt(_lastPageKey, lastPage);
+  if (lastPage is int && lastPage >= 1 && lastPage <= mushafPageCount) {
+    await prefs.setInt(_lastPageKey, lastPage);
+  }
   if (bookmarks is List) {
     await prefs.setStringList(_bookmarksKey, [
       for (final b in bookmarks)
-        if (b is String && RegExp(r'^\d+:\d+$').hasMatch(b)) b,
+        if (AyahRef.tryParse(b) case final ayah?) '$ayah',
     ]);
   }
   if (settings is Map<String, dynamic>) {
