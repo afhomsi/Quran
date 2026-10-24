@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -98,5 +99,7 @@ MushafLine _parseLine(Map l) => switch (l['t']) {
 
 final mushafProvider = FutureProvider<Mushaf>((ref) async {
   final raw = await rootBundle.loadString(mushafLayoutAssetPath);
-  return parseMushaf(raw);
+  // Reading the 2.5 MB layout takes a moment on a phone, so it is done in
+  // the background and the app keeps drawing meanwhile.
+  return compute(parseMushaf, raw);
 });

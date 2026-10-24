@@ -21,7 +21,7 @@ class MistakeRecord {
   Map<String, dynamic> toJson() => {'ayah': ?ayah?.toString(), 'msg': message};
 
   factory MistakeRecord.fromJson(Map<String, dynamic> json) => MistakeRecord(
-    json['ayah'] == null ? null : AyahRef.parse(json['ayah'] as String),
+    json['ayah'] == null ? null : AyahRef.parseValid(json['ayah']),
     json['msg'] as String,
   );
 }
@@ -75,8 +75,8 @@ class RecitationRecord {
         date: DateTime.parse(json['date'] as String),
         surah: json['surah'] as int?,
         page: json['page'] as int?,
-        first: AyahRef.parse(json['first'] as String),
-        last: AyahRef.parse(json['last'] as String),
+        first: AyahRef.parseValid(json['first']),
+        last: AyahRef.parseValid(json['last']),
         wordsDone: json['done'] as int,
         wordsTotal: json['total'] as int,
         complete: json['complete'] as bool,
@@ -85,6 +85,14 @@ class RecitationRecord {
             MistakeRecord.fromJson(m as Map<String, dynamic>),
         ],
       );
+}
+
+RecitationRecord? _tryRecord(Object? json) {
+  try {
+    return RecitationRecord.fromJson(json as Map<String, dynamic>);
+  } catch (_) {
+    return null;
+  }
 }
 
 /// Every recitation check, newest first.
@@ -96,10 +104,11 @@ class RecitationHistoryNotifier extends Notifier<List<RecitationRecord>> {
         .getString(recitationHistoryKey);
     return readStored(
       raw,
-      (json) => [
-        for (final r in json as List)
-          RecitationRecord.fromJson(r as Map<String, dynamic>),
-      ],
+      // A damaged record is left out, not the whole history.
+      (json) =>
+          [for (final r in json as List) ?_tryRecord(r)]
+              .take(_maxRecords)
+              .toList(),
       const [],
     );
   }

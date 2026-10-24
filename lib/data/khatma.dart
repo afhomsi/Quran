@@ -109,7 +109,20 @@ class KhatmaPlan {
     KhatmaType.custom => customDays.clamp(1, mushafPageCount),
   };
 
-  List<KhatmaPortion> portions(Mushaf m) => switch (type) {
+  /// The portions of the plan, worked out once: the mushaf redraws its
+  /// pages often, e.g. on every word recited, and asks for them each time.
+  List<KhatmaPortion> portions(Mushaf m) {
+    if (_portions[this] case (final mushaf, final list) when mushaf == m) {
+      return list;
+    }
+    final list = _portionsOf(m);
+    _portions[this] = (m, list);
+    return list;
+  }
+
+  static final _portions = Expando<(Mushaf, List<KhatmaPortion>)>();
+
+  List<KhatmaPortion> _portionsOf(Mushaf m) => switch (type) {
     KhatmaType.salaf => _between(salafManzilStarts, (i) => i + 1),
     KhatmaType.ramadan => _between(juzStarts, (i) => i + 1),
     KhatmaType.dailyWird => [
@@ -181,15 +194,29 @@ class KhatmaPlan {
     'done': done.toList()..sort(),
   };
 
-  factory KhatmaPlan.fromJson(Map<String, dynamic> json) => KhatmaPlan(
-    id: json['id'] as String,
-    title: json['title'] as String,
-    type: KhatmaType.values.byName(json['type'] as String),
-    color: json['color'] as int,
-    days: json['days'] as int,
-    created: DateTime.parse(json['created'] as String),
-    done: {for (final i in json['done'] as List) i as int},
-  );
+  /// Reads what [toJson] wrote. The length is kept within what the plan
+  /// form allows, so an edited backup cannot ask for pages past the end of
+  /// the mushaf.
+  factory KhatmaPlan.fromJson(Map<String, dynamic> json) {
+    final type = KhatmaType.values.byName(json['type'] as String);
+    return KhatmaPlan(
+      id: json['id'] as String,
+      title: json['title'] as String,
+      type: type,
+      color: json['color'] as int,
+      days: daysFor(type, customDays: json['days'] as int),
+      created: DateTime.parse(json['created'] as String),
+      done: {for (final i in json['done'] as List) i as int},
+    );
+  }
+}
+
+KhatmaPlan? _tryPlan(Object? json) {
+  try {
+    return KhatmaPlan.fromJson(json as Map<String, dynamic>);
+  } catch (_) {
+    return null;
+  }
 }
 
 /// The user's khatma plans, newest first.
@@ -198,15 +225,13 @@ class KhatmaPlansNotifier extends Notifier<List<KhatmaPlan>> {
   List<KhatmaPlan> build() {
     final raw = ref.watch(sharedPreferencesProvider).getString(_plansKey);
     return readStored(raw, (json) {
-      final plans = [
+      // A damaged plan is left out, not all of them. Each plan's bookmark
+      // color must be one of the colors.
+      return [
         for (final p in json as List)
-          KhatmaPlan.fromJson(p as Map<String, dynamic>),
+          if (_tryPlan(p) case final plan?)
+            if (plan.color >= 0 && plan.color < khatmaColors.length) plan,
       ];
-      // Each plan's bookmark color must be one of the colors.
-      for (final p in plans) {
-        RangeError.checkValueInInterval(p.color, 0, khatmaColors.length - 1);
-      }
-      return plans;
     }, const []);
   }
 

@@ -47,6 +47,9 @@ enum StudyBook {
   }
 }
 
+/// The largest answer read for one ayah of one book, in bytes.
+const maxStudyResponseBytes = 2 * 1024 * 1024;
+
 /// Fetches study texts and keeps them, in memory and on the device.
 class StudyRepository {
   StudyRepository({http.Client? client, StudyCache? cache})
@@ -83,8 +86,23 @@ class StudyRepository {
           error = 'HTTP ${response.statusCode}';
           continue;
         }
+        // The longest tafsir of one ayah is well under this; a bigger
+        // answer is not the book's and is not kept on the device.
+        if (response.bodyBytes.length > maxStudyResponseBytes) {
+          error = 'Too large';
+          continue;
+        }
         final json = jsonDecode(utf8.decode(response.bodyBytes));
-        return ((json as Map)['text'] as String? ?? '').trim();
+        if (json is! Map) {
+          error = 'Not a study text';
+          continue;
+        }
+        final text = json['text'] ?? '';
+        if (text is! String) {
+          error = 'Not a study text';
+          continue;
+        }
+        return text.trim();
       } catch (e) {
         error = e;
       }
