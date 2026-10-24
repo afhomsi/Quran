@@ -6,10 +6,12 @@ import '../data/marks.dart';
 import '../data/study.dart';
 import '../data/tajweed.dart';
 import '../data/quran_models.dart';
+import '../data/quran_search.dart';
 import '../settings/app_settings.dart';
 
 part 'strings_features.dart';
 part 'strings_hifz.dart';
+part 'strings_search.dart';
 part 'strings_study.dart';
 
 /// The app's texts in the language chosen in the settings. Put above the

@@ -10,6 +10,7 @@ import 'package:hifz/data/marks.dart';
 import 'package:hifz/data/mushaf_models.dart';
 import 'package:hifz/data/mushaf_repository.dart';
 import 'package:hifz/data/quran_repository.dart';
+import 'package:hifz/data/quran_search.dart';
 import 'package:hifz/data/reading_state.dart';
 import 'package:hifz/data/study.dart';
 import 'package:hifz/data/study_cache.dart';
@@ -21,6 +22,7 @@ import 'package:hifz/features/study/word_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fake_player.dart';
+import 'quran_search_test.dart' show loadSearchIndex;
 
 /// Keeps nothing, so no files are written in tests.
 class _NoCache extends StudyCache {
@@ -30,6 +32,9 @@ class _NoCache extends StudyCache {
   @override
   Future<void> write(String key, String text) async {}
 }
+
+/// Made once, as it takes a moment.
+final _searchIndex = loadSearchIndex();
 
 Future<(ProviderContainer, FakePlayer)> _start(WidgetTester tester) async {
   SharedPreferences.setMockInitialValues({});
@@ -46,6 +51,7 @@ Future<(ProviderContainer, FakePlayer)> _start(WidgetTester tester) async {
         sharedPreferencesProvider.overrideWithValue(prefs),
         mushafProvider.overrideWith((ref) async => mushaf),
         surahsProvider.overrideWith((ref) async => surahs),
+        quranSearchProvider.overrideWith((ref) async => _searchIndex),
         ayahPlayerProvider.overrideWithValue(player),
         screenWakeProvider.overrideWithValue((on) async {}),
         // The books say nothing, without going to the internet.
@@ -189,9 +195,15 @@ void main() {
   testWidgets('searches the Quran and jumps to the ayah', (tester) async {
     final (container, _) = await _start(tester);
     await _tap(tester, find.byTooltip('بحث في القرآن'));
-    await tester.enterText(find.byType(TextField), 'اصحب الكهف');
+    await tester.enterText(find.byType(TextField), 'الكهف اصحب');
+    // The search waits for the typing to stop.
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.pumpAndSettle();
-    await _tap(tester, find.text('الكهف : الآية 9'));
+    expect(find.text('لا توجد نتائج'), findsOneWidget);
+
+    await _tap(tester, find.text('كلمات متفرقة'));
+    expect(find.text('سورة الكهف'), findsOneWidget);
+    await _tap(tester, find.text('سورة الكهف'));
     expect(container.read(lastPageProvider), 294);
   });
 
