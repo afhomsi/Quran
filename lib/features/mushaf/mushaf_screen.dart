@@ -16,10 +16,12 @@ import '../../data/quran_models.dart';
 import '../../data/quran_repository.dart';
 import '../../data/reading_state.dart';
 import '../../l10n/strings.dart';
+import '../../recitation/page_recitation.dart';
 import '../../settings/app_settings.dart';
 import '../audio/audio_bar.dart';
 import '../audio/repeat_sheet.dart';
 import '../notes/notes_screen.dart';
+import '../recitation/recitation_bar.dart';
 import '../recitation/recitation_picker.dart';
 import '../settings/settings_screen.dart';
 import '../shell/navigation.dart';
@@ -31,7 +33,9 @@ import 'mushaf_page_view.dart';
 /// The top bar has a menu, night mode, a clock, a switch to plain text and
 /// ayah search. Listening and reciting have their own buttons beside the
 /// page number. The audio player sits under the page while it is open, and
-/// the page follows the ayah being recited.
+/// the page follows the ayah being recited. Reciting the page also happens
+/// here, from a bar under the page, with each recited ayah colored green or
+/// red on the page.
 ///
 /// Follows the settings: two facing pages on a wide screen, vertical
 /// scrolling, automatic page turning, the page color and the ayah menu on
@@ -161,6 +165,7 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
     ref.watch(highlightsProvider);
     ref.watch(markersProvider);
     ref.watch(khatmaPlansProvider);
+    final recitation = ref.watch(pageRecitationProvider);
     final dark = Theme.of(context).brightness == Brightness.dark;
     final background = dark ? null : settings.pageTheme.color;
     final vertical = settings.verticalScroll;
@@ -315,6 +320,7 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
                       },
                     ),
                   ),
+                  if (recitation != null) const RecitationBar(),
                   if (audio.visible) const AudioBar(),
                   _PageBar(
                     label: _spread && _page + 1 <= mushafPageCount
@@ -329,7 +335,9 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
                     ),
                     onRecite: settings.hideRecitationButton
                         ? null
-                        : () => showRecitationPicker(context, page: _page),
+                        : () => ref
+                              .read(pageRecitationProvider.notifier)
+                              .start(_page),
                   ),
                 ],
               ),
@@ -354,10 +362,16 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
     }
     final highlights = ref.read(highlightsProvider);
     final markers = ref.read(markersProvider);
+    final recitation = ref.read(pageRecitationProvider);
     return _PageSlot(
       page: mushaf.page(page),
       highlights: {
         for (final e in highlights.entries) e.key: highlightColors[e.value],
+        if (recitation?.page == page)
+          for (final e in recitation!.ayahStates.entries)
+            e.key: e.value == AyahRecitation.mistake
+                ? _mistakeColor
+                : _correctColor,
       },
       bookmarks: [
         for (final kind in MarkerKind.values)
@@ -543,6 +557,10 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
     _controller.jumpToPage(_indexOf(mushaf.pageOf(ayah)));
   }
 }
+
+/// How ayat are colored while reciting the page.
+final _correctColor = Colors.green.withValues(alpha: 0.3);
+final _mistakeColor = Colors.red.withValues(alpha: 0.35);
 
 class _ColorDot extends StatelessWidget {
   const _ColorDot({

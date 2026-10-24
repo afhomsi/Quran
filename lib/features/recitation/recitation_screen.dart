@@ -11,6 +11,7 @@ import '../../l10n/strings.dart';
 import '../../recitation/alert_sound.dart';
 import '../../recitation/recitation_matcher.dart';
 import '../../recitation/recitation_session.dart';
+import '../../recitation/session_record.dart';
 import '../../recitation/speech_listener.dart';
 import '../audio/audio_bar.dart';
 import '../audio/repeat_sheet.dart';
@@ -148,40 +149,15 @@ class _RecitationViewState extends ConsumerState<_RecitationView> {
 
   /// Keeps what was recited and its mistakes in the history, once.
   void _save() {
-    final words = _session.result.words;
-    final progress = _session.result.progress;
-    final reached = words
-        .take(progress)
-        .where((w) => w.word.kind == WordKind.ayah)
-        .toList();
-    if (_saved || reached.isEmpty) return;
+    if (_saved) return;
+    final record = recordOf(_session, surah: widget.surah, page: widget.page);
+    if (record == null) return;
     _saved = true;
-    _history.add(
-      RecitationRecord(
-        date: DateTime.now(),
-        surah: widget.surah,
-        page: widget.page,
-        first: _ayat.first,
-        last: AyahRef(reached.last.surah, reached.last.ayah),
-        wordsDone: reached.length,
-        wordsTotal: words.where((w) => !w.word.optional).length,
-        complete: _session.result.isComplete,
-        mistakes: [for (final m in _session.mistakes) _record(m)],
-      ),
-    );
-  }
-
-  MistakeRecord _record(Mistake m) {
-    final w = widget.words[m.wordIndex];
-    return MistakeRecord(
-      w.kind == WordKind.ayah ? AyahRef(w.surah, w.ayah) : null,
-      m.message,
-    );
+    _history.add(record);
   }
 
   /// The ayat recited wrongly so far, in order.
-  List<AyahRef> get _mistakeAyat =>
-      {for (final m in _session.mistakes) ?_record(m).ayah}.toList()..sort();
+  List<AyahRef> get _mistakeAyat => mistakeAyatOf(_session);
 
   /// Starts or stops listening to the reciter. The recitation audio is
   /// paused first, so the microphone does not hear it.
