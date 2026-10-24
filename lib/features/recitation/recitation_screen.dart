@@ -5,6 +5,7 @@ import '../../data/mushaf_models.dart';
 import '../../data/mushaf_repository.dart';
 import '../../data/quran_models.dart';
 import '../../data/quran_repository.dart';
+import '../../l10n/strings.dart';
 import '../../recitation/alert_sound.dart';
 import '../../recitation/recitation_matcher.dart';
 import '../../recitation/recitation_session.dart';
@@ -26,12 +27,13 @@ class RecitationScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final surahs = ref.watch(surahsProvider);
     final mushaf = page == null ? null : ref.watch(mushafProvider);
+    final t = S.of(context);
     return switch ((surahs, mushaf)) {
       (AsyncData(value: final s), null || AsyncData()) => _RecitationView(
         key: ValueKey((surah, page)),
         title: surah != null
-            ? 'تسميع سورة ${s[surah! - 1].name}'
-            : 'تسميع الصفحة $page',
+            ? t.reciteSurahTitle(s[surah! - 1])
+            : t.recitePageTitle(page!),
         words: wordsToRecite(_ayahs(s, mushaf?.value)),
         surahs: s,
         listener: ref.read(speechListenerProvider),
@@ -39,7 +41,7 @@ class RecitationScreen extends ConsumerWidget {
       (AsyncError(:final error), _) ||
       (_, AsyncError(:final error)) => Scaffold(
         appBar: AppBar(),
-        body: Center(child: Text('تعذر تحميل النص\n$error')),
+        body: Center(child: Text(t.loadTextError(error))),
       ),
       _ => const Scaffold(body: Center(child: CircularProgressIndicator())),
     };
@@ -146,17 +148,18 @@ class _RecitationViewState extends State<_RecitationView> {
       builder: (context, _) {
         final result = _session.result;
         final mistakes = _session.mistakes;
+        final t = S.of(context);
         return Scaffold(
           appBar: AppBar(
             title: Text(widget.title),
             actions: [
               IconButton(
-                tooltip: _showText ? 'إخفاء النص' : 'إظهار النص',
+                tooltip: _showText ? t.hideText : t.showText,
                 icon: Icon(_showText ? Icons.visibility_off : Icons.visibility),
                 onPressed: () => setState(() => _showText = !_showText),
               ),
               IconButton(
-                tooltip: 'إعادة التسميع',
+                tooltip: t.restartRecitation,
                 icon: const Icon(Icons.restart_alt),
                 onPressed: _reset,
               ),
@@ -202,7 +205,7 @@ class _RecitationViewState extends State<_RecitationView> {
           floatingActionButton: FloatingActionButton.extended(
             onPressed: _session.isListening ? _session.stop : _session.start,
             icon: Icon(_session.isListening ? Icons.stop : Icons.mic),
-            label: Text(_session.isListening ? 'إيقاف' : 'ابدأ التسميع'),
+            label: Text(_session.isListening ? t.stop : t.startRecitation),
           ),
         );
       },
@@ -348,15 +351,16 @@ class _StatusBar extends StatelessWidget {
         .take(result.progress)
         .where((w) => !w.word.optional)
         .length;
+    final t = S.of(context);
     final String status;
     if (result.isComplete) {
       status = result.mistakeCount == 0
-          ? 'أحسنت! أتممت التسميع بلا أخطاء.'
-          : 'أتممت التسميع. عدد الأخطاء: ${result.mistakeCount}';
+          ? t.perfectRecitation
+          : t.finishedWithMistakes(result.mistakeCount);
     } else if (session.isListening) {
-      status = 'أستمع إليك… $done من $total كلمة';
+      status = t.listening(done, total);
     } else {
-      status = 'اضغط «ابدأ التسميع» ثم اقرأ من حفظك.';
+      status = t.pressStart;
     }
     final heard = session.heardText;
     return Container(
@@ -369,7 +373,7 @@ class _StatusBar extends StatelessWidget {
           if (heard.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(
-              'سمعت: $heard',
+              t.heard(heard),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               textDirection: TextDirection.rtl,
@@ -402,12 +406,12 @@ class _Word extends StatelessWidget {
       WordStatus.wrong => (
         scheme.errorContainer,
         scheme.onErrorContainer,
-        'سمعت: ${word.heard}',
+        S.of(context).heard(word.heard ?? ''),
       ),
       WordStatus.skipped => (
         Colors.orange.shade100,
         Colors.orange.shade900,
-        'نسيتها',
+        S.of(context).forgotten,
       ),
       WordStatus.pending when showText => (null, scheme.onSurface, null),
       WordStatus.pending => (
@@ -458,7 +462,10 @@ class _ExtraWord extends StatelessWidget {
               decoration: TextDecoration.lineThrough,
             ),
           ),
-          Text('زائدة', style: TextStyle(fontSize: 12, color: scheme.error)),
+          Text(
+            S.of(context).extraWord,
+            style: TextStyle(fontSize: 12, color: scheme.error),
+          ),
         ],
       ),
     );
