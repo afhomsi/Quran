@@ -35,7 +35,7 @@ void main() {
     final dir = Directionality.of(tester.element(find.text('اقرأ')));
     expect(dir, TextDirection.rtl);
 
-    await tester.tap(find.text('تصفّح'));
+    await tester.tap(find.text('فهرس'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('البقرة'));
     await tester.pumpAndSettle();
@@ -82,7 +82,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('تصفّح'));
+    await tester.tap(find.text('فهرس'));
     await tester.pumpAndSettle();
 
     // Without diacritics or hamza, as people type.

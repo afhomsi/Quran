@@ -242,7 +242,11 @@ void main() {
   testWidgets('marks where each quarter of a hizb starts', (tester) async {
     await _start(tester);
     // Page 5 has the quarter that starts at al-Baqarah 26.
-    await tester.tap(find.byTooltip('انتقال إلى سورة أو صفحة'));
+    await tester.tap(find.text('اقرأ'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('القائمة'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('انتقال إلى سورة أو صفحة'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('صفحة'));
     await tester.pumpAndSettle();
@@ -261,7 +265,11 @@ void main() {
 
   testWidgets('goes to a surah and ayah and highlights it', (tester) async {
     final prefs = await _start(tester);
-    await tester.tap(find.byTooltip('انتقال إلى سورة أو صفحة'));
+    await tester.tap(find.text('اقرأ'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('القائمة'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('انتقال إلى سورة أو صفحة'));
     await tester.pumpAndSettle();
     expect(
       tester

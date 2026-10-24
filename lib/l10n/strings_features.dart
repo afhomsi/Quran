@@ -5,8 +5,8 @@ part of 'strings.dart';
 extension FeatureStrings on S {
   // Bottom tabs.
   String get tabRead => _('اقرأ', 'Read', 'পড়ুন', 'پڑھیں');
-  String get tabKhatma => _('وِردي', 'My plan', 'আমার পরিকল্পনা', 'میرا ورد');
-  String get tabIndex => _('تصفّح', 'Browse', 'খুঁজুন', 'فہرست');
+  String get tabKhatma => _('ختمة', 'Khatma', 'খতম', 'ختم');
+  String get tabIndex => _('فهرس', 'Index', 'সূচি', 'فہرست');
   String get tabBookmarks => _('إشاراتي', 'Saved', 'সংরক্ষিত', 'محفوظ نشان');
   String get tabMore => _('أدواتي', 'Tools', 'টুলস', 'اوزار');
 

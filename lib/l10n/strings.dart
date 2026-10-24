@@ -294,8 +294,6 @@ class S {
     'তিলাওয়াত ও শোনা',
     'تسمیع اور سننا',
   );
-  String get laterSection =>
-      _('ميزات قيد الإعداد', 'Coming later', 'পরে আসছে', 'بعد میں آ رہا ہے');
   String get nightMode =>
       _('السمة الداكنة', 'Dark theme', 'গাঢ় থিম', 'گہری تھیم');
   String get pageColor => _(

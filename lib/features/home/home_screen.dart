@@ -7,7 +7,8 @@ import '../../data/reading_state.dart';
 import '../../l10n/strings.dart';
 import '../../settings/app_settings.dart';
 import '../settings/settings_screen.dart';
-import '../mushaf/go_to_dialog.dart';
+import '../../data/mushaf_models.dart';
+import '../search/search_screen.dart';
 import '../shell/navigation.dart';
 import '../recitation/recitation_picker.dart';
 import 'index_view.dart';
@@ -53,12 +54,17 @@ class HomeScreen extends ConsumerWidget {
                   onPressed: () => showRecitationPicker(context),
                 ),
               IconButton(
-                tooltip: s.goTo,
-                icon: const Icon(Icons.numbers_rounded),
+                tooltip: s.searchQuran,
+                icon: const Icon(Icons.search_rounded),
                 onPressed: () async {
-                  final target = await showGoToDialog(context);
-                  if (target != null && context.mounted) {
-                    openMushaf(context, target.page, highlight: target.ayah);
+                  final ayah = await Navigator.of(context).push<AyahRef>(
+                    MaterialPageRoute(
+                      builder: (_) => const QuranSearchScreen(),
+                    ),
+                  );
+                  final m = mushaf.value;
+                  if (ayah != null && m != null && context.mounted) {
+                    openMushaf(context, m.pageOf(ayah), highlight: ayah);
                   }
                 },
               ),

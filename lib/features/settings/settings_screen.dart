@@ -18,8 +18,7 @@ void openSettings(BuildContext context) {
 }
 
 /// Every setting of the app, grouped by what it changes: appearance,
-/// reading, reciting, language and the user's data. Settings that need data
-/// the app does not have yet are listed last, greyed out as "coming soon".
+/// reading, reciting, language and the user's data.
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
@@ -161,24 +160,6 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ],
           ),
-          _SectionTitle(t.laterSection, Icons.hourglass_top_rounded),
-          _Group(
-            children: [
-              _ComingSoon(
-                icon: Icons.play_circle_rounded,
-                title: t.playerOnTouch,
-              ),
-              _ComingSoon(icon: Icons.topic_rounded, title: t.thematicTafsir),
-              _ComingSoon(
-                icon: Icons.checklist_rounded,
-                title: t.plansInAyahMenu,
-              ),
-              _ComingSoon(
-                icon: Icons.edit_note_rounded,
-                title: t.advancedEditor,
-              ),
-            ],
-          ),
         ],
       ),
     );
@@ -276,23 +257,6 @@ class _Switch extends StatelessWidget {
       onChanged: onChanged,
     );
   }
-}
-
-/// A setting that needs data the app does not have yet.
-class _ComingSoon extends StatelessWidget {
-  const _ComingSoon({required this.icon, required this.title});
-
-  final IconData icon;
-  final String title;
-
-  @override
-  Widget build(BuildContext context) => _Switch(
-    icon: icon,
-    title: title,
-    subtitle: S.of(context).comingSoon,
-    value: false,
-    onChanged: null,
-  );
 }
 
 class _LanguagePicker extends StatelessWidget {
