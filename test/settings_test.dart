@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -116,6 +117,24 @@ void main() {
       jsonDecode(prefs.getString(settingsKey)!) as Map<String, dynamic>,
     );
     expect(settings.language, AppLanguage.en);
+  });
+
+  testWidgets('the settings list scrolls by dragging with a mouse', (
+    tester,
+  ) async {
+    await _start(tester);
+    await _openSettings(tester);
+    expect(find.text('البيانات'), findsNothing);
+
+    for (var i = 0; i < 6; i++) {
+      await tester.dragFrom(
+        const Offset(400, 500),
+        const Offset(0, -400),
+        kind: PointerDeviceKind.mouse,
+      );
+      await tester.pumpAndSettle();
+    }
+    expect(find.text('البيانات'), findsOneWidget);
   });
 
   testWidgets('switching the language changes the app and its direction', (
