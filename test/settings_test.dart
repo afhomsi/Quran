@@ -247,7 +247,9 @@ void main() {
   testWidgets('marks where each quarter of a hizb starts', (tester) async {
     await _start(tester);
     // Page 5 has the quarter that starts at al-Baqarah 26.
-    await tester.tap(find.byTooltip('انتقال إلى صفحة'));
+    await tester.tap(find.byTooltip('انتقال إلى سورة أو صفحة'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('صفحة'));
     await tester.pumpAndSettle();
     await tester.enterText(
       find.descendant(
@@ -260,5 +262,37 @@ void main() {
     await tester.tap(find.text('انتقال'));
     await tester.pumpAndSettle();
     expect(find.text('۞'), findsOneWidget);
+  });
+
+  testWidgets('goes to a surah and ayah and highlights it', (tester) async {
+    final prefs = await _start(tester);
+    await tester.tap(find.byTooltip('انتقال إلى سورة أو صفحة'));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<FilledButton>(find.widgetWithText(FilledButton, 'انتقال'))
+          .onPressed,
+      isNull,
+    );
+
+    // Typed without the definite article's hamza, as people type.
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const ValueKey('go-to-surah')),
+        matching: find.byType(TextField),
+      ),
+      'الكهف',
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('18. الكهف').last);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const ValueKey('go-to-ayah')), '10');
+    await tester.pump();
+    await tester.tap(find.text('انتقال'));
+    await tester.pumpAndSettle();
+
+    // Al-Kahf 10 is on page 294.
+    expect(prefs.getInt('last_page'), 294);
+    expect(find.text('294'), findsOneWidget);
   });
 }

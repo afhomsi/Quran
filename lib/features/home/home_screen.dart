@@ -8,6 +8,7 @@ import '../../data/reading_state.dart';
 import '../../l10n/strings.dart';
 import '../../settings/app_settings.dart';
 import '../settings/settings_screen.dart';
+import '../mushaf/go_to_dialog.dart';
 import '../mushaf/mushaf_screen.dart';
 import '../recitation/recitation_picker.dart';
 import 'index_view.dart';
@@ -39,14 +40,13 @@ class HomeScreen extends ConsumerWidget {
                 onPressed: () => showRecitationPicker(context),
               ),
             IconButton(
-              tooltip: s.goToPage,
+              tooltip: s.goTo,
               icon: const Icon(Icons.numbers),
               onPressed: () async {
-                final page = await showDialog<int>(
-                  context: context,
-                  builder: (_) => const GoToPageDialog(),
-                );
-                if (page != null && context.mounted) openMushaf(context, page);
+                final target = await showGoToDialog(context);
+                if (target != null && context.mounted) {
+                  openMushaf(context, target.page, highlight: target.ayah);
+                }
               },
             ),
             IconButton(

@@ -52,8 +52,23 @@ class S {
   // Home and index.
   String get mushaf => _('المصحف', 'Mushaf', 'মুসহাফ', 'مصحف');
   String get recite => _('تسميع', 'Recite', 'তিলাওয়াত যাচাই', 'تسمیع');
-  String get goToPage =>
-      _('انتقال إلى صفحة', 'Go to page', 'পৃষ্ঠায় যান', 'صفحے پر جائیں');
+  String get goTo => _(
+    'انتقال إلى سورة أو صفحة',
+    'Go to a surah or page',
+    'সূরা বা পৃষ্ঠায় যান',
+    'سورت یا صفحے پر جائیں',
+  );
+  String get surahAndAyah =>
+      _('سورة وآية', 'Surah and ayah', 'সূরা ও আয়াত', 'سورت اور آیت');
+  String get pageWord => _('صفحة', 'Page', 'পৃষ্ঠা', 'صفحہ');
+  String get surahField => _('السورة', 'Surah', 'সূরা', 'سورت');
+
+  /// "الآية", with the range of ayat once the surah is known.
+  String ayahField(int? count) {
+    final range = count == null ? '' : ' (${n(1)} – ${n(count)})';
+    return _('الآية$range', 'Ayah$range', 'আয়াত$range', 'آیت$range');
+  }
+
   String get settings => _('الإعدادات', 'Settings', 'সেটিংস', 'ترتیبات');
   String continueReading(int page) => _(
     'متابعة القراءة · صفحة ${n(page)}',
