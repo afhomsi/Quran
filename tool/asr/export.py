@@ -9,9 +9,9 @@ file as export_onnx.py) with its model loading pointed at our checkpoint.
 reads ./quran-base.pt and writes quran-base-encoder.int8.onnx,
 quran-base-decoder.int8.onnx and quran-base-tokens.txt.
 
-It also writes quran-base-decoder.small.onnx, the int8 decoder with its
-token embedding in int8 too (see shrink_embedding.py), which makes the
-download much smaller.
+It also writes quran-base-decoder.small.onnx, an int8 decoder whose token
+embedding is int8 too (see shrink_embedding.py), which makes the download
+much smaller.
 """
 
 import argparse
@@ -40,7 +40,8 @@ def main() -> None:
 
     from shrink_embedding import shrink
 
-    shrink(f"{name}-decoder.int8.onnx", f"{name}-decoder.small.onnx")
+    shrink(f"{name}-decoder.onnx", f"{name}-decoder.small.onnx")
+
 
 if __name__ == "__main__":
     main()
