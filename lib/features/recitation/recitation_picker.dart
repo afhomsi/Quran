@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/mushaf_repository.dart';
 import '../../data/quran_repository.dart';
+import '../../l10n/strings.dart';
 import 'recitation_screen.dart';
 
 /// Asks what to recite and opens the recitation screen.
@@ -40,6 +41,7 @@ class _RecitationPicker extends ConsumerWidget {
         : mushaf.page(page!).words.map((w) => w.ayah.surah).toSet().toList();
 
     void open(Widget screen) => Navigator.of(context).pop(screen);
+    final t = S.of(context);
 
     return SizedBox(
       height: MediaQuery.sizeOf(context).height * 0.75,
@@ -48,13 +50,13 @@ class _RecitationPicker extends ConsumerWidget {
           if (page != null) ...[
             ListTile(
               leading: const Icon(Icons.menu_book),
-              title: Text('تسميع هذه الصفحة ($page)'),
+              title: Text(t.recitePage(page!)),
               onTap: () => open(RecitationScreen.page(page!)),
             ),
             for (final s in onPage)
               ListTile(
                 leading: const Icon(Icons.mic),
-                title: Text('تسميع سورة ${surahs[s - 1].name} كاملة'),
+                title: Text(t.reciteWholeSurah(surahs[s - 1])),
                 onTap: () => open(RecitationScreen.surah(s)),
               ),
             const Divider(),
@@ -62,15 +64,15 @@ class _RecitationPicker extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
             child: Text(
-              'اختر سورة للتسميع',
+              t.chooseSurahToRecite,
               style: Theme.of(context).textTheme.titleMedium,
             ),
           ),
           for (final s in surahs)
             ListTile(
-              leading: CircleAvatar(child: Text('${s.number}')),
-              title: Text(s.name),
-              subtitle: Text('${s.ayahCount} آية'),
+              leading: CircleAvatar(child: Text(t.n(s.number))),
+              title: Text(t.surahName(s)),
+              subtitle: Text(t.ayahCount(s.ayahCount)),
               onTap: () => open(RecitationScreen.surah(s.number)),
             ),
         ],
