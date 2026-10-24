@@ -31,7 +31,8 @@ Code layout:
 - `lib/data/`: Quran models and the repository that loads bundled text
 - `lib/features/`: one folder per screen or feature
 - `assets/quran/`: bundled Quran text
-- `assets/mushaf/`: page layout and per-page fonts of the Madinah mushaf
+- `assets/mushaf/`: page layout of the Madinah mushaf
+- `assets/fonts/`: the mushaf font
 - `tool/`: scripts that build the bundled data
 
 ## Data sources
@@ -46,17 +47,16 @@ the imala sign of مَجۡر۪ىٰهَا, and five words that the mushaf prints 
 (such as مَا لِيَ). `tool/compare_with_quran_com.py` compares all 6236
 ayat with Quran.com's text again.
 
-`assets/mushaf/` is built by `tool/build_mushaf_data.py`:
+`assets/mushaf/layout.json`, the 15-line page layout, is built by
+`tool/build_mushaf_data.py` from the layout of the
+[Quranic Universal Library](https://qul.tarteel.ai), as packaged in
+[quran_library](https://pub.dev/packages/quran_library) (MIT), with the
+words of `hafs_uthmani.json`.
 
-- The 15-line page layout and word glyphs (QPC v4) come from
-  [Quranic Universal Library](https://qul.tarteel.ai), as packaged in
-  [quran_library](https://pub.dev/packages/quran_library) (MIT).
-- The per-page QCF v4 colour fonts of the King Fahd Glorious Quran Printing
-  Complex, and the surah name calligraphy (`assets/fonts/surah_names.ttf`),
-  also come from quran_library. The build script fills the ring of each
-  ayah number and sets our own colour palettes (light, night, and tajweed
-  for both). The app converts each font from WOFF to TrueType when it loads
-  the page and picks the palette that fits the theme.
+The pages are drawn with the DigitalKhatt New Madina font
+(`assets/fonts/madina.otf`, by Amine Anane and Tarteel, under the SIL Open
+Font License 1.1, see `assets/fonts/LICENSE-madina.txt`). The tajweed
+colours are worked out by the app from the text (`lib/data/tajweed.dart`).
 
 The study panel reads, per ayah and only when opened, books that are free
 of copyright: the classical tafsirs of al-Jalalayn, as-Sa'di, Ibn Kathir,

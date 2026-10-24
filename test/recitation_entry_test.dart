@@ -1,12 +1,10 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hifz/app.dart';
 import 'package:hifz/data/mushaf_repository.dart';
-import 'package:hifz/data/page_fonts.dart';
 import 'package:hifz/data/quran_repository.dart';
 import 'package:hifz/data/reading_state.dart';
 import 'package:hifz/data/recitation_history.dart';
@@ -17,15 +15,6 @@ import 'package:hifz/recitation/speech_listener.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fake_listener.dart';
-
-/// Skips real font loading, which needs the asset bundle.
-class _FakePageFonts extends PageFonts {
-  _FakePageFonts() : super(rootBundle);
-
-  @override
-  Future<String> load(int page, MushafPalette palette) async =>
-      PageFonts.familyFor(page, palette);
-}
 
 Future<void> _pump(
   WidgetTester tester,
@@ -42,7 +31,6 @@ Future<void> _pump(
         sharedPreferencesProvider.overrideWithValue(prefs),
         mushafProvider.overrideWith((ref) async => mushaf),
         surahsProvider.overrideWith((ref) async => surahs),
-        pageFontsProvider.overrideWithValue(_FakePageFonts()),
         speechListenerProvider.overrideWithValue(listener ?? FakeListener()),
         mistakeAlertProvider.overrideWithValue(() {}),
       ],

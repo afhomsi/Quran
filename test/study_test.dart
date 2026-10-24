@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hifz/data/mushaf_models.dart';
+import 'package:hifz/data/quran_repository.dart';
 
 import 'dart:io';
 
@@ -82,17 +83,42 @@ void main() {
     );
   });
 
-  test('names the tajweed rules on the words of an ayah', () {
-    final map = parseTajweed(File(tajweedAssetPath).readAsStringSync());
-    // Al-Fatiha 7: ad-dallin carries the necessary madd.
-    expect(map.ofAyah(const AyahRef(1, 7))[9], contains(TajweedRule.maddLazim));
-    // Al-Baqarah 4: bima unzila, the obligatory madd and an ikhfa.
-    final baqarah4 = map.ofAyah(const AyahRef(2, 4));
-    expect(baqarah4[3], {TajweedRule.maddWajib});
-    expect(baqarah4[4], {TajweedRule.ghunna});
-    expect(
-      baqarah4[9],
-      containsAll([TajweedRule.tafkhim, TajweedRule.qalqala]),
+  group('tajweed', () {
+    final map = TajweedMap(
+      parseSurahs(File(quranAssetPath).readAsStringSync()),
     );
+
+    test('names the rules on the words of an ayah', () {
+      // Al-Fatiha 7: ad-dallin carries the necessary madd.
+      expect(
+        map.ofAyah(const AyahRef(1, 7))[9],
+        contains(TajweedRule.maddLazim),
+      );
+      // Al-Baqarah 4: bima unzila, the obligatory madd and an ikhfa.
+      final baqarah4 = map.ofAyah(const AyahRef(2, 4));
+      expect(baqarah4[3], {TajweedRule.maddWajib});
+      expect(baqarah4[4], {TajweedRule.ghunna});
+      expect(baqarah4[9], {TajweedRule.tafkhim, TajweedRule.qalqala});
+    });
+
+    test('marks the letters that take each rule', () {
+      // Ad-dallin: the silent hamzat wasl and lam, the heavy dad, the madd
+      // on the alif with its madda, and the madd at the stop.
+      expect(map.spansOf(const AyahRef(1, 7))[8], [
+        (start: 0, end: 1, rule: TajweedRule.silent),
+        (start: 1, end: 2, rule: TajweedRule.silent),
+        (start: 2, end: 5, rule: TajweedRule.tafkhim),
+        (start: 5, end: 7, rule: TajweedRule.maddLazim),
+        (start: 10, end: 11, rule: TajweedRule.maddJaiz),
+      ]);
+    });
+
+    test('reads the lam of the name of Allah heavy after a or u', () {
+      bool heavy(AyahRef ayah, int word) =>
+          map.ofAyah(ayah)[word]?.contains(TajweedRule.tafkhim) ?? false;
+      expect(heavy(const AyahRef(1, 1), 2), isFalse); // bismi llahi
+      expect(heavy(const AyahRef(2, 7), 2), isTrue); // khatama llahu
+      expect(heavy(const AyahRef(112, 2), 1), isTrue); // allahu s-samad
+    });
   });
 }

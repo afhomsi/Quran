@@ -3,27 +3,16 @@ import 'dart:io';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hifz/app.dart';
 import 'package:hifz/data/backup.dart';
 import 'package:hifz/data/mushaf_repository.dart';
-import 'package:hifz/data/page_fonts.dart';
 import 'package:hifz/data/quran_repository.dart';
 import 'package:hifz/data/reading_state.dart';
 import 'package:hifz/l10n/strings.dart';
 import 'package:hifz/settings/app_settings.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-/// Skips real font loading, which needs the asset bundle.
-class _FakePageFonts extends PageFonts {
-  _FakePageFonts() : super(rootBundle);
-
-  @override
-  Future<String> load(int page, MushafPalette palette) async =>
-      PageFonts.familyFor(page, palette);
-}
 
 /// Starts the app with [settings] already saved.
 Future<SharedPreferences> _start(
@@ -43,7 +32,6 @@ Future<SharedPreferences> _start(
         sharedPreferencesProvider.overrideWithValue(prefs),
         mushafProvider.overrideWith((ref) async => mushaf),
         surahsProvider.overrideWith((ref) async => surahs),
-        pageFontsProvider.overrideWithValue(_FakePageFonts()),
         screenWakeProvider.overrideWithValue((on) async => screenWake?.add(on)),
       ],
       child: const HifzApp(),

@@ -19,8 +19,9 @@ final contentSources = <ContentSource>[
     title: (t) => t.sourceMushaf,
     detail:
         'Page layout: Quranic Universal Library (qul.tarteel.ai), via '
-        'quran_library (MIT). Page fonts: King Fahd Glorious Quran Printing '
-        'Complex.',
+        'quran_library (MIT). Font: DigitalKhatt New Madina, Amine Anane '
+        'and Tarteel (SIL Open Font License 1.1). Tajweed colours: worked '
+        'out by the app from the text.',
   ),
   (
     title: (t) => t.sourceTafsir,

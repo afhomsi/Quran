@@ -27,13 +27,12 @@ class AyahRef implements Comparable<AyahRef> {
   }
 }
 
-/// One word of the Madinah mushaf, drawn with its page's QCF font.
+/// One word of the Madinah mushaf.
 class MushafWord {
   const MushafWord({
     required this.ayah,
     required this.position,
-    required this.glyph,
-    required this.isAyahEnd,
+    required this.text,
   });
 
   final AyahRef ayah;
@@ -41,8 +40,12 @@ class MushafWord {
   /// 1-based position of the word in its ayah. The ayah-number marker is
   /// the last position.
   final int position;
-  final String glyph;
-  final bool isAyahEnd;
+
+  /// The word in the Uthmani text, as `ayahWords` gives it; empty for the
+  /// ayah-number marker.
+  final String text;
+
+  bool get isAyahEnd => text.isEmpty;
 }
 
 sealed class MushafLine {

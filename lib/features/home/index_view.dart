@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/arabic_search.dart';
 import '../../data/mushaf_models.dart';
 import '../../data/mushaf_repository.dart';
-import '../../data/page_fonts.dart';
+import '../../data/mushaf_text.dart';
 import '../../data/quarters.dart';
 import '../../data/quran_models.dart';
+import '../../data/study.dart';
 import '../../l10n/strings.dart';
 import 'home_screen.dart';
-import '../mushaf/mushaf_page_view.dart' show mushafPalette;
 import 'index_icons.dart';
 
 /// The index, one tab per entry of [S.indexTabs]: surahs, juz cards that
@@ -516,7 +515,7 @@ class _RubEntry extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _OpeningWords(mushaf: mushaf, surah: surah, ayah: start),
+                    _OpeningWords(surah: surah, ayah: start),
                     const SizedBox(height: 2),
                     Text(
                       t.ayahAndPage(surah, start.ayah, page),
@@ -535,89 +534,31 @@ class _RubEntry extends StatelessWidget {
   }
 }
 
-/// The first words of [ayah], drawn with the mushaf page fonts. Until the
-/// fonts are loaded, shows the same words in plain text.
-class _OpeningWords extends ConsumerStatefulWidget {
-  const _OpeningWords({
-    required this.mushaf,
-    required this.surah,
-    required this.ayah,
-  });
+/// The first words of [ayah], in the mushaf font.
+class _OpeningWords extends StatelessWidget {
+  const _OpeningWords({required this.surah, required this.ayah});
 
-  final Mushaf mushaf;
   final Surah surah;
   final AyahRef ayah;
 
   static const maxWords = 5;
 
   @override
-  ConsumerState<_OpeningWords> createState() => _OpeningWordsState();
-}
-
-class _OpeningWordsState extends ConsumerState<_OpeningWords> {
-  /// Each word with the page it is printed on; an ayah can run on to the
-  /// next page, which has its own font.
-  late final List<(int, MushafWord)> _words = _openingWords();
-  final _fonts = <MushafPalette, Future<void>>{};
-
-  /// The page fonts for the words, in the colours of the current theme.
-  Future<void> _fontsIn(MushafPalette palette) =>
-      _fonts[palette] ??= Future.wait([
-        for (final p in {for (final (p, _) in _words) p})
-          ref.read(pageFontsProvider).load(p, palette),
-      ]);
-
-  List<(int, MushafWord)> _openingWords() {
-    final words = <(int, MushafWord)>[];
-    final m = widget.mushaf;
-    for (var p = m.pageOf(widget.ayah); p <= mushafPageCount; p++) {
-      for (final w in m.page(p).words) {
-        if (w.ayah != widget.ayah) continue;
-        if (w.isAyahEnd || words.length == _OpeningWords.maxWords) {
-          return words;
-        }
-        words.add((p, w));
-      }
-    }
-    return words;
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme.onSurface;
-    final palette = mushafPalette(context);
+    final words = ayahWords(surah.ayahs[ayah.ayah - 1]).take(maxWords);
     // One line, as long as the opening words are; shrunk if too wide.
     return FittedBox(
       fit: BoxFit.scaleDown,
       alignment: AlignmentDirectional.centerStart,
-      child: FutureBuilder(
-        future: _fontsIn(palette),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done ||
-              snapshot.hasError) {
-            final words = widget.surah.ayahs[widget.ayah.ayah - 1].split(' ');
-            return Text(
-              words.take(_words.length).join(' '),
-              textDirection: TextDirection.rtl,
-              style: TextStyle(fontSize: 20, height: 1.7, color: color),
-            );
-          }
-          return Text.rich(
-            TextSpan(
-              children: [
-                for (final (p, w) in _words)
-                  TextSpan(
-                    text: '${w.glyph} ',
-                    style: TextStyle(
-                      fontFamily: PageFonts.familyFor(p, palette),
-                    ),
-                  ),
-              ],
-            ),
-            textDirection: TextDirection.rtl,
-            style: TextStyle(fontSize: 24, height: 1.6, color: color),
-          );
-        },
+      child: Text(
+        mushafDisplayText(words.join(' ').replaceAll('۞', '')),
+        textDirection: TextDirection.rtl,
+        style: TextStyle(
+          fontFamily: mushafFont,
+          fontSize: 24,
+          height: 1.6,
+          color: Theme.of(context).colorScheme.onSurface,
+        ),
       ),
     );
   }
