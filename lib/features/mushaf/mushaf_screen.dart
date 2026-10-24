@@ -9,6 +9,7 @@ import '../../data/page_fonts.dart';
 import '../../data/quran_models.dart';
 import '../../data/quran_repository.dart';
 import '../../data/reading_state.dart';
+import '../recitation/recitation_picker.dart';
 import 'mushaf_page_view.dart';
 
 /// Swipeable 604-page mushaf. Remembers the last page read.
@@ -65,6 +66,12 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
             icon: const Icon(Icons.numbers),
             onPressed: () => _goToPage(context),
           ),
+          FilledButton.tonalIcon(
+            icon: const Icon(Icons.mic),
+            label: const Text('تسميع'),
+            onPressed: () => showRecitationPicker(context, page: _page),
+          ),
+          const SizedBox(width: 8),
         ],
       ),
       body: CallbackShortcuts(
