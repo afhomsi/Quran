@@ -216,7 +216,9 @@ class RecitationSession extends ChangeNotifier {
       error =
           'لم يُعثر على ميكروفون. صِل ميكروفونًا أو سماعة بميكروفون ثم حاول.';
     } else if (message.contains('network')) {
-      error = 'التعرف على الصوت يحتاج إلى اتصال بالإنترنت.';
+      error =
+          'التعرف على الصوت يحتاج إلى اتصال بالإنترنت، '
+          'أو حمّل نموذج التلاوة ليعمل بدونه.';
     } else {
       error = 'حدث خطأ في الاستماع: $message';
     }

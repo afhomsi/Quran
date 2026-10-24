@@ -6,6 +6,8 @@ import '../../data/mushaf_repository.dart';
 import '../../data/quran_models.dart';
 import '../../data/quran_repository.dart';
 import '../../recitation/alert_sound.dart';
+import '../../recitation/offline_model.dart';
+import '../../recitation/offline_speech.dart';
 import '../../recitation/recitation_matcher.dart';
 import '../../recitation/recitation_session.dart';
 import '../../recitation/speech_listener.dart';
@@ -26,15 +28,17 @@ class RecitationScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final surahs = ref.watch(surahsProvider);
     final mushaf = page == null ? null : ref.watch(mushafProvider);
+    // Starts over with the offline model once it finishes downloading.
+    final listener = ref.watch(speechListenerProvider);
     return switch ((surahs, mushaf)) {
       (AsyncData(value: final s), null || AsyncData()) => _RecitationView(
-        key: ValueKey((surah, page)),
+        key: ValueKey((surah, page, listener)),
         title: surah != null
             ? 'تسميع سورة ${s[surah! - 1].name}'
             : 'تسميع الصفحة $page',
         words: wordsToRecite(_ayahs(s, mushaf?.value)),
         surahs: s,
-        listener: ref.read(speechListenerProvider),
+        listener: listener,
       ),
       (AsyncError(:final error), _) ||
       (_, AsyncError(:final error)) => Scaffold(
@@ -165,6 +169,7 @@ class _RecitationViewState extends State<_RecitationView> {
           body: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              const _OfflineModelBanner(),
               if (_session.error != null)
                 _Banner(
                   color: Theme.of(context).colorScheme.errorContainer,
@@ -302,6 +307,87 @@ class _GroupView extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// Offers the offline model, shows its download, or says it is in use.
+class _OfflineModelBanner extends ConsumerWidget {
+  const _OfflineModelBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final model = ref.watch(offlineModelProvider);
+    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+    switch (model.status) {
+      case OfflineModelStatus.unsupported || OfflineModelStatus.checking:
+        return const SizedBox.shrink();
+      case OfflineModelStatus.ready:
+        return Container(
+          color: scheme.secondaryContainer,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          child: Row(
+            children: [
+              const Icon(Icons.offline_bolt, size: 18),
+              const SizedBox(width: 8),
+              Text('التسميع يعمل بدون إنترنت', style: text.bodyMedium),
+            ],
+          ),
+        );
+      case OfflineModelStatus.downloading:
+        final progress = model.progress;
+        return Container(
+          color: scheme.secondaryContainer,
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                progress == null
+                    ? 'جارٍ تحميل نموذج التلاوة…'
+                    : 'جارٍ تحميل نموذج التلاوة… ${(progress * 100).floor()}٪',
+                style: text.titleSmall,
+              ),
+              const SizedBox(height: 8),
+              LinearProgressIndicator(value: progress),
+            ],
+          ),
+        );
+      case OfflineModelStatus.missing:
+        return Container(
+          color: scheme.secondaryContainer,
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          child: Row(
+            children: [
+              const Icon(Icons.download_for_offline),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'التسميع الآن يحتاج إلى إنترنت. حمّل نموذج التلاوة '
+                      '(حوالي $offlineModelSizeMb ميغابايت، مرة واحدة) '
+                      'ليعمل بدون إنترنت.',
+                      style: text.bodyMedium,
+                    ),
+                    if (model.error != null)
+                      Text(
+                        model.error!,
+                        style: text.bodySmall?.copyWith(color: scheme.error),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              FilledButton(
+                onPressed: ref.read(offlineModelProvider.notifier).download,
+                child: const Text('تحميل'),
+              ),
+            ],
+          ),
+        );
+    }
   }
 }
 
