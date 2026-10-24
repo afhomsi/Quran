@@ -126,4 +126,18 @@ extension HifzStrings on S {
   );
   String date(DateTime d) =>
       '${n(d.year)}/${n(d.month)}/${n(d.day)} · ${clock(d.hour, d.minute)}';
+
+  // Reciting in the mushaf page.
+  String get closeRecitation => _(
+    'إغلاق التسميع',
+    'Close reciting',
+    'তিলাওয়াত বন্ধ করুন',
+    'تسمیع بند کریں',
+  );
+  String get pressMicToRecite => _(
+    'اضغط الميكروفون ثم اقرأ الصفحة من حفظك.',
+    'Press the microphone, then recite the page from memory.',
+    'মাইক্রোফোন চাপুন, তারপর মুখস্থ থেকে পৃষ্ঠাটি পড়ুন।',
+    'مائیکروفون دبائیں، پھر صفحہ زبانی پڑھیں۔',
+  );
 }
