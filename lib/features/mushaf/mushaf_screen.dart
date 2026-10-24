@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../audio/ayah_audio.dart';
+import '../../audio/heard_ayat.dart';
 import '../../data/khatma.dart';
 import '../../data/marks.dart';
 import '../../data/mushaf_models.dart';
@@ -167,6 +168,7 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
     ref.watch(markersProvider);
     ref.watch(khatmaPlansProvider);
     final recitation = ref.watch(pageRecitationProvider);
+    ref.watch(heardAyatProvider);
     final dark = Theme.of(context).brightness == Brightness.dark;
     final background = dark ? null : settings.pageTheme.color;
     final vertical = settings.verticalScroll;
@@ -530,6 +532,11 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
       },
       recitedWords: recitation?.page == page && recitation!.hideText
           ? recitation.recitedWords
+          : audio.visible && settings.hideWhileListening
+          ? {
+              for (final a in ref.read(heardAyatProvider))
+                a: PageRecitation.allWords,
+            }
           : null,
       bookmarks: [
         for (final kind in MarkerKind.values)

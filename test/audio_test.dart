@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hifz/audio/ayah_audio.dart';
+import 'package:hifz/audio/heard_ayat.dart';
 import 'package:hifz/data/mushaf_models.dart';
 import 'package:hifz/data/mushaf_repository.dart';
 import 'package:hifz/data/quran_repository.dart';
@@ -37,6 +38,23 @@ void main() {
 
   AudioController audio() => container.read(audioProvider.notifier);
   AyahRef? current() => container.read(audioProvider).current;
+
+  test(
+    'the heard ayat grow as the reciter goes on and clear on close',
+    () async {
+      container.listen(heardAyatProvider, (_, _) {});
+      await audio().playFrom(const AyahRef(1, 6));
+      expect(container.read(heardAyatProvider), {const AyahRef(1, 6)});
+      player.finish();
+      await pumpEventQueue();
+      expect(container.read(heardAyatProvider), {
+        const AyahRef(1, 6),
+        const AyahRef(1, 7),
+      });
+      await audio().close();
+      expect(container.read(heardAyatProvider), isEmpty);
+    },
+  );
 
   test('plays on to the next ayah and the next surah', () async {
     await audio().playFrom(const AyahRef(1, 7));

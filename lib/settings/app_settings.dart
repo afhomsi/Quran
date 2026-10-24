@@ -50,6 +50,7 @@ class AppSettings {
     this.westernDigits = true,
     this.followSystemFontSize = true,
     this.hideRecitationButton = false,
+    this.hideWhileListening = true,
     this.showHizbMarks = true,
     this.tajweedColors = false,
   });
@@ -77,6 +78,10 @@ class AppSettings {
   final bool followSystemFontSize;
   final bool hideRecitationButton;
 
+  /// While listening, hide the ayat of the page and show each one as the
+  /// reciter reaches it.
+  final bool hideWhileListening;
+
   /// The ۞ sign where each quarter of a hizb starts.
   final bool showHizbMarks;
 
@@ -96,6 +101,7 @@ class AppSettings {
     bool? westernDigits,
     bool? followSystemFontSize,
     bool? hideRecitationButton,
+    bool? hideWhileListening,
     bool? showHizbMarks,
     bool? tajweedColors,
   }) => AppSettings(
@@ -111,6 +117,7 @@ class AppSettings {
     westernDigits: westernDigits ?? this.westernDigits,
     followSystemFontSize: followSystemFontSize ?? this.followSystemFontSize,
     hideRecitationButton: hideRecitationButton ?? this.hideRecitationButton,
+    hideWhileListening: hideWhileListening ?? this.hideWhileListening,
     showHizbMarks: showHizbMarks ?? this.showHizbMarks,
     tajweedColors: tajweedColors ?? this.tajweedColors,
   );
@@ -128,6 +135,7 @@ class AppSettings {
     'westernDigits': westernDigits,
     'followSystemFontSize': followSystemFontSize,
     'hideRecitationButton': hideRecitationButton,
+    'hideWhileListening': hideWhileListening,
     'showHizbMarks': showHizbMarks,
     'tajweedColors': tajweedColors,
   };
@@ -159,6 +167,7 @@ class AppSettings {
         'hideRecitationButton',
         d.hideRecitationButton,
       ),
+      hideWhileListening: pick('hideWhileListening', d.hideWhileListening),
       showHizbMarks: pick('showHizbMarks', d.showHizbMarks),
       tajweedColors: pick('tajweedColors', d.tajweedColors),
     );

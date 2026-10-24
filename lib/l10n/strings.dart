@@ -380,6 +380,12 @@ class S {
     'তিলাওয়াত যাচাই বোতাম লুকান',
     'تسمیع کا بٹن چھپائیں',
   );
+  String get hideWhileListening => _(
+    'إخفاء الآيات عند الاستماع وإظهار كل آية عندما يقرؤها القارئ',
+    'Hide the ayat while listening, showing each as the reciter reads it',
+    'শোনার সময় আয়াত লুকান, ক্বারী পড়লে প্রতিটি দেখান',
+    'سنتے وقت آیات چھپائیں، قاری کے پڑھنے پر ہر آیت دکھائیں',
+  );
   String get showHizbMarks => _(
     'علامة الحزب في هامش الصفحة',
     'Hizb sign in the page margin',
