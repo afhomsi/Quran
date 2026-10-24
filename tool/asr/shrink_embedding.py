@@ -7,8 +7,8 @@ transpose is computed in the graph, onnxruntime's dynamic quantization
 quantizes neither, and the float32 table is most of the int8 decoder's
 size. This script
 
-1. stores the transposed table as its own initializer, so dynamic
-   quantization turns the output layer into an int8 MatMul, and
+1. rewrites the output layer as x @ tableᵀ with tableᵀ stored as its own
+   initializer, so dynamic quantization turns it into an int8 MatMul, and
 2. replaces the Gather table with an int8 table and one scale per row:
 
        Gather(table, ids) -> Gather(table_q, ids) * Gather(scales, ids)
@@ -78,11 +78,66 @@ def _fold_transposes(model) -> None:
         else:
             kept.append(node)
     _rewire(kept, renames)
+    kept = _swap_matmuls(graph, kept, tables)
     for node in kept:
         if any(name in tables for name in node.input) and node.op_type != "Gather":
             print(f"table still read by {node.op_type} {node.name}")
     del graph.node[:]
     graph.node.extend(kept)
+
+
+def _perm(node):
+    return next((list(a.ints) for a in node.attribute if a.name == "perm"), None)
+
+
+def _swaps_last_two(perm) -> bool:
+    if perm is None or len(perm) < 2:
+        return False
+    n = len(perm)
+    return perm == list(range(n - 2)) + [n - 1, n - 2]
+
+
+def _swap_matmuls(graph, nodes, tables):
+    """Rewrites Transpose(MatMul(table, Transpose(x))) as MatMul(x, tableᵀ).
+
+    This is how the exporter writes the output layer, x @ tableᵀ, and with
+    the table as the second input dynamic quantization can quantize it.
+    """
+    producer = {o: n for n in nodes for o in n.output}
+    consumers = {}
+    for n in nodes:
+        for name in n.input:
+            consumers.setdefault(name, []).append(n)
+    dropped = set()
+    added = []
+    for node in nodes:
+        if node.op_type != "MatMul" or node.input[0] not in tables:
+            continue
+        inner = producer.get(node.input[1])
+        outer = consumers.get(node.output[0], [])
+        if (
+            inner is None
+            or inner.op_type != "Transpose"
+            or len(outer) != 1
+            or outer[0].op_type != "Transpose"
+        ):
+            continue
+        p_in, p_out = _perm(inner), _perm(outer[0])
+        if not (_swaps_last_two(p_in) and _swaps_last_two(p_out)):
+            continue
+        name = node.input[0] + "_transposed"
+        if not any(i.name == name for i in graph.initializer):
+            w = numpy_helper.to_array(tables[node.input[0]])
+            graph.initializer.append(numpy_helper.from_array(np.ascontiguousarray(w.T), name))
+        added.append(
+            (node, helper.make_node("MatMul", [inner.input[0], name], [outer[0].output[0]], name=node.name + "_swapped"))
+        )
+        dropped.update({id(node), id(outer[0])})
+        if len(consumers.get(inner.output[0], [])) == 1:
+            dropped.add(id(inner))
+        print(f"rewrote {node.name} as x @ {name}")
+    replacement = {id(old): new for old, new in added}
+    return [replacement.get(id(n), n) for n in nodes if id(n) not in dropped or id(n) in replacement]
 
 
 def _quantize_gathers(model) -> None:
