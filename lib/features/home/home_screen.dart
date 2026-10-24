@@ -34,6 +34,7 @@ class HomeScreen extends ConsumerWidget {
       child: Scaffold(
         appBar: AppBar(
           title: Text(s.tabIndex),
+          centerTitle: true,
           actions: [
             if (!hideRecite)
               FilledButton.tonalIcon(
@@ -58,8 +59,9 @@ class HomeScreen extends ConsumerWidget {
             ),
           ],
           bottom: TabBar(
-            isScrollable: true,
-            tabAlignment: TabAlignment.start,
+            labelStyle: Theme.of(context).textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.bold),
+            unselectedLabelStyle: Theme.of(context).textTheme.titleMedium,
             tabs: [for (final t in s.indexTabs) Tab(text: t)],
           ),
         ),
@@ -74,6 +76,7 @@ class HomeScreen extends ConsumerWidget {
           (AsyncData(value: final m), AsyncData(value: final all)) => IndexView(
             mushaf: m,
             surahs: all,
+            currentPage: lastPage,
           ),
           (AsyncError(:final error), _) || (_, AsyncError(:final error)) =>
             Center(child: Text(s.loadMushafError(error))),
