@@ -39,6 +39,7 @@ class MushafPageView extends StatelessWidget {
     this.selected,
     this.selectedWord,
     this.highlights = const {},
+    this.recitedWords,
     this.showHizbMarks = false,
     this.tajweed,
     this.onAyahTap,
@@ -55,6 +56,11 @@ class MushafPageView extends StatelessWidget {
 
   /// Ayat colored by the reader, with their color.
   final Map<AyahRef, Color> highlights;
+
+  /// When given, the page is being recited from memory: each word shows
+  /// only once that many words of its ayah were recited, and the others
+  /// are grey blocks. The ayah numbers always show.
+  final Map<AyahRef, int>? recitedWords;
 
   /// Put ۞ over the first word of each quarter of a hizb.
   final bool showHizbMarks;
@@ -136,6 +142,10 @@ class MushafPageView extends StatelessWidget {
                     selected: w.ayah == selected,
                     wordSelected: selectedWord == (w.ayah, w.position),
                     highlight: highlights[w.ayah],
+                    hidden:
+                        recitedWords != null &&
+                        !w.isAyahEnd &&
+                        (recitedWords![w.ayah] ?? 0) < w.position,
                     hizbMark:
                         showHizbMarks &&
                         w.position == 1 &&
@@ -160,6 +170,7 @@ class _Word extends StatelessWidget {
     required this.selected,
     this.wordSelected = false,
     this.highlight,
+    this.hidden = false,
     this.hizbMark = false,
     this.onTap,
     this.onLongPress,
@@ -173,6 +184,9 @@ class _Word extends StatelessWidget {
   final bool selected;
   final bool wordSelected;
   final Color? highlight;
+
+  /// Not recited yet, so drawn as a grey block of the word's size.
+  final bool hidden;
   final bool hizbMark;
   final WordCallback? onTap;
   final WordCallback? onLongPress;
@@ -181,6 +195,36 @@ class _Word extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final dark = Theme.of(context).brightness == Brightness.dark;
+    if (hidden) {
+      return Stack(
+        children: [
+          Positioned.fill(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: fontSize * 0.3),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: colors.onSurface.withValues(alpha: dark ? 0.16 : 0.1),
+                  borderRadius: BorderRadius.circular(fontSize * 0.25),
+                ),
+              ),
+            ),
+          ),
+          // Keeps the word's size, so the lines stay as printed.
+          Opacity(
+            opacity: 0,
+            child: Text(
+              _display(word.text),
+              textDirection: TextDirection.rtl,
+              style: TextStyle(
+                fontFamily: mushafFont,
+                fontSize: fontSize,
+                height: _linePitchEm,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTapUp: onTap == null ? null : (d) => onTap!(word, d.globalPosition),

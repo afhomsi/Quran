@@ -8,7 +8,8 @@ import '../audio/repeat_sheet.dart';
 
 /// Reciting controls under the mushaf page, like the audio player: close,
 /// start over, the microphone and listening to the ayat recited wrongly.
-/// The page itself shows each ayah in green or red as it is recited.
+/// The page itself hides the words not recited yet and shows each ayah in
+/// green or red as it is recited; the eye button shows the whole page.
 class RecitationBar extends ConsumerWidget {
   const RecitationBar({super.key});
 
@@ -81,6 +82,16 @@ class RecitationBar extends ConsumerWidget {
                 tooltip: t.closeRecitation,
                 icon: Icon(Icons.cancel_rounded, color: colors.primary),
                 onPressed: controller.close,
+              ),
+              IconButton(
+                tooltip: recitation.hideText ? t.showText : t.hideText,
+                icon: Icon(
+                  recitation.hideText
+                      ? Icons.visibility_rounded
+                      : Icons.visibility_off_rounded,
+                  color: colors.primary,
+                ),
+                onPressed: controller.toggleHideText,
               ),
               IconButton(
                 tooltip: t.restartRecitation,

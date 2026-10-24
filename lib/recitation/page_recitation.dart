@@ -17,13 +17,53 @@ enum AyahRecitation { correct, mistake }
 
 /// Reciting the page open in the mushaf, from a bar under the page.
 class PageRecitation {
-  const PageRecitation(this.page, this.session, this.version);
+  const PageRecitation(
+    this.page,
+    this.session,
+    this.version, {
+    this.hideText = true,
+  });
 
   final int page;
   final RecitationSession session;
 
   /// Changes whenever the session does, so listeners redraw.
   final int version;
+
+  /// Hifz is recited from memory, so the words of the page are hidden and
+  /// show one by one as they are recited.
+  final bool hideText;
+
+  PageRecitation copyWith({int? version, bool? hideText}) => PageRecitation(
+    page,
+    session,
+    version ?? this.version,
+    hideText: hideText ?? this.hideText,
+  );
+
+  /// How many words of each ayah were recited so far, right or wrong. An
+  /// ayah recited to its end shows all its words, whatever the count, so
+  /// a word printed apart on the page does not stay hidden.
+  Map<AyahRef, int> get recitedWords {
+    final counts = <AyahRef, int>{};
+    final unfinished = <AyahRef>{};
+    for (final w in session.result.words) {
+      if (w.word.kind != WordKind.ayah) continue;
+      final ayah = AyahRef(w.surah, w.ayah);
+      if (w.status == WordStatus.pending) {
+        unfinished.add(ayah);
+      } else {
+        counts[ayah] = (counts[ayah] ?? 0) + 1;
+      }
+    }
+    return {
+      for (final e in counts.entries)
+        e.key: unfinished.contains(e.key) ? e.value : allWords,
+    };
+  }
+
+  /// The count of an ayah recited to its end in [recitedWords].
+  static const allWords = 1 << 30;
 
   /// The ayat reached so far: wrong if any of their words was, else right.
   Map<AyahRef, AyahRecitation> get ayahStates {
@@ -96,6 +136,13 @@ class PageRecitationController extends Notifier<PageRecitation?> {
     await toggleListening();
   }
 
+  /// Hides the words not recited yet, or shows the whole page.
+  void toggleHideText() {
+    final current = state;
+    if (current == null) return;
+    state = current.copyWith(hideText: !current.hideText);
+  }
+
   /// Starts or stops listening. The recitation audio is paused first, so
   /// the microphone does not hear it.
   Future<void> toggleListening() async {
@@ -131,7 +178,7 @@ class PageRecitationController extends Notifier<PageRecitation?> {
     final current = state;
     if (current == null || current.session != session) return;
     if (session.result.isComplete) _save();
-    state = PageRecitation(current.page, session, current.version + 1);
+    state = current.copyWith(version: current.version + 1);
   }
 
   void _save() {

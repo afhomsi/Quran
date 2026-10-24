@@ -528,6 +528,9 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
                 ? _mistakeColor
                 : _correctColor,
       },
+      recitedWords: recitation?.page == page && recitation!.hideText
+          ? recitation.recitedWords
+          : null,
       bookmarks: [
         for (final kind in MarkerKind.values)
           if (markers[kind] case final a? when mushaf.pageOf(a) == page)
@@ -724,6 +727,7 @@ class _PageSlot extends ConsumerWidget {
     required this.selected,
     required this.selectedWord,
     required this.highlights,
+    this.recitedWords,
     required this.bookmarks,
     required this.showHizbMarks,
     required this.onAyahTap,
@@ -741,6 +745,7 @@ class _PageSlot extends ConsumerWidget {
   final List<Surah> surahs;
   final AyahRef? selected;
   final Map<AyahRef, Color> highlights;
+  final Map<AyahRef, int>? recitedWords;
 
   /// Markers and khatma plans that stand on this page: their color and
   /// name, drawn as ribbons in the header.
@@ -846,6 +851,7 @@ class _PageSlot extends ConsumerWidget {
                   selected: selected,
                   selectedWord: selectedWord,
                   highlights: highlights,
+                  recitedWords: recitedWords,
                   showHizbMarks: showHizbMarks,
                   tajweed: tajweed,
                   onAyahTap: onAyahTap,
