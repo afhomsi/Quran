@@ -1,13 +1,11 @@
 import 'dart:convert';
 
-import 'package:archive/archive.dart' show GZipDecoder;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'mushaf_models.dart';
 
 const tajweedAssetPath = 'assets/mushaf/tajweed.json';
-const wordMeaningsAssetPath = 'assets/quran/wbw_en.json.gz';
 
 /// The tajweed rules the colour page fonts mark, with the palette slots
 /// that draw them and their colours on a light and a dark page, as in the
@@ -56,29 +54,3 @@ TajweedMap parseTajweed(String raw) => TajweedMap(jsonDecode(raw) as List);
 final tajweedProvider = FutureProvider<TajweedMap>(
   (ref) async => parseTajweed(await rootBundle.loadString(tajweedAssetPath)),
 );
-
-/// The English meaning of every word, from Quran.com's word-by-word
-/// translation, bundled so it works offline.
-class WordMeanings {
-  WordMeanings(this._data);
-
-  final List<dynamic> _data;
-
-  /// The meaning of the word at [position] of [ayah], or ''.
-  String of(AyahRef ayah, int position) {
-    final words = _data[ayah.surah - 1][ayah.ayah - 1] as List;
-    if (position < 1 || position > words.length) return '';
-    return words[position - 1] as String;
-  }
-}
-
-WordMeanings parseWordMeanings(List<int> gzipped) => WordMeanings(
-  jsonDecode(utf8.decode(GZipDecoder().decodeBytes(gzipped))) as List,
-);
-
-final wordMeaningsProvider = FutureProvider<WordMeanings>((ref) async {
-  final data = await rootBundle.load(wordMeaningsAssetPath);
-  return parseWordMeanings(
-    data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
-  );
-});

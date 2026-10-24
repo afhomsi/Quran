@@ -57,3 +57,12 @@ ayat with Quran.com's text again.
   ayah number and sets our own colour palettes (light, night, and tajweed
   for both). The app converts each font from WOFF to TrueType when it loads
   the page and picks the palette that fits the theme.
+
+The study panel reads, per ayah and only when opened, books that are free
+of copyright: the classical tafsirs of al-Jalalayn, as-Sa'di, Ibn Kathir,
+al-Baghawi and at-Tabari, an-Nashr of Ibn al-Jazari for the qira'at and
+ad-Durr al-Masun of as-Samin al-Halabi for the i'rab, from
+[spa5k/tafsir_api](https://github.com/spa5k/tafsir_api), and Pickthall's
+English translation (1930) from
+[fawazahmed0/quran-api](https://github.com/fawazahmed0/quran-api). The app's
+"Sources and rights" page names every source.

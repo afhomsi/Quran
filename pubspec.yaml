@@ -72,7 +72,6 @@ flutter:
 
   assets:
     - assets/quran/hafs_uthmani.json
-    - assets/quran/wbw_en.json.gz
     - assets/mushaf/tajweed.json
     - assets/mushaf/layout.json
     - assets/mushaf/fonts/

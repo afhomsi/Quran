@@ -1,7 +1,7 @@
 part of 'strings.dart';
 
-/// Texts of the word card and the study panel: tafsir, qira'at, word
-/// analysis, i'rab, reflections and translation.
+/// Texts of the word card and the study panel: tafsir, qira'at, i'rab and
+/// translation.
 extension StudyStrings on S {
   // The four parts of the study panel.
   String get surahSciences =>
@@ -11,35 +11,25 @@ extension StudyStrings on S {
   String get studyWord => _('الكلمة', 'Word', 'শব্দ', 'لفظ');
 
   // Their tabs.
-  String get surahNaming => _(
-    'تسمية السورة ومقاصدها',
-    'Name and aims',
-    'নাম ও উদ্দেশ্য',
-    'نام اور مقاصد',
-  );
   String get surahStats =>
       _('إحصائيات', 'Statistics', 'পরিসংখ্যান', 'اعداد و شمار');
-  String get benefits => _('الفوائد', 'Reflections', 'শিক্ষা', 'فوائد');
   String get translations => _('الترجمات', 'Translation', 'অনুবাদ', 'تراجم');
   String get mukhtasar => _('المختصر', 'Brief', 'সংক্ষিপ্ত', 'مختصر');
   String get tafsir => _('التفسير', 'Tafsir', 'তাফসীর', 'تفسیر');
   String get qiraat => _('القراءات', "Qira'at", 'কিরাআত', 'قراءات');
-  String get tasreef => _('التصريف', 'Morphology', 'শব্দ বিশ্লেষণ', 'صرف');
   String get irabAyah =>
       _('إعراب الآية', "I'rab of the ayah", 'আয়াতের ই‘রাব', 'آیت کا اعراب');
   String get irab => _('الإعراب', "I'rab", 'ই‘রাব', 'اعراب');
-  String get tadabbur => _('التدبر', 'Reflection', 'চিন্তা', 'تدبر');
   String get translation => _('الترجمة', 'Translation', 'অনুবাদ', 'ترجمہ');
   String get meaning => _('المعنى', 'Meaning', 'অর্থ', 'معنی');
 
   String bookName(StudyBook book) => switch (book) {
-    StudyBook.mukhtasar => _(
-      'المختصر في التفسير',
-      'Al-Mukhtasar',
-      'আল-মুখতাসার',
-      'المختصر فی التفسیر',
+    StudyBook.jalalayn => _(
+      'تفسير الجلالين',
+      'Tafsir al-Jalalayn',
+      'তাফসীরে জালালাইন',
+      'تفسیر جلالین',
     ),
-    StudyBook.muyassar => _('الميسر', 'Al-Muyassar', 'আল-মুয়াসসার', 'المیسر'),
     StudyBook.saadi => _('السعدي', "As-Sa'di", 'আস-সা‘দী', 'السعدی'),
     StudyBook.ibnKathir => _(
       'ابن كثير',
@@ -55,44 +45,13 @@ extension StudyStrings on S {
       'আন-নাশর',
       'النشر لابن الجزری',
     ),
-    StudyBook.qiraat => _(
-      'الموسوعة القرآنية',
-      "Mawsu'at al-Qira'at",
-      'কিরাআত বিশ্বকোষ',
-      'الموسوعۃ القرآنیۃ',
+    StudyBook.samin => _(
+      'الدر المصون للسمين الحلبي',
+      'Ad-Durr al-Masun (as-Samin al-Halabi)',
+      'আদ-দুররুল মাসূন',
+      'الدر المصون للسمین الحلبی',
     ),
-    StudyBook.tasreef => _(
-      'تحليل كلمات القرآن',
-      "Tahlil Kalimat al-Qur'an",
-      'শব্দ বিশ্লেষণ',
-      'تحلیل کلمات القرآن',
-    ),
-    StudyBook.irabMuyassar => _(
-      'الإعراب الميسر',
-      "Al-I'rab al-Muyassar",
-      'সহজ ই‘রাব',
-      'الاعراب المیسر',
-    ),
-    StudyBook.irabJadwal => _('الجدول', 'Al-Jadwal', 'আল-জাদওয়াল', 'الجدول'),
-    StudyBook.irabDarwish => _('درويش', 'Ad-Darwish', 'আদ-দারবীশ', 'درویش'),
-    StudyBook.gharib => _(
-      'الميسر في الغريب',
-      'Al-Muyassar fil-Gharib',
-      'বিরল শব্দের অর্থ',
-      'المیسر فی الغریب',
-    ),
-    StudyBook.tadabbur => _(
-      'تدبر وعمل',
-      "Tadabbur wa 'Amal",
-      'তাদাব্বুর ওয়া আমাল',
-      'تدبر و عمل',
-    ),
-    StudyBook.english => _(
-      'صحيح إنترناشونال',
-      'Saheeh International',
-      'সহীহ ইন্টারন্যাশনাল',
-      'صحیح انٹرنیشنل',
-    ),
+    StudyBook.english => _('ترجمة بكثال', 'Pickthall', 'পিকথল', 'پکتھال'),
   };
 
   // The word card.

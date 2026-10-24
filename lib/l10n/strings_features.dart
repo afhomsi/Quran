@@ -562,4 +562,36 @@ extension FeatureStrings on S {
     'তিলাওয়াত everyayah.com থেকে আসে, ইন্টারনেট সংযোগ লাগে।',
     'تلاوتیں everyayah.com سے آتی ہیں اور انٹرنیٹ درکار ہے۔',
   );
+
+  // Sources and rights.
+  String get sources => _(
+    'المصادر والحقوق',
+    'Sources and rights',
+    'উৎস ও স্বত্ব',
+    'ماخذ اور حقوق',
+  );
+  String get sourceQuranText =>
+      _('نص القرآن', 'Quran text', 'কুরআনের পাঠ', 'قرآن کا متن');
+  String get sourceMushaf =>
+      _('صفحات المصحف', 'Mushaf pages', 'মুসহাফের পৃষ্ঠা', 'مصحف کے صفحات');
+  String get sourceTafsir => _(
+    'التفسير والقراءات والإعراب',
+    "Tafsir, qira'at and i'rab",
+    'তাফসীর, কিরাআত ও ই‘রাব',
+    'تفسیر، قراءات اور اعراب',
+  );
+  String get sourceTranslation => _(
+    'الترجمة الإنجليزية',
+    'English translation',
+    'ইংরেজি অনুবাদ',
+    'انگریزی ترجمہ',
+  );
+  String get sourceRecitations =>
+      _('التلاوات', 'Recitations', 'তিলাওয়াত', 'تلاوتیں');
+  String get softwareLicences => _(
+    'تراخيص البرمجيات المستخدمة',
+    'Software licences',
+    'সফটওয়্যার লাইসেন্স',
+    'سافٹ ویئر لائسنس',
+  );
 }

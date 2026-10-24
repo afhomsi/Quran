@@ -14,20 +14,19 @@ const _ayah =
     'يَشَآءُۚ وَلِلَّهِ مُلۡكُ ٱلسَّمَٰوَٰتِ وَٱلۡأَرۡضِ وَمَا بَيۡنَهُمَاۖ '
     'وَإِلَيۡهِ ٱلۡمَصِيرُ';
 
-// From "Tahlil Kalimat al-Qur'an" on the same ayah.
-const _tasreef =
-    '• ﴿وَ﴾ حرف عطف، ﴿قَالَتِ﴾ فعل ماض ثلاثي مجرد، من مادّة قول.\n\n'
-    '• ﴿ٱلْ﴾، ﴿يَهُودُ﴾ علم، من مادّة هود، مذكر، جمع.\n\n'
-    '• ﴿وَ﴾ حرف عطف، ﴿ٱل﴾، ﴿نَّصَٰرَىٰ﴾ علم، من مادّة نصر، جمع.\n\n'
-    '• ﴿وَ﴾ حرف عطف، ﴿أَحِبَّٰٓؤُ﴾ اسم، من مادّة حبب، ﴿هُۥ﴾ ضمير.\n\n'
-    '• ﴿يَشَآءُ﴾ فعل مضارع، الأول.\n\n'
-    '• ﴿يَشَآءُ﴾ فعل مضارع، الثاني.';
+// From al-Jalalayn on the same ayah: one paragraph, piece by piece.
+const _jalalayn =
+    '﴿وقالَتْ اليَهُود والنَّصارى﴾ أيْ كُلّ مِنهُما ﴿نَحْنُ أبْناء اللَّه '
+    'وأَحِبّاؤُهُ﴾ أيْ كَأَبْنائِهِ فِي القُرْب ﴿قُلْ﴾ لَهُمْ يا مُحَمَّد '
+    '﴿بَلْ أنْتُمْ بَشَر مِمَّنْ﴾ مِن جُمْلَة مَن ﴿خَلَقَ﴾ مِن البَشَر '
+    '﴿يَغْفِر لِمَن يَشاء﴾ المَغْفِرَة لَهُ ﴿ويُعَذِّب مَن يَشاء﴾ تَعْذِيبه '
+    '﴿ولِلَّهِ مُلْك السَّماوات والأَرْض وما بَيْنهما وإلَيْهِ المَصِير﴾ '
+    'المَرْجِع';
 
-// From "Al-Muyassar fil-Gharib" on the same ayah.
-const _gharib =
-    '﴿نَحۡنُ أَبۡنَـٰٓؤُاْ ٱللَّهِ﴾: فقالت اليهودُ: عزيرٌ ابنُ اللهِ.\n\n'
-    '﴿أَنتُم بَشَرࣱ﴾: أنتم خَلْقٌ مثلُ سائرِ بني آدمَ.\n\n'
-    '﴿ٱلۡمَصِيرُ﴾: المَرْجِعُ.';
+// From ad-Durr al-Masun on the same ayah, which quotes in { }.
+const _samin =
+    'قوله تعالى: {فَلِمَ} : هذه الفاءُ جوابُ شرط مقدر. '
+    'والباء في «بذنوبكم» سببية.';
 
 void main() {
   test('words are split as on the printed page', () {
@@ -37,34 +36,27 @@ void main() {
   });
 
   test('finds what a book says on a word, across spellings', () {
-    expect(paragraphsOnWord(_tasreef, _ayah, 2).single, contains('هود'));
-    expect(paragraphsOnWord(_tasreef, _ayah, 3).single, contains('نصر'));
-    expect(paragraphsOnWord(_tasreef, _ayah, 7).single, contains('حبب'));
-    expect(paragraphsOnWord(_gharib, _ayah, 14).single, contains('خَلْقٌ'));
-    expect(paragraphsOnWord(_gharib, _ayah, 30).single, contains('المَرْجِعُ'));
-    expect(paragraphsOnWord(_gharib, _ayah, 1), isEmpty);
+    final jalalayn = splitAtQuotes(_jalalayn);
+    expect(paragraphsOnWord(jalalayn, _ayah, 1).single, contains('كُلّ'));
+    expect(paragraphsOnWord(jalalayn, _ayah, 4).single, contains('القُرْب'));
+    expect(paragraphsOnWord(jalalayn, _ayah, 16).single, contains('البَشَر'));
+    expect(paragraphsOnWord(jalalayn, _ayah, 30).single, contains('المَرْجِع'));
+    expect(paragraphsOnWord(jalalayn, _ayah, 9), isEmpty);
   });
 
   test('a repeated word gets its own occurrence first', () {
-    expect(paragraphsOnWord(_tasreef, _ayah, 19).first, contains('الأول'));
-    expect(paragraphsOnWord(_tasreef, _ayah, 22).first, contains('الثاني'));
+    final jalalayn = splitAtQuotes(_jalalayn);
+    expect(
+      paragraphsOnWord(jalalayn, _ayah, 19).first,
+      contains('المَغْفِرَة'),
+    );
+    expect(paragraphsOnWord(jalalayn, _ayah, 22).first, contains('تَعْذِيبه'));
   });
 
-  test('the surah introduction is kept apart from the tafsir', () {
-    const text =
-        'تسمية السورة\n\n• سميت المائدة.\n\nمن مقاصد السورة\n\n• بيان.\n\n'
-        '[التفسير]\n\nيا أيها الذين آمنوا.';
-    expect(surahIntro(text), startsWith('تسمية السورة'));
-    expect(surahIntro(text), isNot(contains('يا أيها')));
-    expect(withoutSurahIntro(text), 'يا أيها الذين آمنوا.');
-    expect(surahIntro('يا أيها'), isEmpty);
-    // Al-Ma'idah has no mark before its tafsir.
-    const unmarked =
-        'تسمية السورة\n\n• سميت المائدة.\n\nمن مقاصد السورة\n\n• بيان.\n\n'
-        'يا أيها الذين صدقوا.';
-    expect(surahIntro(unmarked), endsWith('• بيان.'));
-    expect(withoutSurahIntro(unmarked), 'يا أيها الذين صدقوا.');
-    expect(withoutSurahIntro('يا أيها'), 'يا أيها');
+  test('a word quoted in braces keeps the words that lead its quote', () {
+    final samin = paragraphsOnWord(splitAtQuotes(_samin), _ayah, 9).single;
+    expect(samin, startsWith('قوله تعالى: {فَلِمَ}'));
+    expect(samin, contains('جوابُ شرط'));
   });
 
   test('repeated texts of grouped ayat are kept once', () {
@@ -72,21 +64,21 @@ void main() {
   });
 
   test('books are read from GitHub and its mirror', () {
-    final urls = StudyBook.mukhtasar.urls(const AyahRef(5, 18));
+    final urls = StudyBook.jalalayn.urls(const AyahRef(5, 18));
     expect(
       urls.first.toString(),
       'https://raw.githubusercontent.com/spa5k/tafsir_api/main/tafsir/'
-      'ar-tafsir-al-mukhtasar/5/18.json',
+      'ar-tafsir-al-jalalayn/5/18.json',
     );
     expect(
       urls.last.toString(),
       'https://cdn.jsdelivr.net/gh/spa5k/tafsir_api@main/tafsir/'
-      'ar-tafsir-al-mukhtasar/5/18.json',
+      'ar-tafsir-al-jalalayn/5/18.json',
     );
     expect(
       StudyBook.english.urls(const AyahRef(1, 2)).first.toString(),
       'https://raw.githubusercontent.com/fawazahmed0/quran-api/1/editions/'
-      'eng-ummmuhammad/1/2.json',
+      'eng-mohammedmarmadu/1/2.json',
     );
   });
 
@@ -102,14 +94,5 @@ void main() {
       baqarah4[9],
       containsAll([TajweedRule.tafkhim, TajweedRule.qalqala]),
     );
-  });
-
-  test('gives the English meaning of each word', () {
-    final meanings = parseWordMeanings(
-      File(wordMeaningsAssetPath).readAsBytesSync(),
-    );
-    expect(meanings.of(const AyahRef(1, 1), 1), 'In (the) name');
-    expect(meanings.of(const AyahRef(5, 18), 29), 'and to Him');
-    expect(meanings.of(const AyahRef(5, 18), 99), '');
   });
 }

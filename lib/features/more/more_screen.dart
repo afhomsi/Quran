@@ -7,10 +7,11 @@ import '../profile/profile_screen.dart';
 import '../recitation/recitation_picker.dart';
 import '../self_test/self_test_screen.dart';
 import '../settings/settings_screen.dart';
+import 'sources_screen.dart';
 import '../shell/navigation.dart';
 
-/// "More": the hifz profile, self-test, recitation check, notes, bookmarks
-/// and settings.
+/// "More": the hifz profile, self-test, recitation check, notes, bookmarks,
+/// settings and the sources of the app's content.
 class MoreScreen extends ConsumerWidget {
   const MoreScreen({super.key});
 
@@ -55,6 +56,11 @@ class MoreScreen extends ConsumerWidget {
             icon: Icons.settings_outlined,
             label: t.settings,
             onTap: () => openSettings(context),
+          ),
+          _MoreCard(
+            icon: Icons.info_outline,
+            label: t.sources,
+            onTap: () => push(const SourcesScreen()),
           ),
         ],
       ),

@@ -1,3 +1,0 @@
-wbw_en.json.gz: word-by-word English meanings from Quran.com, taken from the
-npm package @kmaslesa/holy-quran-word-by-word-full-data 1.0.6 (ISC licence),
-built by tool/build_wbw_data.py.
