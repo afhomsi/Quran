@@ -81,4 +81,57 @@ void main() {
     await audio().close();
     expect(container.read(audioProvider).visible, isFalse);
   });
+
+  test('repeats each ayah and the whole range, then stops', () async {
+    await audio().playRange(
+      const AyahRef(1, 6),
+      const AyahRef(1, 7),
+      ayahRepeats: 2,
+      listRepeats: 2,
+    );
+    for (var i = 0; i < 8; i++) {
+      player.finish();
+      await pumpEventQueue();
+    }
+    expect(player.played.map((u) => u.substring(u.length - 10)), [
+      '001006.mp3',
+      '001006.mp3',
+      '001007.mp3',
+      '001007.mp3',
+      '001006.mp3',
+      '001006.mp3',
+      '001007.mp3',
+      '001007.mp3',
+    ]);
+    expect(container.read(audioProvider).playing, isFalse);
+    expect(container.read(audioProvider).pass, 2);
+  });
+
+  test('plays a list of ayat from different surahs', () async {
+    await audio().playList(
+      const [AyahRef(2, 255), AyahRef(1, 2)],
+      ayahRepeats: 1,
+      listRepeats: 1,
+    );
+    player.finish();
+    await pumpEventQueue();
+    expect(current(), const AyahRef(1, 2));
+    await audio().next();
+    expect(current(), const AyahRef(1, 2));
+    await audio().previous();
+    expect(current(), const AyahRef(2, 255));
+
+    await audio().playFrom(const AyahRef(1, 1));
+    expect(container.read(audioProvider).playlist, isNull);
+  });
+
+  test('a range runs across surahs', () {
+    final ayat = audio().ayatBetween(const AyahRef(1, 6), const AyahRef(2, 2));
+    expect(ayat, const [
+      AyahRef(1, 6),
+      AyahRef(1, 7),
+      AyahRef(2, 1),
+      AyahRef(2, 2),
+    ]);
+  });
 }

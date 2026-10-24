@@ -1,18 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../audio/ayah_audio.dart';
 import '../../data/mushaf_models.dart';
 import '../../data/mushaf_repository.dart';
 import '../../data/quran_models.dart';
 import '../../data/quran_repository.dart';
+import '../../data/recitation_history.dart';
 import '../../l10n/strings.dart';
 import '../../recitation/alert_sound.dart';
 import '../../recitation/recitation_matcher.dart';
 import '../../recitation/recitation_session.dart';
 import '../../recitation/speech_listener.dart';
+import '../audio/audio_bar.dart';
+import '../audio/repeat_sheet.dart';
 
 /// Recite a surah or a mushaf page from memory; the app listens and points
-/// out mistakes.
+/// out mistakes. The same ayat, or the ones recited wrongly, can be played
+/// and repeated here too, and each recitation is kept in the history.
 class RecitationScreen extends ConsumerWidget {
   /// Recite a whole surah.
   const RecitationScreen.surah(int this.surah, {super.key}) : page = null;
@@ -35,6 +40,8 @@ class RecitationScreen extends ConsumerWidget {
             ? t.reciteSurahTitle(s[surah! - 1])
             : t.recitePageTitle(page!),
         words: wordsToRecite(_ayahs(s, mushaf?.value)),
+        surah: surah,
+        page: page,
         surahs: s,
         listener: ref.read(speechListenerProvider),
       ),
@@ -71,25 +78,29 @@ class RecitationScreen extends ConsumerWidget {
   }
 }
 
-class _RecitationView extends StatefulWidget {
+class _RecitationView extends ConsumerStatefulWidget {
   const _RecitationView({
     super.key,
     required this.title,
     required this.words,
+    required this.surah,
+    required this.page,
     required this.surahs,
     required this.listener,
   });
 
   final String title;
   final List<ExpectedWord> words;
+  final int? surah;
+  final int? page;
   final List<Surah> surahs;
   final SpeechListener listener;
 
   @override
-  State<_RecitationView> createState() => _RecitationViewState();
+  ConsumerState<_RecitationView> createState() => _RecitationViewState();
 }
 
-class _RecitationViewState extends State<_RecitationView> {
+class _RecitationViewState extends ConsumerState<_RecitationView> {
   late final RecitationSession _session = RecitationSession(
     listener: widget.listener,
     expected: widget.words,
@@ -104,17 +115,88 @@ class _RecitationViewState extends State<_RecitationView> {
   /// Hifz is recited from memory, so the text is hidden until recited.
   bool _showText = false;
 
+  /// Whether this recitation is in the history already.
+  bool _saved = false;
+
+  /// Read now: the widget cannot use ref once it is being disposed.
+  late final _history = ref.read(recitationHistoryProvider.notifier);
+
+  /// Every ayah to recite, in order.
+  late final List<AyahRef> _ayat = {
+    for (final w in widget.words)
+      if (w.kind == WordKind.ayah) AyahRef(w.surah, w.ayah),
+  }.toList();
+
   @override
   void initState() {
     super.initState();
     _session.addListener(_follow);
+    _session.addListener(_saveWhenComplete);
   }
 
   @override
   void dispose() {
+    _save();
     _session.dispose();
     _scroll.dispose();
     super.dispose();
+  }
+
+  void _saveWhenComplete() {
+    if (_session.result.isComplete) _save();
+  }
+
+  /// Keeps what was recited and its mistakes in the history, once.
+  void _save() {
+    final words = _session.result.words;
+    final progress = _session.result.progress;
+    final reached = words
+        .take(progress)
+        .where((w) => w.word.kind == WordKind.ayah)
+        .toList();
+    if (_saved || reached.isEmpty) return;
+    _saved = true;
+    _history.add(
+      RecitationRecord(
+        date: DateTime.now(),
+        surah: widget.surah,
+        page: widget.page,
+        first: _ayat.first,
+        last: AyahRef(reached.last.surah, reached.last.ayah),
+        wordsDone: reached.length,
+        wordsTotal: words.where((w) => !w.word.optional).length,
+        complete: _session.result.isComplete,
+        mistakes: [for (final m in _session.mistakes) _record(m)],
+      ),
+    );
+  }
+
+  MistakeRecord _record(Mistake m) {
+    final w = widget.words[m.wordIndex];
+    return MistakeRecord(
+      w.kind == WordKind.ayah ? AyahRef(w.surah, w.ayah) : null,
+      m.message,
+    );
+  }
+
+  /// The ayat recited wrongly so far, in order.
+  List<AyahRef> get _mistakeAyat =>
+      {for (final m in _session.mistakes) ?_record(m).ayah}.toList()..sort();
+
+  /// Starts or stops listening to the reciter. The recitation audio is
+  /// paused first, so the microphone does not hear it.
+  Future<void> _toggleListening() async {
+    if (_session.isListening) return _session.stop();
+    final audio = ref.read(audioProvider);
+    if (audio.playing) await ref.read(audioProvider.notifier).togglePlay();
+    await _session.start();
+  }
+
+  /// Plays [ayat] with repeats, after the reciter stops reciting.
+  Future<void> _listenTo(List<AyahRef> ayat, String title) async {
+    if (_session.isListening) await _session.stop();
+    if (!mounted) return;
+    await showRepeatSheet(context, ayat: ayat, title: title);
   }
 
   /// Keeps the ayah being recited in view.
@@ -136,13 +218,16 @@ class _RecitationViewState extends State<_RecitationView> {
   }
 
   Future<void> _reset() async {
+    _save();
     await _session.reset();
+    _saved = false;
     _followedGroup = 0;
     if (_scroll.hasClients) _scroll.jumpTo(0);
   }
 
   @override
   Widget build(BuildContext context) {
+    final audioVisible = ref.watch(audioProvider.select((a) => a.visible));
     return ListenableBuilder(
       listenable: _session,
       builder: (context, _) {
@@ -153,6 +238,11 @@ class _RecitationViewState extends State<_RecitationView> {
           appBar: AppBar(
             title: Text(widget.title),
             actions: [
+              IconButton(
+                tooltip: t.listenToRecited,
+                icon: const Icon(Icons.headphones),
+                onPressed: () => _listenTo(_ayat, t.listenToRecited),
+              ),
               IconButton(
                 tooltip: _showText ? t.hideText : t.showText,
                 icon: Icon(_showText ? Icons.visibility_off : Icons.visibility),
@@ -197,13 +287,28 @@ class _RecitationViewState extends State<_RecitationView> {
                   ),
                 ),
               ),
+              if (mistakes.isNotEmpty && !_session.isListening)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.replay),
+                    label: Text(t.listenToMistakes),
+                    onPressed: () =>
+                        _listenTo(_mistakeAyat, t.listenToMistakes),
+                  ),
+                ),
+              if (audioVisible)
+                const Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: AudioBar(),
+                ),
               _StatusBar(session: _session),
             ],
           ),
           floatingActionButtonLocation:
               FloatingActionButtonLocation.centerFloat,
           floatingActionButton: FloatingActionButton.extended(
-            onPressed: _session.isListening ? _session.stop : _session.start,
+            onPressed: _toggleListening,
             icon: Icon(_session.isListening ? Icons.stop : Icons.mic),
             label: Text(_session.isListening ? t.stop : t.startRecitation),
           ),

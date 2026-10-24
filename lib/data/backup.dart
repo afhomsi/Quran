@@ -9,13 +9,14 @@ const _bookmarksKey = 'bookmarks';
 const _app = 'hifz';
 
 /// Other data saved as one JSON string each: markers, highlights, notes,
-/// khatma plans and the audio player's choices.
+/// khatma plans, the audio player's choices and the recitation history.
 const _jsonKeys = [
   'markers',
   'highlights',
   'notes',
   'khatma_plans',
   'audio_settings',
+  'recitation_history',
 ];
 
 /// The user's data as text to keep somewhere safe: the settings, the

@@ -3,13 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/strings.dart';
 import '../notes/notes_screen.dart';
+import '../profile/profile_screen.dart';
 import '../recitation/recitation_picker.dart';
 import '../self_test/self_test_screen.dart';
 import '../settings/settings_screen.dart';
 import '../shell/navigation.dart';
 
-/// "More": the hifz self-test, recitation check, notes, bookmarks and
-/// settings.
+/// "More": the hifz profile, self-test, recitation check, notes, bookmarks
+/// and settings.
 class MoreScreen extends ConsumerWidget {
   const MoreScreen({super.key});
 
@@ -24,6 +25,11 @@ class MoreScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
         children: [
+          _MoreCard(
+            icon: Icons.person_outline,
+            label: t.myProfile,
+            onTap: () => push(const ProfileScreen()),
+          ),
           _MoreCard(
             icon: Icons.fact_check_outlined,
             label: t.selfTest,

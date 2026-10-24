@@ -77,9 +77,9 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byTooltip('القائمة'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('تسميع'));
+    // The recite button sits beside the page number, next to listen.
+    expect(find.widgetWithText(TextButton, 'استماع'), findsOneWidget);
+    await tester.tap(find.widgetWithText(TextButton, 'تسميع'));
     await tester.pumpAndSettle();
     expect(_inSheet('تسميع سورة البقرة كاملة'), findsOneWidget);
     await tester.tap(_inSheet('تسميع هذه الصفحة (2)'));

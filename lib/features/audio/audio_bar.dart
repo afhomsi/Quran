@@ -4,9 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../audio/ayah_audio.dart';
 import '../../data/quran_repository.dart';
 import '../../l10n/strings.dart';
+import 'repeat_sheet.dart';
 
-/// Player controls under the mushaf page: options, loop, previous ayah,
-/// play or pause, next ayah and close.
+/// Player controls under the mushaf page: options, repeating a group of
+/// ayat, loop, previous ayah, play or pause, next ayah and close.
 class AudioBar extends ConsumerWidget {
   const AudioBar({super.key});
 
@@ -38,7 +39,8 @@ class AudioBar extends ConsumerWidget {
                     ? t.audioError
                     : '${t.reciterName(reciters[audio.reciter])} · '
                           '${t.surahName(surahs[current.surah - 1])} '
-                          '${t.n(current.ayah)}',
+                          '${t.n(current.ayah)}'
+                          '${audio.playlist == null ? '' : ' · ${t.playlistRound(audio.pass, audio.listRepeats)}'}',
                 style: Theme.of(context).textTheme.labelMedium
                     ?.copyWith(color: audio.failed ? colors.error : null),
                 maxLines: 1,
@@ -80,6 +82,21 @@ class AudioBar extends ConsumerWidget {
                 tooltip: t.previousAyah,
                 icon: Icon(Icons.fast_rewind, color: colors.primary),
                 onPressed: controller.previous,
+              ),
+              IconButton(
+                tooltip: t.repeatAyat,
+                isSelected: audio.playlist != null,
+                icon: Icon(
+                  Icons.playlist_play,
+                  color: audio.playlist == null
+                      ? colors.onSurfaceVariant
+                      : colors.primary,
+                ),
+                onPressed: () => showRepeatSheet(
+                  context,
+                  from: audio.playlist?.first ?? current,
+                  to: audio.playlist?.last ?? current,
+                ),
               ),
               IconButton(
                 tooltip: t.loopLabel(audio.loop),
@@ -162,8 +179,8 @@ class _AudioOptions extends ConsumerWidget {
             Slider(
               value: audio.repeats.toDouble(),
               min: 1,
-              max: 10,
-              divisions: 9,
+              max: 20,
+              divisions: 19,
               label: '${audio.repeats}',
               onChanged: (v) => controller.setRepeats(v.round()),
             ),
