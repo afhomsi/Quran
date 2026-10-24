@@ -25,6 +25,17 @@ void main() {
     expect(normalizeWord('ٱلضَّآلِّينَ'), normalizeWord('الضالين'));
   });
 
+  test('long words may differ by one letter', () {
+    expect(wordsMatch('المستقيم', 'المستقيم'), isTrue);
+    expect(wordsMatch('المستقيم', 'المستقبم'), isTrue);
+    expect(wordsMatch('المستقيم', 'المستقم'), isTrue);
+    expect(wordsMatch('المستقيم', 'المستقييم'), isTrue);
+    expect(wordsMatch('المستقيم', 'المسقيم'), isTrue);
+    expect(wordsMatch('المستقيم', 'المتقم'), isFalse);
+    expect(wordsMatch('المستقيم', 'الستقبم'), isFalse);
+    expect(wordsMatch('رب', 'رد'), isFalse);
+  });
+
   test('a correct recitation has no mistakes', () {
     final r = alignRecitation(expected, words(fatihaPlain));
     expect(expected, hasLength(o + 29));

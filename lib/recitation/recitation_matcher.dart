@@ -135,7 +135,24 @@ List<ExpectedWord> wordsOfSurah(int surah, List<String> ayahs) => wordsToRecite(
 bool wordsMatch(String expected, String heard) {
   if (expected == heard) return true;
   if (min(expected.length, heard.length) < 5) return false;
-  return _editDistance(expected, heard) <= 1;
+  return _withinOneEdit(expected, heard);
+}
+
+/// Whether [a] becomes [b] by changing, adding or removing at most one
+/// letter. Checked letter by letter, as it runs for every pair of words
+/// on each result while reciting.
+bool _withinOneEdit(String a, String b) {
+  if (a.length < b.length) return _withinOneEdit(b, a);
+  if (a.length - b.length > 1) return false;
+  var i = 0;
+  while (i < b.length && a.codeUnitAt(i) == b.codeUnitAt(i)) {
+    i++;
+  }
+  if (i == b.length) return true;
+  // Past the first difference the rest must match, after skipping one
+  // letter of the longer word, or one of each when the lengths are equal.
+  final skipB = a.length == b.length ? 1 : 0;
+  return a.substring(i + 1) == b.substring(i + skipB);
 }
 
 /// Aligns [heard] (raw recognizer words) with [expected] and reports each
@@ -251,19 +268,4 @@ RecitationResult alignRecitation(
     ],
     extrasAtEnd: extras[n],
   );
-}
-
-int _editDistance(String a, String b) {
-  var prev = List.generate(b.length + 1, (j) => j);
-  for (var i = 1; i <= a.length; i++) {
-    final cur = List.filled(b.length + 1, i);
-    for (var j = 1; j <= b.length; j++) {
-      cur[j] = min(
-        prev[j - 1] + (a[i - 1] == b[j - 1] ? 0 : 1),
-        min(prev[j], cur[j - 1]) + 1,
-      );
-    }
-    prev = cur;
-  }
-  return prev[b.length];
 }
