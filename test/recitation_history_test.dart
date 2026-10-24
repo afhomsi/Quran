@@ -96,7 +96,8 @@ void main() {
     await tester.pumpAndSettle();
     for (var i = 0; i < 4; i++) {
       player.finish();
-      await tester.pump();
+      // The player goes on to the next ayah after its own event.
+      await tester.pump(const Duration(milliseconds: 10));
     }
     expect(player.played.map((u) => u.substring(u.length - 10)), [
       '001003.mp3',
