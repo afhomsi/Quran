@@ -35,6 +35,18 @@ final mushafChromeProvider = NotifierProvider<MushafChromeNotifier, bool>(
   MushafChromeNotifier.new,
 );
 
+/// Whether the mushaf's page navigator (thumbnails and a slider) is open.
+class PageNavigatorNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void set(bool open) => state = open;
+}
+
+final pageNavigatorProvider = NotifierProvider<PageNavigatorNotifier, bool>(
+  PageNavigatorNotifier.new,
+);
+
 /// A request to show one tab of the index (0 surah, 1 juz, 2 page,
 /// 3 quarter). Each request is a new object, so the same tab can be asked
 /// for twice.
@@ -73,12 +85,26 @@ class AppNavigationBar extends ConsumerWidget {
     final t = S.of(context);
     return NavigationBar(
       selectedIndex: tab.index,
-      onDestinationSelected: (i) =>
-          ref.read(appTabProvider.notifier).select(AppTab.values[i]),
+      onDestinationSelected: (i) {
+        // Tapping the mushaf tab while reading opens the page navigator,
+        // as its small arrow shows.
+        if (tab == AppTab.mushaf && AppTab.values[i] == AppTab.mushaf) {
+          ref.read(pageNavigatorProvider.notifier).set(true);
+          ref.read(mushafChromeProvider.notifier).set(false);
+          return;
+        }
+        ref.read(appTabProvider.notifier).select(AppTab.values[i]);
+      },
       destinations: [
         NavigationDestination(
           icon: const Icon(Icons.auto_stories_outlined),
-          selectedIcon: const Icon(Icons.auto_stories),
+          selectedIcon: Badge(
+            label: const Icon(Icons.keyboard_arrow_up, size: 12),
+            padding: EdgeInsets.zero,
+            backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+            textColor: Theme.of(context).colorScheme.onSecondaryContainer,
+            child: const Icon(Icons.auto_stories),
+          ),
           label: t.mushaf,
         ),
         NavigationDestination(

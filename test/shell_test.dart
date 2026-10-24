@@ -261,4 +261,14 @@ void main() {
     await _tap(tester, _word());
     expect(find.byType(NavigationBar), findsOneWidget);
   });
+  testWidgets('the mushaf tab opens the page navigator while reading', (
+    tester,
+  ) async {
+    await _start(tester);
+    expect(find.byType(Slider), findsNothing);
+    await _tap(tester, find.text('المصحف'));
+    expect(find.byType(Slider), findsOneWidget);
+    // It opens with the bars hidden, in their place.
+    expect(find.byType(NavigationBar), findsNothing);
+  });
 }
