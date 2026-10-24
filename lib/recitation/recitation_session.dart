@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/foundation.dart';
 
 import 'recitation_matcher.dart';
@@ -17,7 +19,10 @@ class Mistake {
 ///
 /// Recognizers stop after a pause, so listening restarts by itself until the
 /// reciter presses stop. Each finished listening session is compared once,
-/// from where the previous one ended, so long surahs stay fast.
+/// from where the previous one ended, so long surahs stay fast. Within a
+/// long session, the words the recognizer has stopped changing are settled
+/// the same way, so each new result compares only the last few words and
+/// the page keeps up with the reciter.
 class RecitationSession extends ChangeNotifier {
   RecitationSession({
     required this.listener,
@@ -42,6 +47,12 @@ class RecitationSession extends ChangeNotifier {
 
   final _committed = <String>[];
   String _current = '';
+
+  /// How many words at the start of the current session are settled.
+  int _frozen = 0;
+
+  /// The words of the session's previous result.
+  List<String> _lastHeard = const [];
   int _sessionId = 0;
   bool _initialized = false;
   bool _wantListening = false;
@@ -108,7 +119,9 @@ class RecitationSession extends ChangeNotifier {
       await listener.listen(
         onResult: (text, isFinal) {
           if (id != _sessionId) return;
-          _current = text;
+          if (!isFinal) _freezeStable(text);
+          final words = _wordsOf(text);
+          _current = words.skip(_frozen).join(' ');
           if (isFinal) _commit();
           _update();
           if (isFinal) _restart();
@@ -122,6 +135,8 @@ class RecitationSession extends ChangeNotifier {
   void _clear() {
     _committed.clear();
     _current = '';
+    _frozen = 0;
+    _lastHeard = const [];
     _base = [
       for (final w in expected) WordResult(word: w, status: WordStatus.pending),
     ];
@@ -130,11 +145,45 @@ class RecitationSession extends ChangeNotifier {
     _result = RecitationResult(words: _base);
   }
 
+  static List<String> _wordsOf(String text) => [
+    for (final w in text.trim().split(RegExp(r'\s+')))
+      if (w.isNotEmpty) w,
+  ];
+
+  /// Words this far from the end of a result may still change.
+  static const _liveWords = 8;
+
+  /// Settles the start of the session's text once enough words of it came
+  /// back unchanged in two results in a row, keeping the last
+  /// [_liveWords] open.
+  void _freezeStable(String text) {
+    final words = _wordsOf(text);
+    var same = 0;
+    while (same < words.length &&
+        same < _lastHeard.length &&
+        words[same] == _lastHeard[same]) {
+      same++;
+    }
+    _lastHeard = words;
+    final upTo = min(same, words.length - _liveWords);
+    if (upTo - _frozen < _liveWords) return;
+    _settle(words.sublist(_frozen, upTo).join(' '));
+    _frozen = upTo;
+  }
+
   /// Keeps the current session's text and ignores anything it still sends.
   void _commit() {
     _sessionId++;
-    final text = _current.trim();
+    final text = _current;
     _current = '';
+    _frozen = 0;
+    _lastHeard = const [];
+    _settle(text);
+  }
+
+  /// Compares [text] from where the last settled words ended and moves on.
+  void _settle(String text) {
+    text = text.trim();
     if (text.isEmpty) return;
     _committed.add(text);
     final (from, sub) = _alignFromPos(text, settled: true);

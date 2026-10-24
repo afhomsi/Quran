@@ -20,11 +20,24 @@ final _marks = RegExp(
 
 final _nonLetters = RegExp('[^ء-ي]');
 
+final _alefs = RegExp('[أإآٱ]');
+
+/// Skeletons already made: the same words come back in every partial
+/// result while reciting, so each is reduced only once.
+final _cache = <String, String>{};
+
 /// The comparable skeleton of a single word.
 String normalizeWord(String word) {
+  final cached = _cache[word];
+  if (cached != null) return cached;
+  if (_cache.length > 20000) _cache.clear();
+  return _cache[word] = _normalize(word);
+}
+
+String _normalize(String word) {
   var w = word.replaceAll(_marks, '');
   w = w
-      .replaceAll(RegExp('[أإآٱ]'), 'ا')
+      .replaceAll(_alefs, 'ا')
       .replaceAll('ى', 'ي')
       .replaceAll('ئ', 'ي')
       .replaceAll('ؤ', 'و')
