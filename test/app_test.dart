@@ -51,28 +51,28 @@ void main() {
     await tester.tap(find.text('البقرة'));
     await tester.pumpAndSettle();
 
-    // Running header plus the surah name line at the top of the page.
     // Running header as text, surah header as calligraphy.
-    expect(find.text('سورة البقرة'), findsOneWidget);
+    expect(find.text('2 البقرة (286)'), findsOneWidget);
     expect(find.text('surah002surah-icon'), findsOneWidget);
-    expect(find.text('الجزء 1 · الحزب 1'), findsOneWidget);
-    expect(find.text('2'), findsOneWidget);
+    expect(find.text('الجزء 1 (1/8)'), findsOneWidget);
+    // In the header and between the page buttons.
+    expect(find.widgetWithText(InkWell, '2'), findsNWidgets(2));
     expect(prefs.getInt('last_page'), 2);
 
     await tester.tap(find.byTooltip('الصفحة التالية'));
     await tester.pumpAndSettle();
-    expect(find.text('3'), findsOneWidget);
+    expect(find.widgetWithText(InkWell, '3'), findsNWidgets(2));
     expect(prefs.getInt('last_page'), 3);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
     await tester.pumpAndSettle();
-    expect(find.text('4'), findsOneWidget);
+    expect(find.widgetWithText(InkWell, '4'), findsNWidgets(2));
 
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('الصفحة السابقة'));
     await tester.pumpAndSettle();
-    expect(find.text('2'), findsOneWidget);
+    expect(find.widgetWithText(InkWell, '2'), findsNWidgets(2));
     expect(prefs.getInt('last_page'), 2);
   });
 
@@ -130,7 +130,7 @@ void main() {
     await tester.tap(find.bySemanticsLabel('الصفحة 293'));
     await tester.pumpAndSettle();
     // Al-Kahf starts below the last ayah of al-Isra on this page.
-    expect(find.text('سورة الإسراء'), findsOneWidget);
+    expect(find.text('17 الإسراء (111)'), findsOneWidget);
     expect(find.text('surah018surah-icon'), findsOneWidget);
     expect(prefs.getInt('last_page'), 293);
   });

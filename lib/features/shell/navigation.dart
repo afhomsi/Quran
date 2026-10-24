@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/mushaf_models.dart';
+import '../../l10n/strings.dart';
 
 /// The tabs of the bottom bar, in order.
 enum AppTab { mushaf, khatma, quranIndex, bookmarks, more }
@@ -17,6 +18,93 @@ class AppTabNotifier extends Notifier<AppTab> {
 final appTabProvider = NotifierProvider<AppTabNotifier, AppTab>(
   AppTabNotifier.new,
 );
+
+/// Whether the mushaf shows its bars (the top bar, the page buttons and the
+/// bottom tabs) over the page. A tap on the page shows or hides them, so
+/// the page can be read on its own.
+class MushafChromeNotifier extends Notifier<bool> {
+  @override
+  bool build() => true;
+
+  void toggle() => state = !state;
+
+  void set(bool shown) => state = shown;
+}
+
+final mushafChromeProvider = NotifierProvider<MushafChromeNotifier, bool>(
+  MushafChromeNotifier.new,
+);
+
+/// A request to show one tab of the index (0 surah, 1 juz, 2 page,
+/// 3 quarter). Each request is a new object, so the same tab can be asked
+/// for twice.
+class IndexTabRequest {
+  IndexTabRequest(this.tab);
+
+  final int tab;
+}
+
+class IndexTabNotifier extends Notifier<IndexTabRequest?> {
+  @override
+  IndexTabRequest? build() => null;
+
+  void show(int tab) => state = IndexTabRequest(tab);
+}
+
+final indexTabProvider = NotifierProvider<IndexTabNotifier, IndexTabRequest?>(
+  IndexTabNotifier.new,
+);
+
+/// Opens the index on [tab], e.g. from the running header of the mushaf.
+void openIndex(BuildContext context, int tab) {
+  final container = ProviderScope.containerOf(context, listen: false);
+  container.read(indexTabProvider.notifier).show(tab);
+  container.read(appTabProvider.notifier).select(AppTab.quranIndex);
+}
+
+/// The bottom tabs. The mushaf draws them over the page itself, so that
+/// hiding them does not move the page.
+class AppNavigationBar extends ConsumerWidget {
+  const AppNavigationBar({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tab = ref.watch(appTabProvider);
+    final t = S.of(context);
+    return NavigationBar(
+      selectedIndex: tab.index,
+      onDestinationSelected: (i) =>
+          ref.read(appTabProvider.notifier).select(AppTab.values[i]),
+      destinations: [
+        NavigationDestination(
+          icon: const Icon(Icons.auto_stories_outlined),
+          selectedIcon: const Icon(Icons.auto_stories),
+          label: t.mushaf,
+        ),
+        NavigationDestination(
+          icon: const Icon(Icons.menu_book_outlined),
+          selectedIcon: const Icon(Icons.menu_book),
+          label: t.tabKhatma,
+        ),
+        NavigationDestination(
+          icon: const Icon(Icons.toc_outlined),
+          selectedIcon: const Icon(Icons.toc),
+          label: t.tabIndex,
+        ),
+        NavigationDestination(
+          icon: const Icon(Icons.bookmarks_outlined),
+          selectedIcon: const Icon(Icons.bookmarks),
+          label: t.tabBookmarks,
+        ),
+        NavigationDestination(
+          icon: const Icon(Icons.more_horiz),
+          selectedIcon: const Icon(Icons.more_horiz),
+          label: t.tabMore,
+        ),
+      ],
+    );
+  }
+}
 
 /// A request to show [page] in the mushaf tab, optionally highlighting an
 /// ayah. Each request is a new object, so asking for the same page twice

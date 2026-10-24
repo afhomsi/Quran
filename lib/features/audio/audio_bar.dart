@@ -6,8 +6,10 @@ import '../../data/quran_repository.dart';
 import '../../l10n/strings.dart';
 import 'repeat_sheet.dart';
 
-/// Player controls under the mushaf page: options, repeating a group of
-/// ayat, loop, previous ayah, play or pause, next ayah and close.
+/// Compact player controls under the mushaf page: close, next ayah, play
+/// or pause, previous ayah, loop and more options. Repeating a group of
+/// ayat is in the options. A line above the buttons shows only an error
+/// or the round of a repeated group.
 class AudioBar extends ConsumerWidget {
   const AudioBar({super.key});
 
@@ -31,7 +33,9 @@ class AudioBar extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (current != null && surahs != null)
+          if (current != null &&
+              surahs != null &&
+              (audio.failed || audio.playlist != null))
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(
@@ -82,21 +86,6 @@ class AudioBar extends ConsumerWidget {
                 tooltip: t.previousAyah,
                 icon: Icon(Icons.fast_rewind, color: colors.primary),
                 onPressed: controller.previous,
-              ),
-              IconButton(
-                tooltip: t.repeatAyat,
-                isSelected: audio.playlist != null,
-                icon: Icon(
-                  Icons.playlist_play,
-                  color: audio.playlist == null
-                      ? colors.onSurfaceVariant
-                      : colors.primary,
-                ),
-                onPressed: () => showRepeatSheet(
-                  context,
-                  from: audio.playlist?.first ?? current,
-                  to: audio.playlist?.last ?? current,
-                ),
               ),
               IconButton(
                 tooltip: t.loopLabel(audio.loop),
@@ -156,6 +145,26 @@ class _AudioOptions extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
+                Icons.playlist_play,
+                color: audio.playlist == null
+                    ? null
+                    : theme.colorScheme.primary,
+              ),
+              title: Text(t.repeatAyat),
+              onTap: () {
+                // This sheet closes, so open the next one from the app.
+                final navigator = Navigator.of(context)..pop();
+                showRepeatSheet(
+                  navigator.context,
+                  from: audio.playlist?.first ?? audio.current,
+                  to: audio.playlist?.last ?? audio.current,
+                );
+              },
+            ),
+            const Divider(),
             Text(t.reciter, style: theme.textTheme.titleMedium),
             RadioGroup<int>(
               groupValue: audio.reciter,

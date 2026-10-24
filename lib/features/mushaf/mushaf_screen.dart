@@ -24,6 +24,7 @@ import '../notes/notes_screen.dart';
 import '../recitation/recitation_bar.dart';
 import '../recitation/recitation_picker.dart';
 import '../settings/settings_screen.dart';
+import '../home/index_icons.dart';
 import '../shell/navigation.dart';
 import 'go_to_dialog.dart';
 import 'mushaf_page_view.dart';
@@ -68,6 +69,9 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
 
   /// Show the ayat of the page as plain text instead of the printed page.
   bool _textMode = false;
+
+  /// Whether the page navigator (thumbnails and a slider) is open.
+  bool _navigator = false;
 
   /// Takes the arrow keys, also after coming back from another tab.
   final _focus = FocusNode();
@@ -161,6 +165,7 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
     }
     final t = S.of(context);
     final audio = ref.watch(audioProvider);
+    final chrome = ref.watch(mushafChromeProvider);
     // The pages draw these, so redraw when they change.
     ref.watch(highlightsProvider);
     ref.watch(markersProvider);
@@ -169,179 +174,276 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final background = dark ? null : settings.pageTheme.color;
     final vertical = settings.verticalScroll;
-    return Scaffold(
-      backgroundColor: background,
-      appBar: AppBar(
-        backgroundColor: background,
-        leadingWidth: 104,
-        leading: Row(
-          children: [
-            PopupMenuButton<VoidCallback>(
-              tooltip: t.menu,
-              icon: const Icon(Icons.menu),
-              onSelected: (action) => action(),
-              itemBuilder: (context) => [
-                PopupMenuItem(
-                  value: () => _goToPage(context),
-                  child: ListTile(
-                    leading: const Icon(Icons.numbers),
-                    title: Text(t.goTo),
-                  ),
-                ),
-                PopupMenuItem(
-                  value: () => ref
-                      .read(audioProvider.notifier)
-                      .show(mushaf.page(_page).firstAyah),
-                  child: ListTile(
-                    leading: const Icon(Icons.headphones),
-                    title: Text(t.listen),
-                  ),
-                ),
-                if (!settings.hideRecitationButton)
-                  PopupMenuItem(
-                    value: () => showRecitationPicker(context, page: _page),
-                    child: ListTile(
-                      leading: const Icon(Icons.mic),
-                      title: Text(t.recite),
-                    ),
-                  ),
-                if (settings.autoPageTurn)
-                  PopupMenuItem(
-                    value: () {
-                      setState(() => _autoTurnPaused = !_autoTurnPaused);
-                      _scheduleAutoTurn();
-                    },
-                    child: ListTile(
-                      leading: Icon(
-                        _autoTurnPaused ? Icons.play_arrow : Icons.pause,
-                      ),
-                      title: Text(
-                        _autoTurnPaused ? t.resumeAutoTurn : t.pauseAutoTurn,
-                      ),
-                    ),
-                  ),
-                PopupMenuItem(
-                  value: () => openSettings(context),
-                  child: ListTile(
-                    leading: const Icon(Icons.settings_outlined),
-                    title: Text(t.settings),
-                  ),
-                ),
-              ],
-            ),
-            IconButton(
-              tooltip: settings.nightMode ? t.dayMode : t.nightMode,
-              icon: Icon(
-                settings.nightMode
-                    ? Icons.light_mode_outlined
-                    : Icons.dark_mode_outlined,
-              ),
-              onPressed: () => ref
-                  .read(settingsProvider.notifier)
-                  .update((s) => s.copyWith(nightMode: !s.nightMode)),
-            ),
-          ],
+    final appDirection = settings.language.direction;
+    final bars = <Widget>[
+      if (recitation != null) const RecitationBar(),
+      if (audio.visible) const AudioBar(),
+      if (_navigator)
+        _PageNavigator(
+          page: _page,
+          surahs: surahs,
+          mushaf: mushaf,
+          onGo: (page) => _controller.jumpToPage(_indexOf(page)),
+          onClose: () => setState(() => _navigator = false),
         ),
-        title: const _Clock(),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            tooltip: _textMode ? t.pageView : t.textView,
-            icon: Icon(
-              _textMode
-                  ? Icons.auto_stories_outlined
-                  : Icons.chrome_reader_mode_outlined,
-            ),
-            onPressed: () => setState(() => _textMode = !_textMode),
-          ),
-          IconButton(
-            tooltip: t.searchQuran,
-            icon: const Icon(Icons.search),
-            onPressed: () => _search(context, mushaf, surahs),
-          ),
-          const SizedBox(width: 4),
-        ],
-      ),
-      body: CallbackShortcuts(
-        // Pages turn right to left, so the left arrow goes forward.
-        bindings: {
-          const SingleActivator(LogicalKeyboardKey.arrowLeft): _nextPage,
-          const SingleActivator(LogicalKeyboardKey.arrowRight): _previousPage,
-          const SingleActivator(LogicalKeyboardKey.arrowDown): _nextPage,
-          const SingleActivator(LogicalKeyboardKey.arrowUp): _previousPage,
-        },
-        child: Focus(
-          autofocus: true,
-          focusNode: _focus,
-          child: SafeArea(
+    ];
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+      child: Scaffold(
+        backgroundColor: background,
+        body: CallbackShortcuts(
+          // Pages turn right to left, so the left arrow goes forward.
+          bindings: {
+            const SingleActivator(LogicalKeyboardKey.arrowLeft): _nextPage,
+            const SingleActivator(LogicalKeyboardKey.arrowRight): _previousPage,
+            const SingleActivator(LogicalKeyboardKey.arrowDown): _nextPage,
+            const SingleActivator(LogicalKeyboardKey.arrowUp): _previousPage,
+          },
+          child: Focus(
+            autofocus: true,
+            focusNode: _focus,
             // The mushaf reads right to left in every app language.
             child: Directionality(
               textDirection: TextDirection.rtl,
-              child: Column(
+              child: CustomMultiChildLayout(
+                delegate: _MushafLayout(
+                  bottomInset: MediaQuery.viewPaddingOf(context).bottom,
+                  chrome: chrome,
+                ),
                 children: [
-                  Expanded(
-                    child: LayoutBuilder(
-                      builder: (context, box) {
-                        _useSpread(
-                          settings.twoPagesInLandscape &&
-                              box.maxWidth > box.maxHeight,
-                        );
-                        return PageView.builder(
-                          key: ValueKey((_spread, vertical)),
-                          controller: _controller,
-                          scrollDirection: vertical
-                              ? Axis.vertical
-                              : Axis.horizontal,
-                          // Vertical pages scroll freely, like a long sheet.
-                          pageSnapping: !vertical,
-                          // Let a mouse drag turn pages too, not only touch.
-                          scrollBehavior: ScrollConfiguration.of(context)
-                              .copyWith(
-                                dragDevices: PointerDeviceKind.values.toSet(),
-                              ),
-                          itemCount: _slideCount,
-                          onPageChanged: (i) => _onPageChanged(_pageAt(i)),
-                          itemBuilder: (context, i) {
-                            final first = _pageAt(i);
-                            if (!_spread) return _slot(mushaf, surahs, first);
-                            return Row(
-                              children: [
-                                Expanded(child: _slot(mushaf, surahs, first)),
-                                const VerticalDivider(width: 1),
-                                Expanded(
-                                  child: first + 1 <= mushafPageCount
-                                      ? _slot(mushaf, surahs, first + 1)
-                                      : const SizedBox(),
-                                ),
-                              ],
+                  LayoutId(
+                    id: _Part.page,
+                    child: SafeArea(
+                      bottom: false,
+                      // A tap on the page shows or hides the bars.
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () =>
+                            ref.read(mushafChromeProvider.notifier).toggle(),
+                        child: LayoutBuilder(
+                          builder: (context, box) {
+                            _useSpread(
+                              settings.twoPagesInLandscape &&
+                                  box.maxWidth > box.maxHeight,
+                            );
+                            return PageView.builder(
+                              key: ValueKey((_spread, vertical)),
+                              controller: _controller,
+                              scrollDirection: vertical
+                                  ? Axis.vertical
+                                  : Axis.horizontal,
+                              // Vertical pages scroll freely, like a long
+                              // sheet.
+                              pageSnapping: !vertical,
+                              // Let a mouse drag turn pages too, not only
+                              // touch.
+                              scrollBehavior: ScrollConfiguration.of(context)
+                                  .copyWith(
+                                    dragDevices: PointerDeviceKind.values
+                                        .toSet(),
+                                  ),
+                              itemCount: _slideCount,
+                              onPageChanged: (i) => _onPageChanged(_pageAt(i)),
+                              itemBuilder: (context, i) {
+                                final first = _pageAt(i);
+                                if (!_spread) {
+                                  return _slot(mushaf, surahs, first);
+                                }
+                                return Row(
+                                  children: [
+                                    Expanded(
+                                      child: _slot(mushaf, surahs, first),
+                                    ),
+                                    const VerticalDivider(width: 1),
+                                    Expanded(
+                                      child: first + 1 <= mushafPageCount
+                                          ? _slot(mushaf, surahs, first + 1)
+                                          : const SizedBox(),
+                                    ),
+                                  ],
+                                );
+                              },
                             );
                           },
-                        );
-                      },
+                        ),
+                      ),
                     ),
                   ),
-                  if (recitation != null) const RecitationBar(),
-                  if (audio.visible) const AudioBar(),
-                  _PageBar(
-                    label: _spread && _page + 1 <= mushafPageCount
-                        ? '${t.n(_page)} – ${t.n(_page + 1)}'
-                        : t.n(_page),
-                    onPrevious: _page > 1 ? _previousPage : null,
-                    onNext: _page + _step <= mushafPageCount ? _nextPage : null,
-                    onListen: () => showRepeatSheet(
-                      context,
-                      from: mushaf.page(_page).firstAyah,
-                      to: mushaf.page(_page).words.last.ayah,
+                  if (bars.isNotEmpty)
+                    LayoutId(
+                      id: _Part.bars,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: bars,
+                      ),
                     ),
-                    onRecite: settings.hideRecitationButton
-                        ? null
-                        : () => ref
-                              .read(pageRecitationProvider.notifier)
-                              .start(_page),
-                  ),
+                  if (chrome)
+                    LayoutId(
+                      id: _Part.bottomChrome,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _PageBar(
+                            label: _spread && _page + 1 <= mushafPageCount
+                                ? '${t.n(_page)} – ${t.n(_page + 1)}'
+                                : t.n(_page),
+                            onLabel: () => _showNavigator(true),
+                            onPrevious: _page > 1 ? _previousPage : null,
+                            onNext: _page + _step <= mushafPageCount
+                                ? _nextPage
+                                : null,
+                            onListen: () => showRepeatSheet(
+                              context,
+                              from: mushaf.page(_page).firstAyah,
+                              to: mushaf.page(_page).words.last.ayah,
+                            ),
+                            onRecite: settings.hideRecitationButton
+                                ? null
+                                : () => ref
+                                      .read(pageRecitationProvider.notifier)
+                                      .start(_page),
+                          ),
+                          Directionality(
+                            textDirection: appDirection,
+                            child: const AppNavigationBar(),
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (chrome)
+                    LayoutId(
+                      id: _Part.topChrome,
+                      child: Directionality(
+                        textDirection: appDirection,
+                        child: _topBar(context, mushaf, surahs, background),
+                      ),
+                    ),
                 ],
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Opens or closes the page navigator. It opens with the bars hidden, as
+  /// it takes their place under the page.
+  void _showNavigator(bool open) {
+    setState(() => _navigator = open);
+    if (open) ref.read(mushafChromeProvider.notifier).set(false);
+  }
+
+  /// Menu, night mode, the clock, plain text and search, over the page.
+  Widget _topBar(
+    BuildContext context,
+    Mushaf mushaf,
+    List<Surah> surahs,
+    Color? background,
+  ) {
+    final t = S.of(context);
+    final settings = ref.read(settingsProvider);
+    return Material(
+      color: background ?? Theme.of(context).colorScheme.surface,
+      elevation: 3,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: SizedBox(
+          height: kToolbarHeight,
+          child: Row(
+            children: [
+              const SizedBox(width: 4),
+              PopupMenuButton<VoidCallback>(
+                tooltip: t.menu,
+                icon: const Icon(Icons.menu),
+                onSelected: (action) => action(),
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: () => _goToPage(context),
+                    child: ListTile(
+                      leading: const Icon(Icons.numbers),
+                      title: Text(t.goTo),
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: () => _showNavigator(true),
+                    child: ListTile(
+                      leading: const Icon(Icons.view_carousel_outlined),
+                      title: Text(t.pageNavigator),
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: () => ref
+                        .read(audioProvider.notifier)
+                        .show(mushaf.page(_page).firstAyah),
+                    child: ListTile(
+                      leading: const Icon(Icons.headphones),
+                      title: Text(t.listen),
+                    ),
+                  ),
+                  if (!settings.hideRecitationButton)
+                    PopupMenuItem(
+                      value: () => showRecitationPicker(context, page: _page),
+                      child: ListTile(
+                        leading: const Icon(Icons.mic),
+                        title: Text(t.recite),
+                      ),
+                    ),
+                  if (settings.autoPageTurn)
+                    PopupMenuItem(
+                      value: () {
+                        setState(() => _autoTurnPaused = !_autoTurnPaused);
+                        _scheduleAutoTurn();
+                      },
+                      child: ListTile(
+                        leading: Icon(
+                          _autoTurnPaused ? Icons.play_arrow : Icons.pause,
+                        ),
+                        title: Text(
+                          _autoTurnPaused ? t.resumeAutoTurn : t.pauseAutoTurn,
+                        ),
+                      ),
+                    ),
+                  PopupMenuItem(
+                    value: () => openSettings(context),
+                    child: ListTile(
+                      leading: const Icon(Icons.settings_outlined),
+                      title: Text(t.settings),
+                    ),
+                  ),
+                ],
+              ),
+              IconButton(
+                tooltip: settings.nightMode ? t.dayMode : t.nightMode,
+                icon: Icon(
+                  settings.nightMode
+                      ? Icons.light_mode_outlined
+                      : Icons.dark_mode_outlined,
+                ),
+                onPressed: () => ref
+                    .read(settingsProvider.notifier)
+                    .update((s) => s.copyWith(nightMode: !s.nightMode)),
+              ),
+              const Expanded(child: Center(child: _Clock())),
+              IconButton(
+                tooltip: _textMode ? t.pageView : t.textView,
+                icon: Icon(
+                  _textMode
+                      ? Icons.auto_stories_outlined
+                      : Icons.chrome_reader_mode_outlined,
+                ),
+                onPressed: () => setState(() => _textMode = !_textMode),
+              ),
+              IconButton(
+                tooltip: t.searchQuran,
+                icon: const Icon(Icons.search),
+                onPressed: () => _search(context, mushaf, surahs),
+              ),
+              const SizedBox(width: 4),
+            ],
           ),
         ),
       ),
@@ -383,14 +485,18 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
             (khatmaColors[plan.color], plan.title),
       ],
       juz: mushaf.juzOfPage(page),
-      hizb: mushaf.hizbOfPage(page),
+      rub: mushaf.rubOfPage(page),
       surahs: surahs,
       selected: playing ?? _selected,
       showHizbMarks: settings.showHizbMarks,
+      // Otherwise a tap goes to the page, which shows or hides the bars.
       onAyahTap: settings.tapOpensAyahMenu
           ? (a) => _showAyahActions(context, a, surahs)
-          : (a) => setState(() => _selected = _selected == a ? null : a),
+          : null,
       onAyahLongPress: (a) => _showAyahActions(context, a, surahs),
+      onSurahTap: () => openIndex(context, 0),
+      onPageTap: () => _showNavigator(!_navigator),
+      onJuzTap: () => openIndex(context, 1),
     );
   }
 
@@ -757,12 +863,12 @@ class _TextPage extends StatelessWidget {
   }
 }
 
-/// Waits for the page font, then draws the page with its page number.
+/// Waits for the page font, then draws the page under its running header.
 class _PageSlot extends ConsumerWidget {
   const _PageSlot({
     required this.page,
     required this.juz,
-    required this.hizb,
+    required this.rub,
     required this.surahs,
     required this.selected,
     required this.highlights,
@@ -770,11 +876,16 @@ class _PageSlot extends ConsumerWidget {
     required this.showHizbMarks,
     required this.onAyahTap,
     required this.onAyahLongPress,
+    required this.onSurahTap,
+    required this.onPageTap,
+    required this.onJuzTap,
   });
 
   final MushafPage page;
   final int juz;
-  final int hizb;
+
+  /// The quarter the page starts in, 1 to 240.
+  final int rub;
   final List<Surah> surahs;
   final AyahRef? selected;
   final Map<AyahRef, Color> highlights;
@@ -783,8 +894,11 @@ class _PageSlot extends ConsumerWidget {
   /// name, drawn as ribbons in the header.
   final List<(Color, String)> bookmarks;
   final bool showHizbMarks;
-  final ValueChanged<AyahRef> onAyahTap;
+  final ValueChanged<AyahRef>? onAyahTap;
   final ValueChanged<AyahRef> onAyahLongPress;
+  final VoidCallback onSurahTap;
+  final VoidCallback onPageTap;
+  final VoidCallback onJuzTap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -803,8 +917,8 @@ class _PageSlot extends ConsumerWidget {
         if (snapshot.connectionState != ConnectionState.done) {
           return const Center(child: CircularProgressIndicator());
         }
-        final style = Theme.of(context).textTheme.titleSmall
-            ?.copyWith(color: Theme.of(context).colorScheme.primary);
+        final hizb = (rub - 1) ~/ 4 + 1;
+        final surah = surahs[page.firstAyah.surah - 1];
         return LayoutBuilder(
           builder: (context, box) => Center(
             child: SizedBox(
@@ -813,42 +927,72 @@ class _PageSlot extends ConsumerWidget {
               width: mushafTextWidth(box.maxWidth - 16, box.maxHeight - 36),
               child: Column(
                 children: [
-                  // Running header, as printed: surah on the right, juz and
-                  // hizb on the left.
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                  // Running header: the surah with its number and ayah
+                  // count on the right, the page number in the middle, and
+                  // the juz with its eighth and hizb on the left. Each one
+                  // opens where it leads.
+                  SizedBox(
+                    height: 36,
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Flexible(
-                          child: Text(
-                            t.surah(surahs[page.firstAyah.surah - 1]),
-                            textDirection: textDirection,
-                            style: style,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                        Expanded(
+                          child: Align(
+                            alignment: AlignmentDirectional.centerStart,
+                            child: _HeaderLink(
+                              text: t.surahHeader(surah),
+                              textDirection: textDirection,
+                              onTap: onSurahTap,
+                            ),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        for (final (color, name) in bookmarks)
-                          Tooltip(
-                            message: name,
-                            child: Icon(Icons.bookmark, color: color, size: 20),
-                          ),
-                        const SizedBox(width: 8),
-                        Flexible(
-                          child: Text(
-                            t.juzAndHizb(juz, hizb),
-                            textDirection: textDirection,
-                            style: style,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                        _HeaderLink(
+                          text: t.n(page.number),
+                          textDirection: textDirection,
+                          tooltip: t.pageNavigator,
+                          onTap: onPageTap,
+                        ),
+                        Expanded(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              for (final (color, name) in bookmarks)
+                                Tooltip(
+                                  message: name,
+                                  child: Icon(
+                                    Icons.bookmark,
+                                    color: color,
+                                    size: 20,
+                                  ),
+                                ),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: _HeaderLink(
+                                  text: t.juzHeader(juz, (rub - 1) % 8 + 1),
+                                  textDirection: textDirection,
+                                  onTap: onJuzTap,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Tooltip(
+                                message: t.hizb(hizb),
+                                child: SizedBox(
+                                  height: 22,
+                                  child: HizbBookIcon(
+                                    hizb: hizb,
+                                    firstLabel: t.n(juz * 2 - 1),
+                                    secondLabel: t.n(juz * 2),
+                                    background: Theme.of(context)
+                                        .scaffoldBackgroundColor,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const Divider(height: 8),
                   Expanded(
                     child: MushafPageView(
                       page: page,
@@ -870,12 +1014,310 @@ class _PageSlot extends ConsumerWidget {
   }
 }
 
+/// A text of the running header with a dashed underline, showing that it
+/// can be tapped.
+class _HeaderLink extends StatelessWidget {
+  const _HeaderLink({
+    required this.text,
+    required this.textDirection,
+    required this.onTap,
+    this.tooltip,
+  });
+
+  final String text;
+  final TextDirection textDirection;
+  final VoidCallback onTap;
+  final String? tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.primary;
+    final link = InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(4),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+        child: Text(
+          text,
+          textDirection: textDirection,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+            color: color,
+            decoration: TextDecoration.underline,
+            decorationStyle: TextDecorationStyle.dashed,
+            decorationColor: color,
+          ),
+        ),
+      ),
+    );
+    return tooltip == null ? link : Tooltip(message: tooltip, child: link);
+  }
+}
+
+/// The parts of the mushaf screen.
+enum _Part { page, bars, bottomChrome, topChrome }
+
+/// Lays the bars over the page, so that showing or hiding them does not
+/// move it. The page leaves room only for the bars that stay open (the
+/// player, reciting and the page navigator), which sit on the bottom tabs
+/// while those are shown.
+class _MushafLayout extends MultiChildLayoutDelegate {
+  _MushafLayout({required this.bottomInset, required this.chrome});
+
+  /// The system's own bar under the app.
+  final double bottomInset;
+  final bool chrome;
+
+  @override
+  void performLayout(Size size) {
+    final loose = BoxConstraints.loose(size).copyWith(minWidth: size.width);
+    var chromeHeight = 0.0;
+    if (hasChild(_Part.bottomChrome)) {
+      chromeHeight = layoutChild(_Part.bottomChrome, loose).height;
+      positionChild(_Part.bottomChrome, Offset(0, size.height - chromeHeight));
+    }
+    var barsHeight = 0.0;
+    if (hasChild(_Part.bars)) {
+      barsHeight = layoutChild(_Part.bars, loose).height;
+      final under = chrome ? chromeHeight : bottomInset;
+      positionChild(_Part.bars, Offset(0, size.height - under - barsHeight));
+    }
+    final pageHeight = (size.height - bottomInset - barsHeight).clamp(
+      0.0,
+      size.height,
+    );
+    layoutChild(_Part.page, BoxConstraints.tight(Size(size.width, pageHeight)));
+    positionChild(_Part.page, Offset.zero);
+    if (hasChild(_Part.topChrome)) {
+      layoutChild(_Part.topChrome, loose);
+      positionChild(_Part.topChrome, Offset.zero);
+    }
+  }
+
+  @override
+  bool shouldRelayout(_MushafLayout old) =>
+      old.bottomInset != bottomInset || old.chrome != chrome;
+}
+
+/// The surah of the page, small pictures of the pages around it and a
+/// slider over all 604 pages, to move quickly through the mushaf.
+class _PageNavigator extends StatefulWidget {
+  const _PageNavigator({
+    required this.page,
+    required this.surahs,
+    required this.mushaf,
+    required this.onGo,
+    required this.onClose,
+  });
+
+  final int page;
+  final List<Surah> surahs;
+  final Mushaf mushaf;
+  final ValueChanged<int> onGo;
+  final VoidCallback onClose;
+
+  @override
+  State<_PageNavigator> createState() => _PageNavigatorState();
+}
+
+class _PageNavigatorState extends State<_PageNavigator> {
+  static const _extent = 52.0;
+  final _scroll = ScrollController();
+
+  /// The page under the slider while it is dragged.
+  int? _dragged;
+
+  int get _shown => _dragged ?? widget.page;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _center(jump: true));
+  }
+
+  @override
+  void didUpdateWidget(_PageNavigator old) {
+    super.didUpdateWidget(old);
+    if (old.page != widget.page) _center();
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  /// Scrolls the thumbnails so the shown page is in the middle.
+  void _center({bool jump = false}) {
+    if (!_scroll.hasClients) return;
+    final position = _scroll.position;
+    final offset =
+        ((_shown - 1) * _extent - (position.viewportDimension - _extent) / 2)
+            .clamp(0.0, position.maxScrollExtent);
+    jump
+        ? _scroll.jumpTo(offset)
+        : _scroll.animateTo(
+            offset,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+          );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = S.of(context);
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final surah = widget.surahs[widget.mushaf.page(_shown).firstAyah.surah - 1];
+    return Container(
+      margin: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+      padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: colors.outlineVariant),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            height: 44,
+            child: Stack(
+              children: [
+                Center(
+                  child: Text(
+                    t.surahName(surah),
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: colors.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: IconButton(
+                    tooltip: t.close,
+                    icon: Icon(Icons.highlight_off, color: colors.primary),
+                    onPressed: widget.onClose,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            height: 96,
+            child: ListView.builder(
+              controller: _scroll,
+              scrollDirection: Axis.horizontal,
+              itemExtent: _extent,
+              itemCount: mushafPageCount,
+              itemBuilder: (context, i) => _PageThumbnail(
+                label: t.n(i + 1),
+                current: i + 1 == _shown,
+                onTap: () => widget.onGo(i + 1),
+              ),
+            ),
+          ),
+          Row(
+            children: [
+              Text(t.n(1), style: theme.textTheme.labelMedium),
+              Expanded(
+                child: Slider(
+                  value: _shown.toDouble(),
+                  min: 1,
+                  max: mushafPageCount.toDouble(),
+                  label: t.n(_shown),
+                  onChanged: (v) {
+                    setState(() => _dragged = v.round());
+                    _center(jump: true);
+                  },
+                  onChangeEnd: (v) {
+                    widget.onGo(v.round());
+                    setState(() => _dragged = null);
+                  },
+                ),
+              ),
+              Text(t.n(mushafPageCount), style: theme.textTheme.labelMedium),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A small picture of a page, with lines for its text, and its number.
+class _PageThumbnail extends StatelessWidget {
+  const _PageThumbnail({
+    required this.label,
+    required this.current,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool current;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        child: Column(
+          children: [
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: current
+                      ? colors.surfaceContainerHighest
+                      : colors.surface,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: current ? colors.primary : colors.outlineVariant,
+                    width: current ? 2.5 : 1,
+                  ),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 8),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    for (var i = 0; i < 6; i++)
+                      Container(
+                        height: 1,
+                        color: current
+                            ? colors.onSurfaceVariant
+                            : colors.outlineVariant,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: current ? colors.primary : colors.onSurfaceVariant,
+                fontWeight: current ? FontWeight.bold : null,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// Previous and next page buttons around the page number. The previous
 /// page is on the right, as in a printed mushaf. Listening is on the
 /// right side and reciting on the left, so both are always at hand.
 class _PageBar extends StatelessWidget {
   const _PageBar({
     required this.label,
+    required this.onLabel,
     this.onPrevious,
     this.onNext,
     required this.onListen,
@@ -884,6 +1326,9 @@ class _PageBar extends StatelessWidget {
 
   /// The page number, or the two numbers of facing pages.
   final String label;
+
+  /// Opens the page navigator.
+  final VoidCallback onLabel;
   final VoidCallback? onPrevious;
   final VoidCallback? onNext;
   final VoidCallback onListen;
@@ -894,51 +1339,65 @@ class _PageBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = S.of(context);
-    return Row(
-      children: [
-        Expanded(
-          child: Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: TextButton.icon(
-              icon: const Icon(Icons.headphones),
-              label: Text(t.listen),
-              onPressed: onListen,
+    // Drawn over the page, on the bottom tabs.
+    return Material(
+      color: Theme.of(context).colorScheme.surfaceContainer,
+      child: Row(
+        children: [
+          Expanded(
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: TextButton.icon(
+                icon: const Icon(Icons.headphones),
+                label: Text(t.listen),
+                onPressed: onListen,
+              ),
             ),
           ),
-        ),
-        IconButton(
-          tooltip: t.previousPage,
-          // Chevrons mirror in right-to-left layouts, so this one points
-          // right, away from the page number.
-          icon: const Icon(Icons.chevron_left),
-          onPressed: onPrevious,
-        ),
-        ConstrainedBox(
-          constraints: const BoxConstraints(minWidth: 56),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleMedium,
+          IconButton(
+            tooltip: t.previousPage,
+            // Chevrons mirror in right-to-left layouts, so this one points
+            // right, away from the page number.
+            icon: const Icon(Icons.chevron_left),
+            onPressed: onPrevious,
           ),
-        ),
-        IconButton(
-          tooltip: t.nextPage,
-          icon: const Icon(Icons.chevron_right),
-          onPressed: onNext,
-        ),
-        Expanded(
-          child: Align(
-            alignment: AlignmentDirectional.centerEnd,
-            child: onRecite == null
-                ? null
-                : TextButton.icon(
-                    icon: const Icon(Icons.mic),
-                    label: Text(t.recite),
-                    onPressed: onRecite,
+          Tooltip(
+            message: t.pageNavigator,
+            child: InkWell(
+              onTap: onLabel,
+              borderRadius: BorderRadius.circular(8),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 56, minHeight: 40),
+                child: Center(
+                  widthFactor: 1,
+                  child: Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
+                ),
+              ),
+            ),
           ),
-        ),
-      ],
+          IconButton(
+            tooltip: t.nextPage,
+            icon: const Icon(Icons.chevron_right),
+            onPressed: onNext,
+          ),
+          Expanded(
+            child: Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: onRecite == null
+                  ? null
+                  : TextButton.icon(
+                      icon: const Icon(Icons.mic),
+                      label: Text(t.recite),
+                      onPressed: onRecite,
+                    ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
