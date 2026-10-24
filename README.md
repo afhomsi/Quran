@@ -46,6 +46,9 @@ see `assets/quran/LICENSE-quran-json.txt`), which takes it from
 - The 15-line page layout and word glyphs (QPC v4) come from
   [Quranic Universal Library](https://qul.tarteel.ai), as packaged in
   [quran_library](https://pub.dev/packages/quran_library) (MIT).
-- The per-page QCF v4 fonts of the King Fahd Glorious Quran Printing Complex
-  come from [qcf_quran](https://pub.dev/packages/qcf_quran) (MIT). The app
-  converts each font from WOFF to TrueType when it loads the page.
+- The per-page QCF v4 colour fonts of the King Fahd Glorious Quran Printing
+  Complex, and the surah name calligraphy (`assets/fonts/surah_names.ttf`),
+  also come from quran_library. The build script fills the ring of each
+  ayah number and sets our own colour palettes (light, night, and tajweed
+  for both). The app converts each font from WOFF to TrueType when it loads
+  the page and picks the palette that fits the theme.

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hifz/data/page_fonts.dart';
 import 'package:hifz/data/woff.dart';
 
 void main() {
@@ -34,5 +35,28 @@ void main() {
 
   test('rejects data that is not WOFF', () {
     expect(() => woffToSfnt(Uint8List(64)), throwsFormatException);
+  });
+
+  test('picks a colour palette of a page font', () {
+    final woff = File('assets/mushaf/fonts/p001.woff').readAsBytesSync();
+    int firstPaletteStart(Uint8List ttf) {
+      final data = ByteData.sublistView(ttf);
+      for (var i = 0; i < data.getUint16(4); i++) {
+        final r = 12 + i * 16;
+        if (String.fromCharCodes(ttf.sublist(r, r + 4)) == 'CPAL') {
+          return data.getUint16(data.getUint32(r + 8) + 12);
+        }
+      }
+      throw StateError('no CPAL');
+    }
+
+    final light = firstPaletteStart(selectPalette(woffToSfnt(woff), 0));
+    final dark = firstPaletteStart(selectPalette(woffToSfnt(woff), 1));
+    expect(light, 0);
+    expect(dark, 17);
+    expect(
+      () => selectPalette(woffToSfnt(woff), MushafPalette.values.length),
+      throwsRangeError,
+    );
   });
 }

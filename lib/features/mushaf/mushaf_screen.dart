@@ -105,7 +105,9 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
     ref.read(lastPageProvider.notifier).set(page);
     final fonts = ref.read(pageFontsProvider);
     for (var p = page - _step; p < page + 2 * _step; p++) {
-      if (p >= 1 && p <= mushafPageCount && p != page) fonts.load(p);
+      if (p >= 1 && p <= mushafPageCount && p != page) {
+        fonts.load(p, mushafPalette(context));
+      }
     }
     _scheduleAutoTurn();
   }
@@ -757,7 +759,7 @@ class _PageSlot extends ConsumerWidget {
       settingsProvider.select((s) => s.language.direction),
     );
     return FutureBuilder(
-      future: fonts.ready(page.number),
+      future: fonts.ready(page.number, mushafPalette(context)),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Center(child: Text(t.loadPageError(snapshot.error!)));

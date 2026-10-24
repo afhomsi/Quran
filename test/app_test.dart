@@ -16,7 +16,8 @@ class _FakePageFonts extends PageFonts {
   _FakePageFonts() : super(rootBundle);
 
   @override
-  Future<String> load(int page) async => PageFonts.familyFor(page);
+  Future<String> load(int page, MushafPalette palette) async =>
+      PageFonts.familyFor(page, palette);
 }
 
 void main() {
@@ -51,7 +52,9 @@ void main() {
     await tester.pumpAndSettle();
 
     // Running header plus the surah name line at the top of the page.
-    expect(find.text('سورة البقرة'), findsNWidgets(2));
+    // Running header as text, surah header as calligraphy.
+    expect(find.text('سورة البقرة'), findsOneWidget);
+    expect(find.text('surah002surah-icon'), findsOneWidget);
     expect(find.text('الجزء 1 · الحزب 1'), findsOneWidget);
     expect(find.text('2'), findsOneWidget);
     expect(prefs.getInt('last_page'), 2);
@@ -128,7 +131,7 @@ void main() {
     await tester.pumpAndSettle();
     // Al-Kahf starts below the last ayah of al-Isra on this page.
     expect(find.text('سورة الإسراء'), findsOneWidget);
-    expect(find.text('سورة الكهف'), findsOneWidget);
+    expect(find.text('surah018surah-icon'), findsOneWidget);
     expect(prefs.getInt('last_page'), 293);
   });
 }
