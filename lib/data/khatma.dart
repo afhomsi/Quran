@@ -197,11 +197,17 @@ class KhatmaPlansNotifier extends Notifier<List<KhatmaPlan>> {
   @override
   List<KhatmaPlan> build() {
     final raw = ref.watch(sharedPreferencesProvider).getString(_plansKey);
-    if (raw == null) return const [];
-    return [
-      for (final p in jsonDecode(raw) as List)
-        KhatmaPlan.fromJson(p as Map<String, dynamic>),
-    ];
+    return readStored(raw, (json) {
+      final plans = [
+        for (final p in json as List)
+          KhatmaPlan.fromJson(p as Map<String, dynamic>),
+      ];
+      // Each plan's bookmark color must be one of the colors.
+      for (final p in plans) {
+        RangeError.checkValueInInterval(p.color, 0, khatmaColors.length - 1);
+      }
+      return plans;
+    }, const []);
   }
 
   KhatmaPlan add({

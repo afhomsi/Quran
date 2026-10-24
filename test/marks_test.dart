@@ -3,10 +3,12 @@ import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hifz/data/khatma.dart';
 import 'package:hifz/data/marks.dart';
 import 'package:hifz/data/mushaf_models.dart';
 import 'package:hifz/data/quran_repository.dart';
 import 'package:hifz/data/reading_state.dart';
+import 'package:hifz/data/recitation_history.dart';
 import 'package:hifz/data/self_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -34,6 +36,22 @@ void main() {
       MarkerKind.reading: const AyahRef(2, 200),
       MarkerKind.hifz: const AyahRef(2, 164),
     });
+  });
+
+  test('damaged saved data is skipped instead of stopping the app', () async {
+    SharedPreferences.setMockInitialValues({
+      'markers': '["not", "a", "map"]',
+      'highlights': '{"2:255": "yellow"}',
+      'notes': 'not json',
+      'khatma_plans': '{"id": 1}',
+      'recitation_history': '[{"date": 5}]',
+    });
+    final c = await _container();
+    expect(c.read(markersProvider), isEmpty);
+    expect(c.read(highlightsProvider), isEmpty);
+    expect(c.read(notesProvider), isEmpty);
+    expect(c.read(khatmaPlansProvider), isEmpty);
+    expect(c.read(recitationHistoryProvider), isEmpty);
   });
 
   test('highlights and notes are kept, newest last', () async {

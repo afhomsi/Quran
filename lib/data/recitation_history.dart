@@ -94,11 +94,14 @@ class RecitationHistoryNotifier extends Notifier<List<RecitationRecord>> {
     final raw = ref
         .watch(sharedPreferencesProvider)
         .getString(recitationHistoryKey);
-    if (raw == null) return const [];
-    return [
-      for (final r in jsonDecode(raw) as List)
-        RecitationRecord.fromJson(r as Map<String, dynamic>),
-    ];
+    return readStored(
+      raw,
+      (json) => [
+        for (final r in json as List)
+          RecitationRecord.fromJson(r as Map<String, dynamic>),
+      ],
+      const [],
+    );
   }
 
   void add(RecitationRecord record) =>
