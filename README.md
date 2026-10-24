@@ -40,6 +40,11 @@ Code layout:
 [risan/quran-json](https://github.com/risan/quran-json) (CC BY-SA 4.0,
 see `assets/quran/LICENSE-quran-json.txt`), which takes it from
 [The Noble Qur'an Encyclopedia](https://quranenc.com).
+We changed seven ayat (2:72, 11:41, 15:7, 27:20, 36:22, 37:164, 41:47) to
+match Quran.com's QPC Hafs text: a sukun on the hamza of فَٱدَّٰرَٰءۡتُمۡ,
+the imala sign of مَجۡر۪ىٰهَا, and five words that the mushaf prints apart
+(such as مَا لِيَ). `tool/compare_with_quran_com.py` compares all 6236
+ayat with Quran.com's text again.
 
 `assets/mushaf/` is built by `tool/build_mushaf_data.py`:
 
