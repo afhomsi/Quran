@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Transcribes recitation clips with an exported model, as a smoke test.
 
-    python check.py quran-base clip1.wav clip2.wav ...
+    python check.py quran-base decoder.onnx clip1.wav clip2.wav ...
 
 Each clip must be 16 kHz mono 16-bit WAV.
 """
@@ -22,15 +22,16 @@ def read_wav(path: str) -> np.ndarray:
 
 
 def main() -> None:
-    name, clips = sys.argv[1], sys.argv[2:]
+    name, decoder, clips = sys.argv[1], sys.argv[2], sys.argv[3:]
     recognizer = sherpa_onnx.OfflineRecognizer.from_whisper(
         encoder=f"{name}-encoder.int8.onnx",
-        decoder=f"{name}-decoder.int8.onnx",
+        decoder=decoder,
         tokens=f"{name}-tokens.txt",
         language="ar",
         task="transcribe",
         num_threads=2,
     )
+    print(f"== {decoder}")
     for clip in clips:
         samples = read_wav(clip)
         start = time.time()

@@ -52,6 +52,7 @@ jobs:
       - name: Transcribe Al-Fatiha
         working-directory: tool/asr
         run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
           clips=""
           for a in 1 2 3 4 5 6 7; do
             curl -fsSL -o 00100$a.mp3 \
@@ -59,7 +60,8 @@ jobs:
             ffmpeg -loglevel error -y -i 00100$a.mp3 -ar 16000 -ac 1 00100$a.wav
             clips="$clips 00100$a.wav"
           done
-          python check.py ${{ matrix.name }} $clips
+          python check.py ${{ matrix.name }} ${{ matrix.name }}-decoder.int8.onnx $clips
+          python check.py ${{ matrix.name }} ${{ matrix.name }}-decoder.small.onnx $clips
       - name: Publish
         if: github.event_name != 'pull_request'
         working-directory: tool/asr
@@ -73,6 +75,7 @@ jobs:
           gh release upload $RELEASE_TAG --clobber \
             ${{ matrix.name }}-encoder.int8.onnx \
             ${{ matrix.name }}-decoder.int8.onnx \
+            ${{ matrix.name }}-decoder.small.onnx \
             ${{ matrix.name }}-tokens.txt
 
   vad:

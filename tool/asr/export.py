@@ -8,6 +8,10 @@ file as export_onnx.py) with its model loading pointed at our checkpoint.
 
 reads ./quran-base.pt and writes quran-base-encoder.int8.onnx,
 quran-base-decoder.int8.onnx and quran-base-tokens.txt.
+
+It also writes quran-base-decoder.small.onnx, which quantizes the token
+embedding too. Most of the int8 decoder is that embedding left in float32,
+so this makes the download much smaller.
 """
 
 import argparse
@@ -33,6 +37,15 @@ def main() -> None:
     torch.set_num_interop_threads(1)
     with disable_sdpa():
         export_onnx.main()
+
+    from onnxruntime.quantization import QuantType, quantize_dynamic
+
+    quantize_dynamic(
+        model_input=f"{name}-decoder.onnx",
+        model_output=f"{name}-decoder.small.onnx",
+        op_types_to_quantize=["MatMul", "Gather"],
+        weight_type=QuantType.QInt8,
+    )
 
 
 if __name__ == "__main__":
