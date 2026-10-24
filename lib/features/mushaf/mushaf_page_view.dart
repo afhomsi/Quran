@@ -26,10 +26,13 @@ double mushafTextWidth(double width, double height) {
 }
 
 /// The page font palette that suits the current theme.
-MushafPalette mushafPalette(BuildContext context) =>
-    Theme.of(context).brightness == Brightness.dark
-    ? MushafPalette.dark
-    : MushafPalette.light;
+MushafPalette mushafPalette(BuildContext context, {bool tajweed = false}) =>
+    switch ((Theme.of(context).brightness == Brightness.dark, tajweed)) {
+      (false, false) => MushafPalette.light,
+      (true, false) => MushafPalette.dark,
+      (false, true) => MushafPalette.tajweedLight,
+      (true, true) => MushafPalette.tajweedDark,
+    };
 
 /// Called with the word pressed and where it is on the screen.
 typedef WordCallback = void Function(MushafWord word, Offset position);
@@ -44,6 +47,7 @@ class MushafPageView extends StatelessWidget {
     this.selectedWord,
     this.highlights = const {},
     this.showHizbMarks = false,
+    this.tajweed = false,
     this.onAyahTap,
     this.onAyahLongPress,
   });
@@ -61,6 +65,9 @@ class MushafPageView extends StatelessWidget {
 
   /// Put ۞ over the first word of each quarter of a hizb.
   final bool showHizbMarks;
+
+  /// Letters in the colours of tajweed.
+  final bool tajweed;
   final WordCallback? onAyahTap;
   final WordCallback? onAyahLongPress;
 
@@ -94,7 +101,7 @@ class MushafPageView extends StatelessWidget {
     double lineHeight,
   ) {
     final colors = Theme.of(context).colorScheme;
-    final palette = mushafPalette(context);
+    final palette = mushafPalette(context, tajweed: tajweed);
     return switch (line) {
       SurahNameLine(:final surah) => _SurahHeader(
         surah: surah,

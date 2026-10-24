@@ -6,6 +6,7 @@ import '../../data/mushaf_repository.dart';
 import '../../data/quran_models.dart';
 import '../../data/quran_repository.dart';
 import '../../data/study.dart';
+import '../../data/tajweed.dart';
 import '../../l10n/strings.dart';
 
 /// The four parts of the study panel, from the widest to the narrowest.
@@ -20,6 +21,7 @@ enum StudyTab {
   translations(StudyPart.page, [StudyBook.english]),
   mukhtasar(StudyPart.ayah, [StudyBook.mukhtasar]),
   tafsir(StudyPart.ayah, StudyBook.tafsirs),
+  tajweed(StudyPart.ayah, []),
   qiraat(StudyPart.ayah, StudyBook.qiraatBooks),
   tasreef(StudyPart.ayah, [StudyBook.tasreef]),
   irab(StudyPart.ayah, StudyBook.irabBooks),
@@ -28,10 +30,12 @@ enum StudyTab {
   // Common words are not in the book of rare words; their analysis says
   // what they are.
   wordMeaning(StudyPart.word, [StudyBook.gharib, StudyBook.tasreef]),
+  wordTajweed(StudyPart.word, []),
   wordQiraat(StudyPart.word, StudyBook.qiraatBooks),
   wordTasreef(StudyPart.word, [StudyBook.tasreef]),
   wordIrab(StudyPart.word, [StudyBook.irabMuyassar]),
-  wordTranslation(StudyPart.word, [StudyBook.english]);
+  // Quran.com's word-by-word English, bundled with the app.
+  wordTranslation(StudyPart.word, []);
 
   const StudyTab(this.part, this.books);
 
@@ -55,7 +59,11 @@ enum StudyTab {
     tadabbur => t.tadabbur,
     translation || wordTranslation => t.translation,
     wordMeaning => t.meaning,
+    tajweed || wordTajweed => t.tajweedTab,
   };
+
+  /// Tabs drawn from the app's own data, which need no book.
+  bool get isTajweed => this == tajweed || this == wordTajweed;
 }
 
 /// What the panel or the word card shows: a tab, the book chosen in it, the
@@ -138,8 +146,12 @@ final studyContentProvider =
           }
           return [for (final t in distinctTexts(texts)) StudySection(t)];
         case StudyTab.wordTranslation:
-          final text = await repo.text(StudyBook.english, r.ayah);
+          final meanings = await ref.watch(wordMeaningsProvider.future);
+          final text = meanings.of(r.ayah, r.word);
           return text.isEmpty ? [] : [StudySection(text)];
+        case StudyTab.tajweed || StudyTab.wordTajweed:
+          // Shown by TajweedView from the bundled rules.
+          return [];
         case StudyTab.wordMeaning ||
             StudyTab.wordQiraat ||
             StudyTab.wordTasreef ||

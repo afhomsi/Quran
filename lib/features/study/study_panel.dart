@@ -7,10 +7,12 @@ import '../../data/mushaf_repository.dart';
 import '../../data/quran_models.dart';
 import '../../data/quran_repository.dart';
 import '../../data/study.dart';
+import '../../data/tajweed.dart';
 import '../../l10n/strings.dart';
 import '../audio/repeat_sheet.dart';
 import '../notes/notes_screen.dart';
 import 'ayah_tools.dart';
+import 'tajweed_view.dart';
 import 'study_content.dart';
 import 'word_card.dart';
 
@@ -294,12 +296,17 @@ class _StudyPanelState extends ConsumerState<StudyPanel> {
 
   Future<void> _share(S t, List<Surah> surahs, Mushaf mushaf) async {
     final surah = surahs[_ayah.surah - 1];
+    final ayahText = surah.ayahs[_ayah.ayah - 1];
+    final word = _part == StudyPart.word ? _word : null;
     final String body;
     if (_tab == StudyTab.stats) {
       body = [
         for (final (label, value) in surahStats(t, surah, mushaf))
           '$label: $value',
       ].join('\n');
+    } else if (_tab.isTajweed) {
+      final map = await ref.read(tajweedProvider.future);
+      body = tajweedText(t, map, _ayah, word, ayahText);
     } else {
       final sections = await ref.read(studyContentProvider(_request).future);
       body = sections.join('\n\n');
@@ -307,20 +314,23 @@ class _StudyPanelState extends ConsumerState<StudyPanel> {
     final title = switch (_part) {
       StudyPart.surah => t.surahName(surah),
       StudyPart.page => '${t.pageWord} ${t.n(mushaf.pageOf(_ayah))}',
-      _ =>
-        '${surah.ayahs[_ayah.ayah - 1]} '
+      StudyPart.ayah =>
+        '﴿$ayahText﴾ [${t.surahName(surah)} – ${t.n(_ayah.ayah)}]',
+      StudyPart.word =>
+        '${wordAt(ayahText, _word)}\n'
             '[${t.surahName(surah)} – ${t.n(_ayah.ayah)}]',
     };
     final book = _request.book ?? _tab.books.firstOrNull;
     if (!mounted) return;
     showShareSheet(
       context,
-      [
-        title,
-        _tab.label(t),
-        body,
-        if (book != null) t.source(book),
-      ].join('\n\n'),
+      ShareContent(
+        title: title,
+        label: _tab.label(t),
+        body: body,
+        source: book == null ? null : t.source(book),
+        quranTitle: _part == StudyPart.ayah || _part == StudyPart.word,
+      ),
     );
   }
 

@@ -1,6 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hifz/data/mushaf_models.dart';
+
+import 'dart:io';
+
 import 'package:hifz/data/study.dart';
+import 'package:hifz/data/tajweed.dart';
 
 // Al-Ma'idah 18, as in the bundled mushaf text.
 const _ayah =
@@ -84,5 +88,28 @@ void main() {
       'https://raw.githubusercontent.com/fawazahmed0/quran-api/1/editions/'
       'eng-ummmuhammad/1/2.json',
     );
+  });
+
+  test('names the tajweed rules on the words of an ayah', () {
+    final map = parseTajweed(File(tajweedAssetPath).readAsStringSync());
+    // Al-Fatiha 7: ad-dallin carries the necessary madd.
+    expect(map.ofAyah(const AyahRef(1, 7))[9], contains(TajweedRule.maddLazim));
+    // Al-Baqarah 4: bima unzila, the obligatory madd and an ikhfa.
+    final baqarah4 = map.ofAyah(const AyahRef(2, 4));
+    expect(baqarah4[3], {TajweedRule.maddWajib});
+    expect(baqarah4[4], {TajweedRule.ghunna});
+    expect(
+      baqarah4[9],
+      containsAll([TajweedRule.tafkhim, TajweedRule.qalqala]),
+    );
+  });
+
+  test('gives the English meaning of each word', () {
+    final meanings = parseWordMeanings(
+      File(wordMeaningsAssetPath).readAsBytesSync(),
+    );
+    expect(meanings.of(const AyahRef(1, 1), 1), 'In (the) name');
+    expect(meanings.of(const AyahRef(5, 18), 29), 'and to Him');
+    expect(meanings.of(const AyahRef(5, 18), 99), '');
   });
 }

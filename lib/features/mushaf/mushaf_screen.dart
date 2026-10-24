@@ -121,7 +121,13 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
     final fonts = ref.read(pageFontsProvider);
     for (var p = page - _step; p < page + 2 * _step; p++) {
       if (p >= 1 && p <= mushafPageCount && p != page) {
-        fonts.load(p, mushafPalette(context));
+        fonts.load(
+          p,
+          mushafPalette(
+            context,
+            tajweed: ref.read(settingsProvider).tajweedColors,
+          ),
+        );
       }
     }
     _scheduleAutoTurn();
@@ -829,8 +835,12 @@ class _PageSlot extends ConsumerWidget {
     final textDirection = ref.watch(
       settingsProvider.select((s) => s.language.direction),
     );
+    final tajweed = ref.watch(settingsProvider.select((s) => s.tajweedColors));
     return FutureBuilder(
-      future: fonts.ready(page.number, mushafPalette(context)),
+      future: fonts.ready(
+        page.number,
+        mushafPalette(context, tajweed: tajweed),
+      ),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Center(child: Text(t.loadPageError(snapshot.error!)));
@@ -922,6 +932,7 @@ class _PageSlot extends ConsumerWidget {
                       selectedWord: selectedWord,
                       highlights: highlights,
                       showHizbMarks: showHizbMarks,
+                      tajweed: tajweed,
                       onAyahTap: onAyahTap,
                       onAyahLongPress: onAyahLongPress,
                     ),

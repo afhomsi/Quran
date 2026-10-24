@@ -92,7 +92,12 @@ class SettingsScreen extends ConsumerWidget {
                 value: settings.verticalScroll,
                 onChanged: (v) => update((s) => s.copyWith(verticalScroll: v)),
               ),
-              _ComingSoon(icon: Icons.brush_outlined, title: t.tajweed),
+              _Switch(
+                icon: Icons.brush_outlined,
+                title: t.tajweed,
+                value: settings.tajweedColors,
+                onChanged: (v) => update((s) => s.copyWith(tajweedColors: v)),
+              ),
               _Switch(
                 icon: Icons.touch_app_outlined,
                 title: t.tapOpensAyahMenu,

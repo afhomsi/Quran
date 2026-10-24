@@ -46,6 +46,7 @@ dependencies:
   http: ^1.6.0
   path_provider: ^2.1.6
   share_plus: ^13.3.1
+  pdf: ^3.13.1
 
 dev_dependencies:
   flutter_test:
@@ -71,6 +72,8 @@ flutter:
 
   assets:
     - assets/quran/hafs_uthmani.json
+    - assets/quran/wbw_en.json.gz
+    - assets/mushaf/tajweed.json
     - assets/mushaf/layout.json
     - assets/mushaf/fonts/
     - assets/sounds/mistake.mp3
