@@ -4,192 +4,113 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/arabic_search.dart';
 import '../../data/mushaf_models.dart';
 import '../../data/mushaf_repository.dart';
+import '../../data/page_fonts.dart';
 import '../../data/quarters.dart';
 import '../../data/quran_models.dart';
-import '../../data/reading_state.dart';
 import '../../l10n/strings.dart';
 import 'home_screen.dart';
+import 'index_icons.dart';
 
-/// Searchable index: one list per entry of [S.indexTabs], filtered by the
-/// search box. Tapping an entry opens the mushaf at its page.
-class IndexView extends StatefulWidget {
-  const IndexView({super.key, required this.mushaf, required this.surahs});
+/// The index, one tab per entry of [S.indexTabs]: surahs, juz cards that
+/// open onto their pages, every page as a book, and the quarters with their
+/// opening words. Tapping an entry opens the mushaf there.
+class IndexView extends StatelessWidget {
+  const IndexView({
+    super.key,
+    required this.mushaf,
+    required this.surahs,
+    this.currentPage,
+  });
 
   final Mushaf mushaf;
   final List<Surah> surahs;
 
-  @override
-  State<IndexView> createState() => _IndexViewState();
-}
-
-class _IndexViewState extends State<IndexView> {
-  final _search = TextEditingController();
+  /// The page last read, whose juz starts open.
+  final int? currentPage;
 
   @override
-  void dispose() {
-    _search.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final query = _search.text;
-    final m = widget.mushaf;
-    final s = widget.surahs;
-    final t = S.of(context);
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-          child: TextField(
-            controller: _search,
-            onChanged: (_) => setState(() {}),
-            decoration: InputDecoration(
-              hintText: t.searchHint,
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: query.isEmpty
-                  ? null
-                  : IconButton(
-                      tooltip: t.clearSearch,
-                      icon: const Icon(Icons.clear),
-                      onPressed: () => setState(_search.clear),
-                    ),
-              border: const OutlineInputBorder(),
-              isDense: true,
-            ),
-          ),
-        ),
-        Expanded(
-          child: TabBarView(
-            children: [
-              _surahs(t, m, s, query),
-              _juz(t, m, s, query),
-              _quarters(t, m, s, query),
-              _pages(t, m, s, query),
-              _BookmarkList(mushaf: m, surahs: s, query: query),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _surahs(S t, Mushaf m, List<Surah> surahs, String query) =>
-      _EntryList([
-        for (final s in surahs)
-          if (searchMatches(
-            query,
-            numbers: [s.number],
-            texts: [s.name, s.transliteration],
-          ))
-            _Entry(
-              number: s.number,
-              title: t.surahName(s),
-              subtitle:
-                  '${s.isMeccan ? t.meccan : t.medinan} · '
-                  '${t.ayahCount(s.ayahCount)}',
-              page: m.surahStartPage(s.number),
-            ),
-      ]);
-
-  Widget _juz(S t, Mushaf m, List<Surah> surahs, String query) => _EntryList([
-    for (var j = 1; j <= juzStarts.length; j++)
-      if (searchMatches(
-        query,
-        numbers: [j],
-        texts: _surahTexts(surahs[juzStarts[j - 1].surah - 1]),
-      ))
-        _Entry(
-          number: j,
-          title: t.juz(j),
-          subtitle: _ayahLabel(t, surahs, juzStarts[j - 1]),
-          page: m.juzStartPage(j),
-        ),
-  ]);
-
-  Widget _quarters(S t, Mushaf m, List<Surah> surahs, String query) =>
-      _EntryList([
-        for (var r = 1; r <= rubStarts.length; r++)
-          if (searchMatches(
-            query,
-            numbers: [(r - 1) ~/ 4 + 1],
-            texts: _surahTexts(surahs[rubStarts[r - 1].surah - 1]),
-          ))
-            _Entry(
-              number: (r - 1) ~/ 4 + 1,
-              title: t.rubTitle(r),
-              subtitle: _ayahLabel(t, surahs, rubStarts[r - 1], withText: true),
-              page: m.rubStartPage(r),
-            ),
-      ]);
-
-  Widget _pages(S t, Mushaf m, List<Surah> surahs, String query) => _EntryList([
-    for (final p in m.pages)
-      if (searchMatches(
-        query,
-        numbers: [p.number],
-        texts: _surahTexts(surahs[p.firstAyah.surah - 1]),
-      ))
-        _Entry(
-          number: p.number,
-          title: t.page(p.number),
-          subtitle:
-              '${_ayahLabel(t, surahs, p.firstAyah)} · '
-              '${t.juz(m.juzOfPage(p.number))}',
-          page: p.number,
-        ),
-  ]);
+  Widget build(BuildContext context) => TabBarView(
+    children: [
+      _SurahTab(mushaf: mushaf, surahs: surahs),
+      _JuzTab(mushaf: mushaf, surahs: surahs, currentPage: currentPage),
+      _PageTab(mushaf: mushaf, surahs: surahs),
+      _RubTab(mushaf: mushaf, surahs: surahs),
+    ],
+  );
 }
 
 /// A surah's names to search in: Arabic and in Latin letters.
 List<String> _surahTexts(Surah s) => [s.name, s.transliteration];
 
-String _ayahLabel(S t, List<Surah> surahs, AyahRef a, {bool withText = false}) {
-  final surah = surahs[a.surah - 1];
-  final label = t.ayahLabel(surah, a.ayah);
-  if (!withText) return label;
-  final words = surah.ayahs[a.ayah - 1].split(' ');
-  final start = words.take(4).join(' ');
-  return '$label\n${words.length > 4 ? '$start…' : start}';
-}
-
-class _Entry {
-  const _Entry({
-    required this.number,
-    required this.title,
-    required this.subtitle,
-    required this.page,
+/// A rounded search box at the top of a tab, with the tab's name as hint.
+class _SearchField extends StatelessWidget {
+  const _SearchField({
+    required this.controller,
+    required this.hint,
+    required this.onChanged,
   });
 
-  final int number;
-  final String title;
-  final String subtitle;
-  final int page;
-}
-
-class _EntryList extends StatelessWidget {
-  const _EntryList(this.entries);
-
-  final List<_Entry> entries;
+  final TextEditingController controller;
+  final String hint;
+  final VoidCallback onChanged;
 
   @override
   Widget build(BuildContext context) {
-    if (entries.isEmpty) return const _NoResults();
-    return ListView.separated(
-      itemCount: entries.length,
-      separatorBuilder: (_, _) => const Divider(height: 1),
-      itemBuilder: (context, i) {
-        final e = entries[i];
-        final t = S.of(context);
-        return ListTile(
-          leading: CircleAvatar(child: Text(t.n(e.number))),
-          title: Text(e.title),
-          subtitle: Text(e.subtitle),
-          trailing: Text(t.n(e.page)),
-          onTap: () => openMushaf(context, e.page),
-        );
-      },
+    final colors = Theme.of(context).colorScheme;
+    final t = S.of(context);
+    final border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(28),
+      borderSide: BorderSide(color: colors.outlineVariant),
     );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: TextField(
+        controller: controller,
+        onChanged: (_) => onChanged(),
+        textAlign: TextAlign.center,
+        decoration: InputDecoration(
+          hintText: hint,
+          filled: true,
+          fillColor: colors.surface,
+          // Balances the icon on the other side, so the text stays centered.
+          prefixIcon: const SizedBox(width: 48),
+          suffixIcon: controller.text.isEmpty
+              ? Icon(Icons.search, color: colors.primary)
+              : IconButton(
+                  tooltip: t.clearSearch,
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    controller.clear();
+                    onChanged();
+                  },
+                ),
+          border: border,
+          enabledBorder: border,
+          focusedBorder: border.copyWith(
+            borderSide: BorderSide(color: colors.primary),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// State for a tab with its own search box.
+mixin _Searchable<T extends StatefulWidget> on State<T> {
+  final search = TextEditingController();
+
+  String get query => search.text;
+
+  Widget searchField(String hint) => _SearchField(
+    controller: search,
+    hint: hint,
+    onChanged: () => setState(() {}),
+  );
+
+  @override
+  void dispose() {
+    search.dispose();
+    super.dispose();
   }
 }
 
@@ -201,53 +122,492 @@ class _NoResults extends StatelessWidget {
       Center(child: Text(S.of(context).noResults));
 }
 
-class _BookmarkList extends ConsumerWidget {
-  const _BookmarkList({
-    required this.mushaf,
-    required this.surahs,
-    required this.query,
-  });
+// --- Surahs -------------------------------------------------------------
+
+class _SurahTab extends StatefulWidget {
+  const _SurahTab({required this.mushaf, required this.surahs});
 
   final Mushaf mushaf;
   final List<Surah> surahs;
-  final String query;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final all = ref.watch(bookmarksProvider);
+  State<_SurahTab> createState() => _SurahTabState();
+}
+
+class _SurahTabState extends State<_SurahTab> with _Searchable {
+  @override
+  Widget build(BuildContext context) {
     final t = S.of(context);
-    if (all.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(t.noBookmarks, textAlign: TextAlign.center),
+    final colors = Theme.of(context).colorScheme;
+    final found = [
+      for (final s in widget.surahs)
+        if (searchMatches(query, numbers: [s.number], texts: _surahTexts(s))) s,
+    ];
+    return Column(
+      children: [
+        searchField(t.indexTabs[0]),
+        Expanded(
+          child: found.isEmpty
+              ? const _NoResults()
+              : ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  itemCount: found.length,
+                  separatorBuilder: (_, _) =>
+                      const Divider(height: 1, indent: 16, endIndent: 16),
+                  itemBuilder: (context, i) {
+                    final s = found[i];
+                    final page = widget.mushaf.surahStartPage(s.number);
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: colors.primaryContainer,
+                        child: Text(t.n(s.number)),
+                      ),
+                      title: Text(t.surahName(s)),
+                      subtitle: Text(
+                        '${s.isMeccan ? t.meccan : t.medinan} · '
+                        '${t.ayahCount(s.ayahCount)}',
+                      ),
+                      trailing: Text(t.page(page)),
+                      onTap: () => openMushaf(context, page),
+                    );
+                  },
+                ),
         ),
-      );
-    }
-    final bookmarks = [
-      for (final b in all.reversed)
+      ],
+    );
+  }
+}
+
+// --- Juz ----------------------------------------------------------------
+
+/// The pages of [juz]: from its first page up to the page before the next
+/// juz. In the Madinah mushaf every juz starts at the top of a page.
+List<int> _pagesOfJuz(Mushaf m, int juz) {
+  final first = m.juzStartPage(juz);
+  final last = juz == juzStarts.length
+      ? mushafPageCount
+      : m.juzStartPage(juz + 1) - 1;
+  return [for (var p = first; p <= last; p++) p];
+}
+
+class _JuzTab extends StatefulWidget {
+  const _JuzTab({required this.mushaf, required this.surahs, this.currentPage});
+
+  final Mushaf mushaf;
+  final List<Surah> surahs;
+  final int? currentPage;
+
+  @override
+  State<_JuzTab> createState() => _JuzTabState();
+}
+
+class _JuzTabState extends State<_JuzTab> with _Searchable {
+  late final Set<int> _open = {
+    widget.mushaf.juzOfPage(widget.currentPage ?? 1),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final t = S.of(context);
+    final m = widget.mushaf;
+    final found = [
+      for (var j = 1; j <= juzStarts.length; j++)
         if (searchMatches(
           query,
-          numbers: [mushaf.pageOf(b)],
-          texts: _surahTexts(surahs[b.surah - 1]),
+          numbers: [j],
+          texts: _surahTexts(widget.surahs[juzStarts[j - 1].surah - 1]),
         ))
-          b,
+          j,
     ];
-    if (bookmarks.isEmpty) return const _NoResults();
-    return ListView.separated(
-      itemCount: bookmarks.length,
-      separatorBuilder: (_, _) => const Divider(height: 1),
+    return Column(
+      children: [
+        searchField(t.indexTabs[1]),
+        Expanded(
+          child: found.isEmpty
+              ? const _NoResults()
+              : ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                  itemCount: found.length,
+                  itemBuilder: (context, i) {
+                    final j = found[i];
+                    return _JuzCard(
+                      juz: j,
+                      pages: _pagesOfJuz(m, j),
+                      open: _open.contains(j),
+                      onToggle: () => setState(() {
+                        if (!_open.remove(j)) _open.add(j);
+                      }),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+class _JuzCard extends StatelessWidget {
+  const _JuzCard({
+    required this.juz,
+    required this.pages,
+    required this.open,
+    required this.onToggle,
+  });
+
+  final int juz;
+  final List<int> pages;
+  final bool open;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = S.of(context);
+    final colors = Theme.of(context).colorScheme;
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(20),
+    );
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Column(
+        children: [
+          Material(
+            color: colors.surfaceContainerHigh,
+            shape: shape,
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: onToggle,
+              child: SizedBox(
+                height: 56,
+                child: Row(
+                  children: [
+                    const SizedBox(width: 48),
+                    Expanded(
+                      child: Text(
+                        t.juzCard(juz),
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ),
+                    PopupMenuButton<void>(
+                      icon: Icon(Icons.more_horiz, color: colors.primary),
+                      itemBuilder: (context) => [
+                        PopupMenuItem(
+                          onTap: () => openMushaf(context, pages.first),
+                          child: Text(t.openJuzStart),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (open)
+            Container(
+              margin: const EdgeInsets.only(top: 6),
+              padding: const EdgeInsets.all(12),
+              decoration: ShapeDecoration(
+                color: colors.surfaceContainer,
+                shape: shape,
+              ),
+              child: _BookGrid(
+                pages: pages,
+                columns: 4,
+                background: colors.surfaceContainer,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// --- Pages --------------------------------------------------------------
+
+/// Books for [pages], in rows from the start side; tapping one opens it.
+class _BookGrid extends StatelessWidget {
+  const _BookGrid({
+    required this.pages,
+    required this.columns,
+    required this.background,
+    this.scrollable = false,
+    this.iconWidth,
+  });
+
+  final List<int> pages;
+  final int columns;
+  final Color background;
+  final bool scrollable;
+
+  /// Fixed width of each book; when null a book fills its cell.
+  final double? iconWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = S.of(context);
+    return GridView.builder(
+      shrinkWrap: !scrollable,
+      physics: scrollable ? null : const NeverScrollableScrollPhysics(),
+      padding: scrollable
+          ? const EdgeInsets.fromLTRB(16, 8, 16, 16)
+          : EdgeInsets.zero,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: columns,
+        childAspectRatio: iconWidth == null ? 1.4 : 2.1,
+      ),
+      itemCount: pages.length,
       itemBuilder: (context, i) {
-        final b = bookmarks[i];
-        final page = mushaf.pageOf(b);
-        return ListTile(
-          leading: const Icon(Icons.bookmark),
-          title: Text(t.ayahLabel(surahs[b.surah - 1], b.ayah)),
-          trailing: Text(t.n(page)),
-          onTap: () => openMushaf(context, page, highlight: b),
-          onLongPress: () => ref.read(bookmarksProvider.notifier).toggle(b),
+        final p = pages[i];
+        final book = PageBookIcon(
+          page: p,
+          label: t.n(p),
+          background: background,
+        );
+        return Semantics(
+          button: true,
+          label: t.page(p),
+          excludeSemantics: true,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(6),
+            onTap: () => openMushaf(context, p),
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: iconWidth == null
+                    ? book
+                    : SizedBox(width: iconWidth, child: book),
+              ),
+            ),
+          ),
         );
       },
+    );
+  }
+}
+
+class _PageTab extends StatefulWidget {
+  const _PageTab({required this.mushaf, required this.surahs});
+
+  final Mushaf mushaf;
+  final List<Surah> surahs;
+
+  @override
+  State<_PageTab> createState() => _PageTabState();
+}
+
+class _PageTabState extends State<_PageTab> with _Searchable {
+  @override
+  Widget build(BuildContext context) {
+    final t = S.of(context);
+    final found = [
+      for (final p in widget.mushaf.pages)
+        if (searchMatches(
+          query,
+          numbers: [p.number],
+          texts: _surahTexts(widget.surahs[p.firstAyah.surah - 1]),
+        ))
+          p.number,
+    ];
+    return Column(
+      children: [
+        searchField(t.indexTabs[2]),
+        Expanded(
+          child: found.isEmpty
+              ? const _NoResults()
+              : _BookGrid(
+                  pages: found,
+                  columns: 3,
+                  background: Theme.of(context).colorScheme.surface,
+                  scrollable: true,
+                  iconWidth: 64,
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+// --- Quarters -----------------------------------------------------------
+
+/// Quarters grouped by juz, eight to a card, each with the opening words
+/// of its first ayah in the mushaf's own script.
+class _RubTab extends StatelessWidget {
+  const _RubTab({required this.mushaf, required this.surahs});
+
+  final Mushaf mushaf;
+  final List<Surah> surahs;
+
+  static const _perJuz = 8;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = S.of(context);
+    final colors = Theme.of(context).colorScheme;
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
+      itemCount: rubStarts.length ~/ _perJuz,
+      itemBuilder: (context, i) => Card(
+        margin: const EdgeInsets.only(bottom: 12),
+        elevation: 0,
+        color: colors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: colors.outlineVariant),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                t.juz(i + 1),
+                textAlign: TextAlign.end,
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              for (var k = 0; k < _perJuz; k++) ...[
+                if (k > 0) const Divider(height: 1),
+                _RubEntry(
+                  rub: i * _perJuz + k + 1,
+                  mushaf: mushaf,
+                  surahs: surahs,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RubEntry extends StatelessWidget {
+  const _RubEntry({
+    required this.rub,
+    required this.mushaf,
+    required this.surahs,
+  });
+
+  final int rub;
+  final Mushaf mushaf;
+  final List<Surah> surahs;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = S.of(context);
+    final start = rubStarts[rub - 1];
+    final surah = surahs[start.surah - 1];
+    final page = mushaf.rubStartPage(rub);
+    return Semantics(
+      button: true,
+      label: t.rubTitle(rub),
+      child: InkWell(
+        onTap: () => openMushaf(context, page, highlight: start),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Row(
+            children: [
+              RubIcon(rub: rub, hizbLabel: t.n((rub - 1) ~/ 4 + 1)),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _OpeningWords(mushaf: mushaf, surah: surah, ayah: start),
+                    const SizedBox(height: 2),
+                    Text(
+                      t.ayahAndPage(surah, start.ayah, page),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The first words of [ayah], drawn with the mushaf page fonts. Until the
+/// fonts are loaded, shows the same words in plain text.
+class _OpeningWords extends ConsumerStatefulWidget {
+  const _OpeningWords({
+    required this.mushaf,
+    required this.surah,
+    required this.ayah,
+  });
+
+  final Mushaf mushaf;
+  final Surah surah;
+  final AyahRef ayah;
+
+  static const maxWords = 5;
+
+  @override
+  ConsumerState<_OpeningWords> createState() => _OpeningWordsState();
+}
+
+class _OpeningWordsState extends ConsumerState<_OpeningWords> {
+  /// Each word with the page it is printed on; an ayah can run on to the
+  /// next page, which has its own font.
+  late final List<(int, MushafWord)> _words = _openingWords();
+  late final Future<void> _fonts = Future.wait([
+    for (final p in {for (final (p, _) in _words) p})
+      ref.read(pageFontsProvider).load(p),
+  ]);
+
+  List<(int, MushafWord)> _openingWords() {
+    final words = <(int, MushafWord)>[];
+    final m = widget.mushaf;
+    for (var p = m.pageOf(widget.ayah); p <= mushafPageCount; p++) {
+      for (final w in m.page(p).words) {
+        if (w.ayah != widget.ayah) continue;
+        if (w.isAyahEnd || words.length == _OpeningWords.maxWords) {
+          return words;
+        }
+        words.add((p, w));
+      }
+    }
+    return words;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.onSurface;
+    // One line, as long as the opening words are; shrunk if too wide.
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: AlignmentDirectional.centerStart,
+      child: FutureBuilder(
+        future: _fonts,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done ||
+              snapshot.hasError) {
+            final words = widget.surah.ayahs[widget.ayah.ayah - 1].split(' ');
+            return Text(
+              words.take(_words.length).join(' '),
+              textDirection: TextDirection.rtl,
+              style: TextStyle(fontSize: 20, height: 1.7, color: color),
+            );
+          }
+          return Text.rich(
+            TextSpan(
+              children: [
+                for (final (p, w) in _words)
+                  TextSpan(
+                    text: '${w.glyph} ',
+                    style: TextStyle(fontFamily: PageFonts.familyFor(p)),
+                  ),
+              ],
+            ),
+            textDirection: TextDirection.rtl,
+            style: TextStyle(fontSize: 24, height: 1.6, color: color),
+          );
+        },
+      ),
     );
   }
 }

@@ -88,17 +88,28 @@ class S {
     'مصحف لوڈ نہیں ہو سکا\n$error',
   );
   List<String> get indexTabs => [
-    _('السور', 'Surahs', 'সূরা', 'سورتیں'),
-    _('الأجزاء', 'Juz', 'পারা', 'پارے'),
-    _('الأرباع', 'Quarters', 'রুবু', 'ارباع'),
-    _('الصفحات', 'Pages', 'পৃষ্ঠা', 'صفحات'),
-    _('العلامات', 'Bookmarks', 'বুকমার্ক', 'نشانیاں'),
+    _('السورة', 'Surah', 'সূরা', 'سورت'),
+    _('الجزء', 'Juz', 'পারা', 'پارہ'),
+    _('الصفحة', 'Page', 'পৃষ্ঠা', 'صفحہ'),
+    _('الربع', 'Quarter', 'রুবু', 'ربع'),
   ];
-  String get searchHint => _(
-    'ابحث باسم السورة أو بالرقم',
-    'Search by surah name or number',
-    'সূরার নাম বা নম্বর দিয়ে খুঁজুন',
-    'سورت کے نام یا نمبر سے تلاش کریں',
+
+  /// Title of a juz card in the index, shorter than [juz].
+  String juzCard(int juz) =>
+      _('جزء ${n(juz)}', 'Juz ${n(juz)}', 'পারা ${n(juz)}', 'پارہ ${n(juz)}');
+  String get openJuzStart => _(
+    'افتح بداية الجزء',
+    'Open at the start of the juz',
+    'পারার শুরু থেকে খুলুন',
+    'پارے کے شروع سے کھولیں',
+  );
+
+  /// "Al-Baqarah: 26 - Page 5", under a quarter's opening words.
+  String ayahAndPage(Surah surah, int ayah, int p) => _(
+    '${surahName(surah)}: ${n(ayah)} - ${page(p)}',
+    '${surahName(surah)} ${n(ayah)} - ${page(p)}',
+    '${surahName(surah)} ${n(ayah)} - ${page(p)}',
+    '${surahName(surah)}: ${n(ayah)} - ${page(p)}',
   );
   String get clearSearch =>
       _('مسح البحث', 'Clear search', 'খোঁজ মুছুন', 'تلاش صاف کریں');
@@ -144,12 +155,6 @@ class S {
   );
   String get noResults =>
       _('لا توجد نتائج', 'No results', 'কোনো ফলাফল নেই', 'کوئی نتیجہ نہیں');
-  String get noBookmarks => _(
-    'لا توجد علامات بعد.\nاضغط مطولًا على أي آية في المصحف لإضافة علامة.',
-    'No bookmarks yet.\nLong-press any ayah in the mushaf to add one.',
-    'এখনো কোনো বুকমার্ক নেই।\nযোগ করতে মুসহাফে যেকোনো আয়াতে চেপে ধরুন।',
-    'ابھی کوئی نشانی نہیں۔\nنشانی لگانے کے لیے مصحف میں کسی آیت کو دیر تک دبائیں۔',
-  );
 
   // Mushaf.
   String surah(Surah s) => _(
