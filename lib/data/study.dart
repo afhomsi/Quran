@@ -153,8 +153,21 @@ const _introHeadings = {'تسمية السورة', 'من مقاصد السورة
 
 /// The words of [ayahText], split as in the printed mushaf, so that the
 /// word at a position on the page is `words[position - 1]`.
-List<String> ayahWords(String ayahText) =>
-    ayahText.split(' ').where((w) => w.trim().isNotEmpty).toList();
+List<String> ayahWords(String ayahText) {
+  final words = <String>[];
+  for (final w in ayahText.split(' ')) {
+    if (w.trim().isEmpty) continue;
+    // إِلۡ يَاسِينَ (37:130) is printed with a gap but is one word.
+    if (words.isNotEmpty && words.last == _il) {
+      words.last += ' $w';
+    } else {
+      words.add(w);
+    }
+  }
+  return words;
+}
+
+const _il = '\u0625\u0650\u0644\u06E1';
 
 /// The word at [position] of [ayahText], or '' past its end.
 String wordAt(String ayahText, int position) {
