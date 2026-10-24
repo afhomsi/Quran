@@ -22,6 +22,7 @@ import '../notes/notes_screen.dart';
 import '../recitation/recitation_picker.dart';
 import '../settings/settings_screen.dart';
 import '../shell/navigation.dart';
+import 'go_to_dialog.dart';
 import 'mushaf_page_view.dart';
 
 /// Swipeable 604-page mushaf. Remembers the last page read.
@@ -175,7 +176,7 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
                   value: () => _goToPage(context),
                   child: ListTile(
                     leading: const Icon(Icons.numbers),
-                    title: Text(t.goToPage),
+                    title: Text(t.goTo),
                   ),
                 ),
                 PopupMenuItem(
@@ -381,11 +382,10 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
   }
 
   Future<void> _goToPage(BuildContext context) async {
-    final page = await showDialog<int>(
-      context: context,
-      builder: (_) => const GoToPageDialog(),
-    );
-    if (page != null) _controller.jumpToPage(_indexOf(page));
+    final target = await showGoToDialog(context);
+    if (target == null) return;
+    setState(() => _selected = target.ayah ?? _selected);
+    _controller.jumpToPage(_indexOf(target.page));
   }
 
   void _showAyahActions(
@@ -867,56 +867,6 @@ class _PageBar extends StatelessWidget {
           tooltip: t.nextPage,
           icon: const Icon(Icons.chevron_right),
           onPressed: onNext,
-        ),
-      ],
-    );
-  }
-}
-
-class GoToPageDialog extends StatefulWidget {
-  const GoToPageDialog({super.key});
-
-  @override
-  State<GoToPageDialog> createState() => _GoToPageDialogState();
-}
-
-class _GoToPageDialogState extends State<GoToPageDialog> {
-  final _text = TextEditingController();
-
-  @override
-  void dispose() {
-    _text.dispose();
-    super.dispose();
-  }
-
-  int? get _page {
-    final n = int.tryParse(_text.text);
-    return n != null && n >= 1 && n <= mushafPageCount ? n : null;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final t = S.of(context);
-    return AlertDialog(
-      title: Text(t.goToPage),
-      content: TextField(
-        controller: _text,
-        autofocus: true,
-        keyboardType: TextInputType.number,
-        decoration: const InputDecoration(hintText: '1 – $mushafPageCount'),
-        onChanged: (_) => setState(() {}),
-        onSubmitted: (_) {
-          if (_page != null) Navigator.pop(context, _page);
-        },
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(t.cancel),
-        ),
-        FilledButton(
-          onPressed: _page == null ? null : () => Navigator.pop(context, _page),
-          child: Text(t.go),
         ),
       ],
     );

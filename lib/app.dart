@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -50,6 +51,7 @@ class _HifzAppState extends ConsumerState<HifzApp> {
       theme: _theme(Brightness.light),
       darkTheme: _theme(Brightness.dark),
       themeMode: settings.nightMode ? ThemeMode.dark : ThemeMode.light,
+      scrollBehavior: const _DragAnywhereScrollBehavior(),
       builder: (context, child) {
         Widget app = StringsScope(strings: strings, child: child!);
         if (!settings.followSystemFontSize) {
@@ -72,4 +74,14 @@ class _HifzAppState extends ConsumerState<HifzApp> {
     ),
     useMaterial3: true,
   );
+}
+
+/// Lets every list scroll by dragging with a mouse or a trackpad too, not
+/// only with touch. On a computer, Flutter otherwise scrolls only with the
+/// mouse wheel, so long pages such as the settings seemed stuck.
+class _DragAnywhereScrollBehavior extends MaterialScrollBehavior {
+  const _DragAnywhereScrollBehavior();
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => PointerDeviceKind.values.toSet();
 }
