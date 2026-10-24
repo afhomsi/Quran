@@ -530,13 +530,17 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
                 ? _mistakeColor
                 : _correctColor,
       },
-      recitedWords: recitation?.page == page && recitation!.hideText
+      // Listening, also after reciting, shows the ayat as the reciter
+      // reaches them, or all of them when that is turned off.
+      recitedWords: audio.visible
+          ? settings.hideWhileListening
+                ? {
+                    for (final a in ref.read(heardAyatProvider))
+                      a: PageRecitation.allWords,
+                  }
+                : null
+          : recitation?.page == page && recitation!.hideText
           ? recitation.recitedWords
-          : audio.visible && settings.hideWhileListening
-          ? {
-              for (final a in ref.read(heardAyatProvider))
-                a: PageRecitation.allWords,
-            }
           : null,
       bookmarks: [
         for (final kind in MarkerKind.values)

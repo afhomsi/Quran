@@ -236,6 +236,10 @@ class S {
     'টেক্সট লোড করা যায়নি\n$error',
     'متن لوڈ نہیں ہو سکا\n$error',
   );
+  String get showAyat =>
+      _('إظهار الآيات', 'Show ayat', 'আয়াত দেখান', 'آیات دکھائیں');
+  String get hideAyat =>
+      _('إخفاء الآيات', 'Hide ayat', 'আয়াত লুকান', 'آیات چھپائیں');
   String get hideText =>
       _('إخفاء النص', 'Hide text', 'টেক্সট লুকান', 'متن چھپائیں');
   String get showText =>

@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hifz/app.dart';
+import 'package:hifz/audio/ayah_audio.dart';
+import 'package:hifz/features/mushaf/mushaf_page_view.dart';
 import 'package:hifz/data/mushaf_models.dart';
 import 'package:hifz/data/mushaf_repository.dart';
 import 'package:hifz/data/quran_repository.dart';
@@ -16,6 +18,7 @@ import 'package:hifz/recitation/speech_listener.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fake_listener.dart';
+import 'fake_player.dart';
 
 Future<void> _pump(
   WidgetTester tester,
@@ -34,6 +37,7 @@ Future<void> _pump(
         surahsProvider.overrideWith((ref) async => surahs),
         speechListenerProvider.overrideWithValue(listener ?? FakeListener()),
         mistakeAlertProvider.overrideWithValue(() {}),
+        ayahPlayerProvider.overrideWithValue(FakePlayer()),
       ],
       child: child,
     ),
@@ -130,14 +134,28 @@ void main() {
       PageRecitation.allWords,
     );
 
-    // The eye button shows the whole page.
-    await tester.tap(find.byTooltip('إظهار النص'));
+    // A labelled button shows the whole page.
+    await tester.tap(find.text('إظهار الآيات'));
     await tester.pump();
     expect(container.read(pageRecitationProvider)!.hideText, isFalse);
-    expect(find.byTooltip('إخفاء النص'), findsOneWidget);
+    expect(find.text('إخفاء الآيات'), findsOneWidget);
     expect(find.textContaining('خطأ في الآية 2'), findsOneWidget);
     final states = container.read(pageRecitationProvider)!.ayahStates;
     expect(states.values, [AyahRecitation.correct, AyahRecitation.mistake]);
+
+    // Listening after reciting shows the ayat as the reciter reaches them,
+    // even with the recitation hiding the rest.
+    await tester.tap(find.text('إخفاء الآيات'));
+    await tester.pump();
+    await container.read(audioProvider.notifier).playFrom(const AyahRef(1, 3));
+    await tester.pump();
+    expect(listener.listening, isFalse);
+    expect(
+      tester.widget<MushafPageView>(find.byType(MushafPageView)).recitedWords,
+      {const AyahRef(1, 3): PageRecitation.allWords},
+    );
+    await container.read(audioProvider.notifier).close();
+    await tester.pump();
 
     // Let listening restart after the pause, as it does on a phone.
     await tester.pump(const Duration(seconds: 1));

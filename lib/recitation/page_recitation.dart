@@ -113,6 +113,12 @@ class PageRecitationController extends Notifier<PageRecitation?> {
   @override
   PageRecitation? build() {
     ref.onDispose(() => _session?.dispose());
+    // Listening to the reciter stops the microphone, so it does not take
+    // the recording for the reader's voice.
+    ref.listen(audioProvider.select((a) => a.playing), (_, playing) {
+      final session = _session;
+      if (playing && session != null && session.isListening) session.stop();
+    });
     return null;
   }
 
