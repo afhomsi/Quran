@@ -25,6 +25,12 @@ double mushafTextWidth(double width, double height) {
   return fontSize * _lineWidthEm;
 }
 
+/// The page font palette that suits the current theme.
+MushafPalette mushafPalette(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+    ? MushafPalette.dark
+    : MushafPalette.light;
+
 /// Draws one mushaf page line by line, as printed in the Madinah mushaf.
 class MushafPageView extends StatelessWidget {
   const MushafPageView({
@@ -76,8 +82,10 @@ class MushafPageView extends StatelessWidget {
     double lineHeight,
   ) {
     final colors = Theme.of(context).colorScheme;
+    final palette = mushafPalette(context);
     return switch (line) {
       SurahNameLine(:final surah) => _SurahHeader(
+        surah: surah,
         name: surahName(surah),
         fontSize: fontSize,
       ),
@@ -86,7 +94,7 @@ class MushafPageView extends StatelessWidget {
           // Basmala of al-Fatiha, drawn with the page 1 font.
           'ﱁ ﱂﱃﱄ',
           style: TextStyle(
-            fontFamily: PageFonts.familyFor(1),
+            fontFamily: PageFonts.familyFor(1, palette),
             fontSize: fontSize,
             height: 1,
             color: colors.onSurface,
@@ -106,7 +114,7 @@ class MushafPageView extends StatelessWidget {
               for (final w in words)
                 _Word(
                   word: w,
-                  family: PageFonts.familyFor(page.number),
+                  family: PageFonts.familyFor(page.number, palette),
                   fontSize: fontSize,
                   selected: w.ayah == selected,
                   hizbMark:
@@ -164,7 +172,8 @@ class _Word extends StatelessWidget {
                 fontFamily: family,
                 fontSize: fontSize,
                 height: _linePitchEm,
-                color: word.isAyahEnd ? colors.primary : colors.onSurface,
+                // Ayah numbers bring their own colours from the font.
+                color: colors.onSurface,
               ),
             ),
             if (hizbMark)
@@ -189,8 +198,13 @@ class _Word extends StatelessWidget {
 }
 
 class _SurahHeader extends StatelessWidget {
-  const _SurahHeader({required this.name, required this.fontSize});
+  const _SurahHeader({
+    required this.surah,
+    required this.name,
+    required this.fontSize,
+  });
 
+  final int surah;
   final String name;
   final double fontSize;
 
@@ -205,12 +219,23 @@ class _SurahHeader extends StatelessWidget {
         borderRadius: BorderRadius.circular(fontSize * 0.3),
       ),
       alignment: Alignment.center,
-      child: Text(
-        'سورة $name',
-        style: TextStyle(
-          fontSize: fontSize * 0.8,
-          fontWeight: FontWeight.bold,
-          color: colors.onPrimaryContainer,
+      child: Semantics(
+        label: 'سورة $name',
+        child: ExcludeSemantics(
+          child: FittedBox(
+            child: Text(
+              // The font turns these words into the calligraphy of
+              // "سورة" and the surah's name, as printed in the mushaf.
+              'surah${surah.toString().padLeft(3, '0')}surah-icon',
+              textDirection: TextDirection.ltr,
+              style: TextStyle(
+                fontFamily: 'SurahNames',
+                fontSize: fontSize * 2,
+                height: 1,
+                color: colors.onSurface,
+              ),
+            ),
+          ),
         ),
       ),
     );

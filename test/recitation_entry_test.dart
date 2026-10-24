@@ -17,7 +17,8 @@ class _FakePageFonts extends PageFonts {
   _FakePageFonts() : super(rootBundle);
 
   @override
-  Future<String> load(int page) async => PageFonts.familyFor(page);
+  Future<String> load(int page, MushafPalette palette) async =>
+      PageFonts.familyFor(page, palette);
 }
 
 Future<void> _pump(WidgetTester tester, Widget child) async {

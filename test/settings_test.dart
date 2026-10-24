@@ -21,7 +21,8 @@ class _FakePageFonts extends PageFonts {
   _FakePageFonts() : super(rootBundle);
 
   @override
-  Future<String> load(int page) async => PageFonts.familyFor(page);
+  Future<String> load(int page, MushafPalette palette) async =>
+      PageFonts.familyFor(page, palette);
 }
 
 /// Starts the app with [settings] already saved.
