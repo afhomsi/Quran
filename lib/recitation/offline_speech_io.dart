@@ -119,6 +119,11 @@ class OfflineSpeechListener implements DisposableSpeechListener {
   ReceivePort? _inbox;
   SendPort? _toWorker;
   Timer? _idle;
+  bool _active = false;
+
+  /// Results still on their way from before the last stop are dropped
+  /// until the worker confirms it has reset.
+  bool _resetting = false;
 
   void Function(String text, bool isFinal)? _onResult;
   void Function(String message) _onError = (_) {};
@@ -142,13 +147,14 @@ class OfflineSpeechListener implements DisposableSpeechListener {
     required void Function(String text, bool isFinal) onResult,
   }) async {
     _idle?.cancel();
+    _active = true;
     _onResult = onResult;
     while (_pending.isNotEmpty && _onResult != null) {
       final (text, isFinal) = _pending.removeAt(0);
       _deliver(text, isFinal);
     }
     await (_starting ??= _startWorker());
-    if (_mic != null) return;
+    if (!_active || _mic != null) return;
     final audio = await _recorder.startStream(
       const RecordConfig(
         encoder: AudioEncoder.pcm16bits,
@@ -168,13 +174,17 @@ class OfflineSpeechListener implements DisposableSpeechListener {
 
   @override
   Future<void> stop() async {
+    _active = false;
     _onResult = null;
     _pending.clear();
     final mic = _mic;
     _mic = null;
     await mic?.cancel();
     if (await _recorder.isRecording()) await _recorder.stop();
-    _toWorker?.send('reset');
+    if (_toWorker != null) {
+      _resetting = true;
+      _toWorker!.send('reset');
+    }
     // The model holds a lot of memory; let it go if not used again soon.
     _idle?.cancel();
     _idle = Timer(const Duration(minutes: 2), _stopWorker);
@@ -211,13 +221,15 @@ class OfflineSpeechListener implements DisposableSpeechListener {
           _toWorker = port;
         case 'ready':
           ready.complete();
+        case 'reset':
+          _resetting = false;
         case ['error', String error]:
           if (!ready.isCompleted) {
             ready.completeError(error);
           } else {
             _onError(error);
           }
-        case [String text, bool isFinal]:
+        case [String text, bool isFinal] when !_resetting:
           _deliver(text, isFinal);
       }
     });
@@ -234,6 +246,7 @@ class OfflineSpeechListener implements DisposableSpeechListener {
   void _stopWorker() {
     _toWorker?.send('close');
     _toWorker = null;
+    _resetting = false;
     _inbox?.close();
     _inbox = null;
     _starting = null;
@@ -380,6 +393,7 @@ void _worker((SendPort, String) args) {
           leftover = Float32List(0);
           recent.clear();
           clearSpeech();
+          out.send('reset');
         case 'close':
           inbox.close();
           vad.free();
