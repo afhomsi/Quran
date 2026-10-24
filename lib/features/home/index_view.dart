@@ -9,6 +9,7 @@ import '../../data/quarters.dart';
 import '../../data/quran_models.dart';
 import '../../l10n/strings.dart';
 import 'home_screen.dart';
+import '../mushaf/mushaf_page_view.dart' show mushafPalette;
 import 'index_icons.dart';
 
 /// The index, one tab per entry of [S.indexTabs]: surahs, juz cards that
@@ -554,10 +555,14 @@ class _OpeningWordsState extends ConsumerState<_OpeningWords> {
   /// Each word with the page it is printed on; an ayah can run on to the
   /// next page, which has its own font.
   late final List<(int, MushafWord)> _words = _openingWords();
-  late final Future<void> _fonts = Future.wait([
-    for (final p in {for (final (p, _) in _words) p})
-      ref.read(pageFontsProvider).load(p),
-  ]);
+  final _fonts = <MushafPalette, Future<void>>{};
+
+  /// The page fonts for the words, in the colours of the current theme.
+  Future<void> _fontsIn(MushafPalette palette) =>
+      _fonts[palette] ??= Future.wait([
+        for (final p in {for (final (p, _) in _words) p})
+          ref.read(pageFontsProvider).load(p, palette),
+      ]);
 
   List<(int, MushafWord)> _openingWords() {
     final words = <(int, MushafWord)>[];
@@ -577,12 +582,13 @@ class _OpeningWordsState extends ConsumerState<_OpeningWords> {
   @override
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme.onSurface;
+    final palette = mushafPalette(context);
     // One line, as long as the opening words are; shrunk if too wide.
     return FittedBox(
       fit: BoxFit.scaleDown,
       alignment: AlignmentDirectional.centerStart,
       child: FutureBuilder(
-        future: _fonts,
+        future: _fontsIn(palette),
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done ||
               snapshot.hasError) {
@@ -599,7 +605,9 @@ class _OpeningWordsState extends ConsumerState<_OpeningWords> {
                 for (final (p, w) in _words)
                   TextSpan(
                     text: '${w.glyph} ',
-                    style: TextStyle(fontFamily: PageFonts.familyFor(p)),
+                    style: TextStyle(
+                      fontFamily: PageFonts.familyFor(p, palette),
+                    ),
                   ),
               ],
             ),

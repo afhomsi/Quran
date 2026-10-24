@@ -23,7 +23,8 @@ class _FakePageFonts extends PageFonts {
   _FakePageFonts() : super(rootBundle);
 
   @override
-  Future<String> load(int page) async => PageFonts.familyFor(page);
+  Future<String> load(int page, MushafPalette palette) async =>
+      PageFonts.familyFor(page, palette);
 }
 
 Future<(ProviderContainer, FakePlayer)> _start(WidgetTester tester) async {
