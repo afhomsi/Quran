@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hifz/app.dart';
@@ -10,7 +9,6 @@ import 'package:hifz/data/khatma.dart';
 import 'package:hifz/data/marks.dart';
 import 'package:hifz/data/mushaf_models.dart';
 import 'package:hifz/data/mushaf_repository.dart';
-import 'package:hifz/data/page_fonts.dart';
 import 'package:hifz/data/quran_repository.dart';
 import 'package:hifz/data/reading_state.dart';
 import 'package:hifz/data/study.dart';
@@ -23,15 +21,6 @@ import 'package:hifz/features/study/word_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fake_player.dart';
-
-/// Skips real font loading, which needs the asset bundle.
-class _FakePageFonts extends PageFonts {
-  _FakePageFonts() : super(rootBundle);
-
-  @override
-  Future<String> load(int page, MushafPalette palette) async =>
-      PageFonts.familyFor(page, palette);
-}
 
 /// Keeps nothing, so no files are written in tests.
 class _NoCache extends StudyCache {
@@ -57,7 +46,6 @@ Future<(ProviderContainer, FakePlayer)> _start(WidgetTester tester) async {
         sharedPreferencesProvider.overrideWithValue(prefs),
         mushafProvider.overrideWith((ref) async => mushaf),
         surahsProvider.overrideWith((ref) async => surahs),
-        pageFontsProvider.overrideWithValue(_FakePageFonts()),
         ayahPlayerProvider.overrideWithValue(player),
         screenWakeProvider.overrideWithValue((on) async {}),
         // The books say nothing, without going to the internet.

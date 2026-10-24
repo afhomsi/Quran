@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 
 import '../../data/mushaf_models.dart';
-import '../../data/page_fonts.dart';
+import '../../data/mushaf_text.dart';
 import '../../data/quarters.dart';
+import '../../data/tajweed.dart';
 
-/// Width of one printed line in em of the QCF page fonts.
-const _lineWidthEm = 16.6;
+/// Width of one printed line in em of the mushaf font. Most lines of the
+/// Madinah layout take 14 to 18 em; longer ones are set a little smaller.
+const _lineWidthEm = 16.5;
 
 /// Distance between two printed lines in em.
-const _linePitchEm = 1.6;
+const _linePitchEm = 1.7;
 
 const _linesPerPage = 15;
 
@@ -25,15 +27,6 @@ double mushafTextWidth(double width, double height) {
   return fontSize * _lineWidthEm;
 }
 
-/// The page font palette that suits the current theme.
-MushafPalette mushafPalette(BuildContext context, {bool tajweed = false}) =>
-    switch ((Theme.of(context).brightness == Brightness.dark, tajweed)) {
-      (false, false) => MushafPalette.light,
-      (true, false) => MushafPalette.dark,
-      (false, true) => MushafPalette.tajweedLight,
-      (true, true) => MushafPalette.tajweedDark,
-    };
-
 /// Called with the word pressed and where it is on the screen.
 typedef WordCallback = void Function(MushafWord word, Offset position);
 
@@ -47,7 +40,7 @@ class MushafPageView extends StatelessWidget {
     this.selectedWord,
     this.highlights = const {},
     this.showHizbMarks = false,
-    this.tajweed = false,
+    this.tajweed,
     this.onAyahTap,
     this.onAyahLongPress,
   });
@@ -66,8 +59,8 @@ class MushafPageView extends StatelessWidget {
   /// Put ۞ over the first word of each quarter of a hizb.
   final bool showHizbMarks;
 
-  /// Letters in the colours of tajweed.
-  final bool tajweed;
+  /// Letters in the colours of tajweed, when given.
+  final TajweedMap? tajweed;
   final WordCallback? onAyahTap;
   final WordCallback? onAyahLongPress;
 
@@ -101,7 +94,6 @@ class MushafPageView extends StatelessWidget {
     double lineHeight,
   ) {
     final colors = Theme.of(context).colorScheme;
-    final palette = mushafPalette(context, tajweed: tajweed);
     return switch (line) {
       SurahNameLine(:final surah) => _SurahHeader(
         surah: surah,
@@ -110,42 +102,49 @@ class MushafPageView extends StatelessWidget {
       ),
       BasmalaLine() => Center(
         child: Text(
-          // Basmala of al-Fatiha, drawn with the page 1 font.
-          'ﱁ ﱂﱃﱄ',
+          mushafDisplayText(basmalaText),
+          textDirection: TextDirection.rtl,
           style: TextStyle(
-            fontFamily: PageFonts.familyFor(1, palette),
+            fontFamily: mushafFont,
             fontSize: fontSize,
             height: 1,
             color: colors.onSurface,
           ),
         ),
       ),
+      // A line as wide as the text block, or as its words if they need
+      // more, then shrunk to fit.
       AyahLine(:final words, :final centered) => FittedBox(
         fit: BoxFit.scaleDown,
-        child: SizedBox(
-          width: fontSize * _lineWidthEm,
-          child: Row(
-            // Pages 1 and 2 are set in a narrow centered block.
-            mainAxisAlignment: centered || page.number <= 2
-                ? MainAxisAlignment.center
-                : MainAxisAlignment.spaceBetween,
-            children: [
-              for (final w in words)
-                _Word(
-                  word: w,
-                  family: PageFonts.familyFor(page.number, palette),
-                  fontSize: fontSize,
-                  selected: w.ayah == selected,
-                  wordSelected: selectedWord == (w.ayah, w.position),
-                  highlight: highlights[w.ayah],
-                  hizbMark:
-                      showHizbMarks &&
-                      w.position == 1 &&
-                      _quarterStarts.contains(w.ayah),
-                  onTap: onAyahTap,
-                  onLongPress: onAyahLongPress,
-                ),
-            ],
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minWidth: fontSize * _lineWidthEm),
+          child: IntrinsicWidth(
+            child: Row(
+              // Pages 1 and 2 are set in a narrow centered block.
+              mainAxisAlignment: centered || page.number <= 2
+                  ? MainAxisAlignment.center
+                  : MainAxisAlignment.spaceBetween,
+              spacing: fontSize * 0.15,
+              children: [
+                for (final w in words)
+                  _Word(
+                    word: w,
+                    tajweed: w.isAyahEnd
+                        ? const []
+                        : tajweed?.spansOf(w.ayah)[w.position - 1],
+                    fontSize: fontSize,
+                    selected: w.ayah == selected,
+                    wordSelected: selectedWord == (w.ayah, w.position),
+                    highlight: highlights[w.ayah],
+                    hizbMark:
+                        showHizbMarks &&
+                        w.position == 1 &&
+                        _quarterStarts.contains(w.ayah),
+                    onTap: onAyahTap,
+                    onLongPress: onAyahLongPress,
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -156,7 +155,7 @@ class MushafPageView extends StatelessWidget {
 class _Word extends StatelessWidget {
   const _Word({
     required this.word,
-    required this.family,
+    required this.tajweed,
     required this.fontSize,
     required this.selected,
     this.wordSelected = false,
@@ -167,7 +166,9 @@ class _Word extends StatelessWidget {
   });
 
   final MushafWord word;
-  final String family;
+
+  /// The letters to colour by the rules of tajweed, if they are shown.
+  final List<TajweedSpan>? tajweed;
   final double fontSize;
   final bool selected;
   final bool wordSelected;
@@ -198,14 +199,22 @@ class _Word extends StatelessWidget {
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            Text(
-              word.glyph,
+            Text.rich(
+              word.isAyahEnd
+                  ? TextSpan(
+                      text: ayahEndMark(word.ayah.ayah),
+                      style: TextStyle(color: colors.primary),
+                    )
+                  : TextSpan(
+                      children: wordSelected
+                          ? [TextSpan(text: _display(word.text))]
+                          : _tajweedSpans(word.text, tajweed, dark),
+                    ),
               textDirection: TextDirection.rtl,
               style: TextStyle(
-                fontFamily: family,
+                fontFamily: mushafFont,
                 fontSize: fontSize,
                 height: _linePitchEm,
-                // Ayah numbers bring their own colours from the font.
                 color: wordSelected ? _wordColor(dark) : colors.onSurface,
               ),
             ),
@@ -228,6 +237,36 @@ class _Word extends StatelessWidget {
       ),
     );
   }
+}
+
+/// [text] as the mushaf font draws it, without the ۞ that the page shows
+/// apart.
+String _display(String text) => mushafDisplayText(text.replaceAll('۞', ''));
+
+/// [text] with each letter in the colour of its tajweed rule; a letter
+/// that takes two rules shows the first of [TajweedRule.values].
+List<TextSpan> _tajweedSpans(String text, List<TajweedSpan>? spans, bool dark) {
+  if (spans == null || spans.isEmpty) return [TextSpan(text: _display(text))];
+  final rules = List<TajweedRule?>.filled(text.length, null);
+  for (final s in spans) {
+    for (var i = s.start; i < s.end; i++) {
+      if (rules[i] == null || s.rule.index < rules[i]!.index) rules[i] = s.rule;
+    }
+  }
+  final out = <TextSpan>[];
+  var start = 0;
+  for (var i = 1; i <= text.length; i++) {
+    if (i < text.length && rules[i] == rules[start]) continue;
+    final rule = rules[start];
+    out.add(
+      TextSpan(
+        text: _display(text.substring(start, i)),
+        style: rule == null ? null : TextStyle(color: rule.color(dark)),
+      ),
+    );
+    start = i;
+  }
+  return out;
 }
 
 /// The colour of the word open in the word card.
@@ -261,14 +300,12 @@ class _SurahHeader extends StatelessWidget {
         child: ExcludeSemantics(
           child: FittedBox(
             child: Text(
-              // The font turns these words into the calligraphy of
-              // "سورة" and the surah's name, as printed in the mushaf.
-              'surah${surah.toString().padLeft(3, '0')}surah-icon',
-              textDirection: TextDirection.ltr,
+              'سُورَةُ $name',
+              textDirection: TextDirection.rtl,
               style: TextStyle(
-                fontFamily: 'SurahNames',
-                fontSize: fontSize * 2,
-                height: 1,
+                fontFamily: mushafFont,
+                fontSize: fontSize * 1.1,
+                height: 1.4,
                 color: colors.onSurface,
               ),
             ),

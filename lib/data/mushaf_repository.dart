@@ -90,8 +90,7 @@ MushafLine _parseLine(Map l) => switch (l['t']) {
         MushafWord(
           ayah: AyahRef(w[0] as int, w[1] as int),
           position: w[2] as int,
-          glyph: w[3] as String,
-          isAyahEnd: w[4] == 1,
+          text: w[3] as String,
         ),
     ],
   ),

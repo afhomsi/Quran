@@ -7,36 +7,32 @@ import 'arabic_search.dart';
 import 'mushaf_models.dart';
 import 'study_cache.dart';
 
-/// The books the study panel reads from: tafsir, qira'at, word analysis,
-/// i'rab, rare words, reflections and a translation.
+/// The books the study panel reads from: tafsir, qira'at, i'rab and a
+/// translation. Only books free of copyright are used: classical works,
+/// whose authors died long ago, and Pickthall's English translation (1930).
 ///
 /// They come per ayah from the open tafsir_api collection on GitHub
 /// (github.com/spa5k/tafsir_api) and the quran-api translations
 /// (github.com/fawazahmed0/quran-api), and are kept on the device once read.
 enum StudyBook {
-  mukhtasar('ar-tafsir-al-mukhtasar'),
-  muyassar('ar-tafsir-muyassar'),
+  jalalayn('ar-tafsir-al-jalalayn', splitAtQuotes: true),
   saadi('ar-tafseer-al-saddi'),
   ibnKathir('ar-tafsir-ibn-kathir'),
   baghawi('ar-tafsir-al-baghawi'),
   tabari('ar-tafsir-al-tabari'),
   nashr('al-nashr-li-ibn-al-jazari'),
-  qiraat('al-qira-at-al-mawsoo-ah-al-qur-aniyyah'),
-  tasreef('tahlil-kalimat-al-qur-an'),
-  irabMuyassar('al-i-rab-al-muyassar'),
-  irabJadwal('al-jadwal-fi-i-rab-al-quran'),
-  irabDarwish('i-rab-al-quran-li-al-darwish'),
-  gharib('al-muyassar-fi-al-gharib'),
-  tadabbur('tadabbur-wa-amal'),
-  english('eng-ummmuhammad');
+  samin('al-dur-al-masun-lil-samin-al-halabi', splitAtQuotes: true),
+  english('eng-mohammedmarmadu');
 
-  const StudyBook(this.slug);
+  const StudyBook(this.slug, {this.splitAtQuotes = false});
 
   final String slug;
 
-  static const tafsirs = [muyassar, saadi, ibnKathir, baghawi, tabari];
-  static const qiraatBooks = [nashr, qiraat];
-  static const irabBooks = [irabMuyassar, irabJadwal, irabDarwish];
+  /// The book explains the ayah piece by piece in one paragraph, each piece
+  /// after the words it quotes, so a word's part starts at its quote.
+  final bool splitAtQuotes;
+
+  static const tafsirs = [saadi, ibnKathir, baghawi, tabari];
 
   /// Where the text of [ayah] can be read, mirrors first.
   List<Uri> urls(AyahRef ayah) {
@@ -115,42 +111,6 @@ final studyTextProvider = FutureProvider.family<String, (StudyBook, AyahRef)>(
   (ref, key) => ref.watch(studyRepositoryProvider).text(key.$1, key.$2),
 );
 
-/// The introduction of a surah, its name and aims, which al-Muyassar puts
-/// before the tafsir of its first ayah. Empty when there is none.
-String surahIntro(String muyassarFirstAyah) =>
-    _splitIntro(muyassarFirstAyah).$1;
-
-/// The tafsir of an ayah without the surah introduction in front of it.
-String withoutSurahIntro(String text) => _splitIntro(text).$2;
-
-const _tafsirMark = '[التفسير]';
-const _introHeadings = {'تسمية السورة', 'من مقاصد السورة'};
-
-/// The introduction and the tafsir. Most surahs mark where the tafsir
-/// starts; otherwise the introduction is its headings and their points.
-(String, String) _splitIntro(String text) {
-  final i = text.indexOf(_tafsirMark);
-  if (i >= 0) {
-    return (
-      text.substring(0, i).trim(),
-      text.substring(i + _tafsirMark.length).trim(),
-    );
-  }
-  final paragraphs = text.split('\n');
-  if (paragraphs.first.trim() != _introHeadings.first) return ('', text);
-  final end = paragraphs.indexWhere((p) {
-    final line = p.trim();
-    return line.isNotEmpty &&
-        !_introHeadings.contains(line) &&
-        !line.startsWith('•');
-  });
-  if (end < 0) return (text.trim(), '');
-  return (
-    paragraphs.take(end).join('\n').trim(),
-    paragraphs.skip(end).join('\n').trim(),
-  );
-}
-
 /// The words of [ayahText], split as in the printed mushaf, so that the
 /// word at a position on the page is `words[position - 1]`.
 List<String> ayahWords(String ayahText) {
@@ -181,15 +141,18 @@ String wordAt(String ayahText, int position) {
 /// spellings write differently.
 String matchKey(String word) =>
     // Some books write the tanween with the extended Arabic marks.
-    normalizeForSearch(word.replaceAll(RegExp('[\u08D3-\u08FF]'), ''))
-        .replaceAll(RegExp('[اءؤئ ]'), '')
-        .replaceAll('ﷺ', '');
+    normalizeForSearch(
+      word
+          .replaceAll(RegExp('[\u08D3-\u08FF]'), '')
+          // The mushaf's صلوٰة is صلاة in books.
+          .replaceAll('\u0648\u0670', '\u0627'),
+    ).replaceAll(RegExp('[اءؤئ ]'), '').replaceAll('ﷺ', '');
 
-final _quoted = RegExp('﴿([^﴾]*)﴾');
+final _quoted = RegExp('﴿([^﴾]*)﴾|\\{([^}]*)\\}');
 
 /// The paragraphs of [text] that speak about the word at [position] of
-/// [ayahText]: those quoting it in ﴿ ﴾, as the books on rare words,
-/// qira'at, word analysis and i'rab do. When the word comes more than once
+/// [ayahText]: those quoting it in ﴿ ﴾ or { }, as the books on qira'at and
+/// i'rab do. When the word comes more than once
 /// in the ayah, the paragraph for its own occurrence comes first.
 List<String> paragraphsOnWord(String text, String ayahText, int position) {
   final words = ayahWords(ayahText);
@@ -200,7 +163,9 @@ List<String> paragraphsOnWord(String text, String ayahText, int position) {
   final before = words.take(index).where((w) => matchKey(w) == key).length;
   final found = <String>[];
   for (final paragraph in text.split('\n')) {
-    final quotes = [for (final m in _quoted.allMatches(paragraph)) m[1]!];
+    final quotes = [
+      for (final m in _quoted.allMatches(paragraph)) m[1] ?? m[2]!,
+    ];
     if (quotes.isEmpty) continue;
     final joined = matchKey(quotes.join());
     final quotedWords = quotes.expand((q) => q.split(' ')).map(matchKey);
@@ -212,6 +177,14 @@ List<String> paragraphsOnWord(String text, String ayahText, int position) {
   final own = before.clamp(0, found.length - 1);
   return [found[own], ...found.take(own), ...found.skip(own + 1)];
 }
+
+/// [text] with each quoted piece of the ayah on a line of its own, for the
+/// books that explain an ayah piece by piece in one paragraph.
+String splitAtQuotes(String text) =>
+    text.replaceAllMapped(_pieceStart, (m) => '\n${m[1]}').trim();
+
+// A quote, with the «قوله تعالى:» that may lead it.
+final _pieceStart = RegExp(r'\s*((?:و?قوله(?: تعالى)?\s*:?\s*)?[﴿{])');
 
 /// Texts that repeat, as books give one text for a group of ayat, kept
 /// once and in order.

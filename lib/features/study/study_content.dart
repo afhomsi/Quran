@@ -6,7 +6,6 @@ import '../../data/mushaf_repository.dart';
 import '../../data/quran_models.dart';
 import '../../data/quran_repository.dart';
 import '../../data/study.dart';
-import '../../data/tajweed.dart';
 import '../../l10n/strings.dart';
 
 /// The four parts of the study panel, from the widest to the narrowest.
@@ -15,27 +14,19 @@ enum StudyPart { surah, page, ayah, word }
 /// One tab of the study panel. A tab with more than one book lets the
 /// reader choose the book.
 enum StudyTab {
-  naming(StudyPart.surah, [StudyBook.muyassar]),
   stats(StudyPart.surah, []),
-  benefits(StudyPart.page, [StudyBook.tadabbur]),
   translations(StudyPart.page, [StudyBook.english]),
-  mukhtasar(StudyPart.ayah, [StudyBook.mukhtasar]),
+  mukhtasar(StudyPart.ayah, [StudyBook.jalalayn]),
   tafsir(StudyPart.ayah, StudyBook.tafsirs),
   tajweed(StudyPart.ayah, []),
-  qiraat(StudyPart.ayah, StudyBook.qiraatBooks),
-  tasreef(StudyPart.ayah, [StudyBook.tasreef]),
-  irab(StudyPart.ayah, StudyBook.irabBooks),
-  tadabbur(StudyPart.ayah, [StudyBook.tadabbur]),
+  qiraat(StudyPart.ayah, [StudyBook.nashr]),
+  irab(StudyPart.ayah, [StudyBook.samin]),
   translation(StudyPart.ayah, [StudyBook.english]),
-  // Common words are not in the book of rare words; their analysis says
-  // what they are.
-  wordMeaning(StudyPart.word, [StudyBook.gharib, StudyBook.tasreef]),
+  // Al-Jalalayn explains the ayah word by word.
+  wordMeaning(StudyPart.word, [StudyBook.jalalayn]),
   wordTajweed(StudyPart.word, []),
-  wordQiraat(StudyPart.word, StudyBook.qiraatBooks),
-  wordTasreef(StudyPart.word, [StudyBook.tasreef]),
-  wordIrab(StudyPart.word, [StudyBook.irabMuyassar]),
-  // Quran.com's word-by-word English, bundled with the app.
-  wordTranslation(StudyPart.word, []);
+  wordQiraat(StudyPart.word, [StudyBook.nashr]),
+  wordIrab(StudyPart.word, [StudyBook.samin]);
 
   const StudyTab(this.part, this.books);
 
@@ -46,18 +37,14 @@ enum StudyTab {
       values.where((t) => t.part == part).toList();
 
   String label(S t) => switch (this) {
-    naming => t.surahNaming,
     stats => t.surahStats,
-    benefits => t.benefits,
     translations => t.translations,
     mukhtasar => t.mukhtasar,
     tafsir => t.tafsir,
     qiraat || wordQiraat => t.qiraat,
-    tasreef || wordTasreef => t.tasreef,
     irab => t.irabAyah,
     wordIrab => t.irab,
-    tadabbur => t.tadabbur,
-    translation || wordTranslation => t.translation,
+    translation => t.translation,
     wordMeaning => t.meaning,
     tajweed || wordTajweed => t.tajweedTab,
   };
@@ -103,7 +90,8 @@ final studyContentProvider =
       Future<List<StudySection>> onWord() async {
         final found = <StudySection>[];
         for (final book in books) {
-          final text = await repo.text(book, r.ayah);
+          final raw = await repo.text(book, r.ayah);
+          final text = book.splitAtQuotes ? splitAtQuotes(raw) : raw;
           for (final p in paragraphsOnWord(text, ayahText, r.word)) {
             found.add(StudySection(p));
           }
@@ -114,59 +102,34 @@ final studyContentProvider =
       }
 
       switch (r.tab) {
-        case StudyTab.naming:
-          final text = await repo.text(
-            StudyBook.muyassar,
-            AyahRef(r.ayah.surah, 1),
-          );
-          final intro = surahIntro(text);
-          return intro.isEmpty ? [] : [StudySection(intro)];
         case StudyTab.stats:
           return [];
-        case StudyTab.benefits || StudyTab.translations:
+        case StudyTab.translations:
           final mushaf = await ref.watch(mushafProvider.future);
           final ayat = {
             for (final w in mushaf.page(mushaf.pageOf(r.ayah)).words) w.ayah,
           }.toList();
-          final book = r.tab.books.single;
           final texts = await Future.wait([
-            for (final a in ayat) repo.text(book, a),
+            for (final a in ayat) repo.text(StudyBook.english, a),
           ]);
-          if (book == StudyBook.english) {
-            return [
-              for (var i = 0; i < ayat.length; i++)
-                if (texts[i].isNotEmpty)
-                  StudySection(
-                    texts[i],
-                    heading:
-                        '[${surahs[ayat[i].surah - 1].transliteration} - '
-                        '${ayat[i].ayah}]',
-                  ),
-            ];
-          }
-          return [for (final t in distinctTexts(texts)) StudySection(t)];
-        case StudyTab.wordTranslation:
-          final meanings = await ref.watch(wordMeaningsProvider.future);
-          final text = meanings.of(r.ayah, r.word);
-          return text.isEmpty ? [] : [StudySection(text)];
+          return [
+            for (var i = 0; i < ayat.length; i++)
+              if (texts[i].isNotEmpty)
+                StudySection(
+                  texts[i],
+                  heading:
+                      '[${surahs[ayat[i].surah - 1].transliteration} - '
+                      '${ayat[i].ayah}]',
+                ),
+          ];
         case StudyTab.tajweed || StudyTab.wordTajweed:
           // Shown by TajweedView from the bundled rules.
           return [];
-        case StudyTab.wordMeaning ||
-            StudyTab.wordQiraat ||
-            StudyTab.wordTasreef ||
-            StudyTab.wordIrab:
+        case StudyTab.wordMeaning || StudyTab.wordQiraat || StudyTab.wordIrab:
           return onWord();
-        case StudyTab.qiraat when r.book == null:
-          // Both books, as each covers ayat the other leaves out.
-          final texts = await Future.wait([
-            for (final b in books) repo.text(b, r.ayah),
-          ]);
-          return [for (final t in distinctTexts(texts)) StudySection(t)];
         default:
           final text = await repo.text(books.first, r.ayah);
-          final clean = r.ayah.ayah == 1 ? withoutSurahIntro(text) : text;
-          return clean.isEmpty ? [] : [StudySection(clean)];
+          return text.isEmpty ? [] : [StudySection(text)];
       }
     });
 

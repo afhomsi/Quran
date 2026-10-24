@@ -6,19 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hifz/app.dart';
 import 'package:hifz/data/mushaf_repository.dart';
-import 'package:hifz/data/page_fonts.dart';
 import 'package:hifz/data/quran_repository.dart';
 import 'package:hifz/data/reading_state.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-/// Skips real font loading, which needs the asset bundle.
-class _FakePageFonts extends PageFonts {
-  _FakePageFonts() : super(rootBundle);
-
-  @override
-  Future<String> load(int page, MushafPalette palette) async =>
-      PageFonts.familyFor(page, palette);
-}
 
 void main() {
   testWidgets('opens a surah, turns pages and remembers the page', (
@@ -35,7 +25,6 @@ void main() {
           sharedPreferencesProvider.overrideWithValue(prefs),
           mushafProvider.overrideWith((ref) async => mushaf),
           surahsProvider.overrideWith((ref) async => surahs),
-          pageFontsProvider.overrideWithValue(_FakePageFonts()),
         ],
         child: const HifzApp(),
       ),
@@ -53,7 +42,7 @@ void main() {
 
     // Running header as text, surah header as calligraphy.
     expect(find.text('2 البقرة (286)'), findsOneWidget);
-    expect(find.text('surah002surah-icon'), findsOneWidget);
+    expect(find.text('سُورَةُ البقرة'), findsOneWidget);
     expect(find.text('الجزء 1 (1/8)'), findsOneWidget);
     // In the header and between the page buttons.
     expect(find.widgetWithText(InkWell, '2'), findsNWidgets(2));
@@ -88,7 +77,6 @@ void main() {
           sharedPreferencesProvider.overrideWithValue(prefs),
           mushafProvider.overrideWith((ref) async => mushaf),
           surahsProvider.overrideWith((ref) async => surahs),
-          pageFontsProvider.overrideWithValue(_FakePageFonts()),
         ],
         child: const HifzApp(),
       ),
@@ -131,7 +119,7 @@ void main() {
     await tester.pumpAndSettle();
     // Al-Kahf starts below the last ayah of al-Isra on this page.
     expect(find.text('17 الإسراء (111)'), findsOneWidget);
-    expect(find.text('surah018surah-icon'), findsOneWidget);
+    expect(find.text('سُورَةُ الكهف'), findsOneWidget);
     expect(prefs.getInt('last_page'), 293);
   });
 }

@@ -182,12 +182,6 @@ class S {
     'আয়াতের টেক্সট কপি করুন',
     'آیت کا متن کاپی کریں',
   );
-  String loadPageError(Object error) => _(
-    'تعذر تحميل الصفحة\n$error',
-    'Could not load the page\n$error',
-    'পৃষ্ঠা লোড করা যায়নি\n$error',
-    'صفحہ لوڈ نہیں ہو سکا\n$error',
-  );
   String get cancel => _('إلغاء', 'Cancel', 'বাতিল', 'منسوخ');
   String get go => _('انتقال', 'Go', 'যান', 'جائیں');
   String get pauseAutoTurn => _(

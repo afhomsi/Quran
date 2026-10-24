@@ -11,10 +11,10 @@ import '../../data/khatma.dart';
 import '../../data/marks.dart';
 import '../../data/mushaf_models.dart';
 import '../../data/mushaf_repository.dart';
-import '../../data/page_fonts.dart';
 import '../../data/quran_models.dart';
 import '../../data/quran_repository.dart';
 import '../../data/reading_state.dart';
+import '../../data/tajweed.dart';
 import '../../l10n/strings.dart';
 import '../../recitation/page_recitation.dart';
 import '../../settings/app_settings.dart';
@@ -115,18 +115,6 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
   void _onPageChanged(int page) {
     setState(() => _page = page);
     ref.read(lastPageProvider.notifier).set(page);
-    final fonts = ref.read(pageFontsProvider);
-    for (var p = page - _step; p < page + 2 * _step; p++) {
-      if (p >= 1 && p <= mushafPageCount && p != page) {
-        fonts.load(
-          p,
-          mushafPalette(
-            context,
-            tajweed: ref.read(settingsProvider).tajweedColors,
-          ),
-        );
-      }
-    }
     _scheduleAutoTurn();
   }
 
@@ -785,7 +773,7 @@ class _TextPage extends StatelessWidget {
   }
 }
 
-/// Waits for the page font, then draws the page under its running header.
+/// Draws the page under its running header.
 class _PageSlot extends ConsumerWidget {
   const _PageSlot({
     required this.page,
@@ -826,120 +814,107 @@ class _PageSlot extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final fonts = ref.watch(pageFontsProvider);
     final t = S.of(context);
     // Header texts follow the app language, inside the right-to-left page.
     final textDirection = ref.watch(
       settingsProvider.select((s) => s.language.direction),
     );
-    final tajweed = ref.watch(settingsProvider.select((s) => s.tajweedColors));
-    return FutureBuilder(
-      future: fonts.ready(
-        page.number,
-        mushafPalette(context, tajweed: tajweed),
-      ),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return Center(child: Text(t.loadPageError(snapshot.error!)));
-        }
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final hizb = (rub - 1) ~/ 4 + 1;
-        final surah = surahs[page.firstAyah.surah - 1];
-        return LayoutBuilder(
-          builder: (context, box) => Center(
-            child: SizedBox(
-              // Keep the header as wide as the text block, also on wide
-              // screens where the page sits in the middle.
-              width: mushafTextWidth(box.maxWidth - 16, box.maxHeight - 36),
-              child: Column(
-                children: [
-                  // Running header: the surah with its number and ayah
-                  // count on the right, the page number in the middle, and
-                  // the juz with its eighth and hizb on the left. Each one
-                  // opens where it leads.
-                  SizedBox(
-                    height: 36,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Align(
-                            alignment: AlignmentDirectional.centerStart,
+    final tajweed = ref.watch(settingsProvider.select((s) => s.tajweedColors))
+        ? ref.watch(tajweedProvider).value
+        : null;
+    final hizb = (rub - 1) ~/ 4 + 1;
+    final surah = surahs[page.firstAyah.surah - 1];
+    return LayoutBuilder(
+      builder: (context, box) => Center(
+        child: SizedBox(
+          // Keep the header as wide as the text block, also on wide
+          // screens where the page sits in the middle.
+          width: mushafTextWidth(box.maxWidth - 16, box.maxHeight - 36),
+          child: Column(
+            children: [
+              // Running header: the surah with its number and ayah
+              // count on the right, the page number in the middle, and
+              // the juz with its eighth and hizb on the left. Each one
+              // opens where it leads.
+              SizedBox(
+                height: 36,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: _HeaderLink(
+                          text: t.surahHeader(surah),
+                          textDirection: textDirection,
+                          onTap: onSurahTap,
+                        ),
+                      ),
+                    ),
+                    _HeaderLink(
+                      text: t.n(page.number),
+                      textDirection: textDirection,
+                      tooltip: t.pageNavigator,
+                      onTap: onPageTap,
+                    ),
+                    Expanded(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          for (final (color, name) in bookmarks)
+                            Tooltip(
+                              message: name,
+                              child: Icon(
+                                Icons.bookmark,
+                                color: color,
+                                size: 20,
+                              ),
+                            ),
+                          const SizedBox(width: 4),
+                          Flexible(
                             child: _HeaderLink(
-                              text: t.surahHeader(surah),
+                              text: t.juzHeader(juz, (rub - 1) % 8 + 1),
                               textDirection: textDirection,
-                              onTap: onSurahTap,
+                              onTap: onJuzTap,
                             ),
                           ),
-                        ),
-                        _HeaderLink(
-                          text: t.n(page.number),
-                          textDirection: textDirection,
-                          tooltip: t.pageNavigator,
-                          onTap: onPageTap,
-                        ),
-                        Expanded(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              for (final (color, name) in bookmarks)
-                                Tooltip(
-                                  message: name,
-                                  child: Icon(
-                                    Icons.bookmark,
-                                    color: color,
-                                    size: 20,
-                                  ),
-                                ),
-                              const SizedBox(width: 4),
-                              Flexible(
-                                child: _HeaderLink(
-                                  text: t.juzHeader(juz, (rub - 1) % 8 + 1),
-                                  textDirection: textDirection,
-                                  onTap: onJuzTap,
-                                ),
+                          const SizedBox(width: 6),
+                          Tooltip(
+                            message: t.hizb(hizb),
+                            child: SizedBox(
+                              height: 22,
+                              child: HizbBookIcon(
+                                hizb: hizb,
+                                firstLabel: t.n(juz * 2 - 1),
+                                secondLabel: t.n(juz * 2),
+                                background: Theme.of(context)
+                                    .scaffoldBackgroundColor,
                               ),
-                              const SizedBox(width: 6),
-                              Tooltip(
-                                message: t.hizb(hizb),
-                                child: SizedBox(
-                                  height: 22,
-                                  child: HizbBookIcon(
-                                    hizb: hizb,
-                                    firstLabel: t.n(juz * 2 - 1),
-                                    secondLabel: t.n(juz * 2),
-                                    background: Theme.of(context)
-                                        .scaffoldBackgroundColor,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                            ],
+                            ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 4),
+                        ],
+                      ),
                     ),
-                  ),
-                  Expanded(
-                    child: MushafPageView(
-                      page: page,
-                      surahName: (s) => surahs[s - 1].name,
-                      selected: selected,
-                      selectedWord: selectedWord,
-                      highlights: highlights,
-                      showHizbMarks: showHizbMarks,
-                      tajweed: tajweed,
-                      onAyahTap: onAyahTap,
-                      onAyahLongPress: onAyahLongPress,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
+              Expanded(
+                child: MushafPageView(
+                  page: page,
+                  surahName: (s) => surahs[s - 1].name,
+                  selected: selected,
+                  selectedWord: selectedWord,
+                  highlights: highlights,
+                  showHizbMarks: showHizbMarks,
+                  tajweed: tajweed,
+                  onAyahTap: onAyahTap,
+                  onAyahLongPress: onAyahLongPress,
+                ),
+              ),
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }
