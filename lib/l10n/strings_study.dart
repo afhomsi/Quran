@@ -120,11 +120,11 @@ extension StudyStrings on S {
     'বুকমার্ক সরানো হয়েছে',
     'نشان ہٹ گیا',
   );
-  String get wordTranslationNote => _(
-    'ترجمة الآية كاملة:',
-    'Translation of the whole ayah:',
-    'পুরো আয়াতের অনুবাদ:',
-    'پوری آیت کا ترجمہ:',
+  String get noWordMeaning => _(
+    'لا توجد ترجمة لهذه الكلمة.',
+    'No meaning for this word.',
+    'এই শব্দের অর্থ নেই।',
+    'اس لفظ کا ترجمہ نہیں ملا۔',
   );
   String noWordEntry(StudyBook book) => _(
     'لا يوجد في «${bookName(book)}» كلام خاص بهذه الكلمة.',
@@ -192,4 +192,130 @@ extension StudyStrings on S {
   String get statJuz => _('الأجزاء', 'Juz', 'পারা', 'پارے');
   String range(int from, int to) =>
       from == to ? n(from) : '${n(from)} – ${n(to)}';
+
+  // Tajweed.
+  String get tajweedTab => _('التجويد', 'Tajweed', 'তাজবীদ', 'تجوید');
+  String get tajweedOnPage => _(
+    'تلوين المصحف بألوان التجويد',
+    'Color the mushaf by tajweed',
+    'মুসহাফে তাজবীদের রং',
+    'مصحف کو تجوید کے رنگوں میں دکھائیں',
+  );
+  String get noTajweedHere => _(
+    'لا يوجد حكم تجويد ملوّن في هذا الموضع.',
+    'No colored tajweed rule here.',
+    'এখানে রঙিন তাজবীদের নিয়ম নেই।',
+    'یہاں تجوید کا کوئی رنگین حکم نہیں۔',
+  );
+  String get tajweedLegend =>
+      _('دليل الألوان', 'Color guide', 'রঙের নির্দেশিকা', 'رنگوں کی رہنمائی');
+
+  String tajweedName(TajweedRule rule) => switch (rule) {
+    TajweedRule.maddLazim => _(
+      'مد لازم ٦ حركات',
+      'Necessary madd, 6 counts',
+      'মাদ্দে লাযিম, ৬ হরকত',
+      'مد لازم، ٦ حرکات',
+    ),
+    TajweedRule.maddWajib => _(
+      'مد واجب ٤ أو ٥ حركات',
+      'Obligatory madd, 4 or 5 counts',
+      'মাদ্দে ওয়াজিব, ৪ বা ৫ হরকত',
+      'مد واجب، ٤ یا ٥ حرکات',
+    ),
+    TajweedRule.maddJaiz => _(
+      'مد جائز ٢ أو ٤ أو ٦ حركات',
+      'Permissible madd, 2, 4 or 6 counts',
+      'মাদ্দে জায়িয, ২, ৪ বা ৬ হরকত',
+      'مد جائز، ٢، ٤ یا ٦ حرکات',
+    ),
+    TajweedRule.maddTabii => _(
+      'مد حركتان',
+      'Madd of 2 counts',
+      'দুই হরকতের মাদ্দ',
+      'دو حرکات کا مد',
+    ),
+    TajweedRule.ghunna => _(
+      'إخفاء ومواضع الغنة',
+      'Ikhfa and ghunnah',
+      'ইখফা ও গুন্নাহ',
+      'اخفاء اور غنہ',
+    ),
+    TajweedRule.tafkhim => _(
+      'تفخيم',
+      'Heavy letters (tafkhim)',
+      'তাফখীম (ভারী উচ্চারণ)',
+      'تفخیم',
+    ),
+    TajweedRule.qalqala => _('قلقلة', 'Qalqalah', 'কলকলা', 'قلقلہ'),
+    TajweedRule.silent => _(
+      'إدغام وما لا يُلفظ',
+      'Merged or silent letters',
+      'ইদগাম ও অনুচ্চারিত অক্ষর',
+      'ادغام اور جو پڑھا نہ جائے',
+    ),
+  };
+
+  String tajweedHelp(TajweedRule rule) => switch (rule) {
+    TajweedRule.maddLazim => _(
+      'يُمد ست حركات إذا جاء بعد حرف المد سكون أصلي، كما في ﴿ٱلضَّآلِّينَ﴾ وفي فواتح السور مثل ﴿الٓمٓ﴾.',
+      'Held for 6 counts when a letter of madd is followed by a fixed sukun, '
+          'as in ad-dallin and the opening letters of surahs such as Alif Lam Mim.',
+      'মাদ্দের অক্ষরের পর স্থায়ী সুকুন এলে ৬ হরকত টানা হয়।',
+      'حرف مد کے بعد اصلی سکون ہو تو چھ حرکات کھینچا جاتا ہے۔',
+    ),
+    TajweedRule.maddWajib => _(
+      'يُمد أربع أو خمس حركات إذا جاء بعد حرف المد همزة، في كلمة واحدة مثل ﴿أُوْلَٰٓئِكَ﴾ أو في كلمتين مثل ﴿بِمَآ أُنزِلَ﴾.',
+      'Held for 4 or 5 counts when a letter of madd is followed by a hamza, '
+          'in the same word or the next one.',
+      'মাদ্দের অক্ষরের পর হামযা এলে ৪ বা ৫ হরকত টানা হয়।',
+      'حرف مد کے بعد ہمزہ ہو تو چار یا پانچ حرکات کھینچا جاتا ہے۔',
+    ),
+    TajweedRule.maddJaiz => _(
+      'يجوز فيه القصر والتوسط والطول، ومنه المد العارض للسكون عند الوقف، مثل ﴿ٱلۡمُفۡلِحُونَ﴾.',
+      'May be held for 2, 4 or 6 counts, such as the madd before a pause.',
+      'থামার সময় ২, ৪ বা ৬ হরকত টানা যায়।',
+      'وقف کے وقت دو، چار یا چھ حرکات کھینچنا جائز ہے۔',
+    ),
+    TajweedRule.maddTabii => _(
+      'المد الطبيعي وما يلحق به، يُمد حركتين، مثل الألف الصغيرة في ﴿ذَٰلِكَ﴾.',
+      'The natural madd, held for 2 counts.',
+      'স্বাভাবিক মাদ্দ, ২ হরকত।',
+      'طبعی مد، دو حرکات۔',
+    ),
+    TajweedRule.ghunna => _(
+      'تُنطق النون أو الميم بغنة من الأنف مقدار حركتين، كما في ﴿مِن قَبۡلِكَ﴾ و﴿مِمَّا﴾.',
+      'The nun or mim is said through the nose for 2 counts.',
+      'নূন বা মীম নাক দিয়ে ২ হরকত উচ্চারণ।',
+      'نون یا میم ناک سے دو حرکات تک ادا ہو۔',
+    ),
+    TajweedRule.tafkhim => _(
+      'تُنطق حروف الاستعلاء (خص ضغط قظ) والراء المفخمة بامتلاء الفم بصوتها، كما في ﴿صِرَٰطَ﴾.',
+      'Heavy letters and the heavy ra fill the mouth with their sound.',
+      'ভারী অক্ষর মুখ ভরে উচ্চারণ।',
+      'پُر حروف منہ بھر کر ادا ہوں۔',
+    ),
+    TajweedRule.qalqala => _(
+      'يضطرب صوت الحرف الساكن من حروف (قطب جد) حتى تُسمع له نبرة قوية، كما في ﴿قَبۡلِكَ﴾.',
+      'A still qaf, ta, ba, jim or dal is said with a slight bounce.',
+      'সুকুনযুক্ত ق ط ب ج د প্রতিধ্বনিসহ উচ্চারণ।',
+      'ساکن ق ط ب ج د میں جھٹکا ہو۔',
+    ),
+    TajweedRule.silent => _(
+      'حروف تُكتب ولا تُنطق، كهمزة الوصل في وسط الكلام واللام الشمسية، والحرف المدغم فيما بعده، مثل ﴿وَٱلَّذِينَ﴾.',
+      'Letters written but not said, such as the joining hamza, the sun lam '
+          'and a letter merged into the next.',
+      'লেখা কিন্তু উচ্চারিত নয় এমন অক্ষর।',
+      'لکھے جانے والے مگر نہ پڑھے جانے والے حروف۔',
+    ),
+  };
+
+  // Sharing as an image or PDF.
+  String get shareAsImage =>
+      _('مشاركة صورة', 'Share image', 'ছবি শেয়ার', 'تصویر شیئر');
+  String get shareAsPdf =>
+      _('مشاركة PDF', 'Share PDF', 'PDF শেয়ার', 'PDF شیئر');
+  String get sharePreview =>
+      _('معاينة المشاركة', 'Preview', 'প্রিভিউ', 'پیش نظارہ');
+  String get appName => _('حفظ القرآن', 'Hifz', 'হিফজ', 'حفظ قرآن');
 }

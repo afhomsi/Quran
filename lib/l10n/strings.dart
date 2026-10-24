@@ -4,6 +4,7 @@ import '../audio/ayah_audio.dart';
 import '../data/khatma.dart';
 import '../data/marks.dart';
 import '../data/study.dart';
+import '../data/tajweed.dart';
 import '../data/quran_models.dart';
 import '../settings/app_settings.dart';
 

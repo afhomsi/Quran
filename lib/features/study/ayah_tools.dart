@@ -1,6 +1,11 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
 
 import '../../data/marks.dart';
@@ -182,13 +187,36 @@ class MarkerMenuButton extends ConsumerWidget {
   }
 }
 
-/// Shares or copies [text], the content being shown.
-Future<void> showShareSheet(BuildContext context, String text) =>
+/// What the study panel shares: the ayah (or surah or page) it is on, the
+/// tab, the text shown and the book it comes from.
+class ShareContent {
+  const ShareContent({
+    required this.title,
+    required this.label,
+    required this.body,
+    this.source,
+    this.quranTitle = false,
+  });
+
+  final String title;
+  final String label;
+  final String body;
+  final String? source;
+
+  /// [title] is Quran text, drawn in the Quran's colour.
+  final bool quranTitle;
+
+  String get text => [title, label, body, ?source].join('\n\n');
+}
+
+/// Shares [content] as text, an image or a PDF, or copies it.
+Future<void> showShareSheet(BuildContext context, ShareContent content) =>
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
       builder: (context) {
         final t = S.of(context);
+        final navigator = Navigator.of(context);
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
@@ -207,16 +235,30 @@ Future<void> showShareSheet(BuildContext context, String text) =>
                   children: [
                     OutlinedButton(
                       onPressed: () {
-                        Navigator.pop(context);
-                        SharePlus.instance.share(ShareParams(text: text));
+                        navigator.pop();
+                        SharePlus.instance.share(
+                          ShareParams(text: content.text),
+                        );
                       },
                       child: Text(t.shareAsText),
                     ),
                     OutlinedButton(
                       onPressed: () {
-                        Clipboard.setData(ClipboardData(text: text));
+                        navigator.pop();
+                        navigator.push(
+                          MaterialPageRoute<void>(
+                            fullscreenDialog: true,
+                            builder: (_) => SharePreview(content: content),
+                          ),
+                        );
+                      },
+                      child: Text('${t.shareAsImage} / PDF'),
+                    ),
+                    OutlinedButton(
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: content.text));
                         showToast(context, t.copied);
-                        Navigator.pop(context);
+                        navigator.pop();
                       },
                       child: Text(t.copyText),
                     ),
@@ -228,3 +270,210 @@ Future<void> showShareSheet(BuildContext context, String text) =>
         );
       },
     );
+
+/// Shows [content] as a card, as it will look, and shares it as a PNG
+/// image or as a one-page PDF of that image.
+class SharePreview extends StatefulWidget {
+  const SharePreview({super.key, required this.content});
+
+  final ShareContent content;
+
+  @override
+  State<SharePreview> createState() => _SharePreviewState();
+}
+
+class _SharePreviewState extends State<SharePreview> {
+  final _card = GlobalKey();
+  bool _busy = false;
+
+  /// Long tafsir is cut, so the picture stays readable.
+  static const _maxBody = 2500;
+
+  Future<Uint8List> _png() async {
+    final boundary =
+        _card.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+    final image = await boundary.toImage(pixelRatio: 3);
+    final data = await image.toByteData(format: ui.ImageByteFormat.png);
+    image.dispose();
+    return data!.buffer.asUint8List();
+  }
+
+  Future<void> _share({required bool pdf}) async {
+    setState(() => _busy = true);
+    try {
+      final png = await _png();
+      final XFile file;
+      if (pdf) {
+        final image = pw.MemoryImage(png);
+        final doc = pw.Document()
+          ..addPage(
+            pw.Page(
+              pageFormat: PdfPageFormat(
+                PdfPageFormat.a4.width,
+                PdfPageFormat.a4.width * image.height! / image.width!,
+              ),
+              margin: pw.EdgeInsets.zero,
+              build: (_) => pw.Image(image, fit: pw.BoxFit.contain),
+            ),
+          );
+        file = XFile.fromData(
+          await doc.save(),
+          mimeType: 'application/pdf',
+          name: 'ayah.pdf',
+        );
+      } else {
+        file = XFile.fromData(png, mimeType: 'image/png', name: 'ayah.png');
+      }
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [file],
+          fileNameOverrides: [pdf ? 'ayah.pdf' : 'ayah.png'],
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = S.of(context);
+    final c = widget.content;
+    final body = c.body.length > _maxBody
+        ? '${c.body.substring(0, _maxBody)}…'
+        : c.body;
+    return Scaffold(
+      appBar: AppBar(title: Text(t.sharePreview)),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: RepaintBoundary(
+          key: _card,
+          child: ShareCard(
+            title: c.title,
+            label: c.label,
+            body: body,
+            source: c.source,
+            quranTitle: c.quranTitle,
+            footer: t.appName,
+          ),
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  icon: const Icon(Icons.image_outlined),
+                  label: Text(t.shareAsImage),
+                  onPressed: _busy ? null : () => _share(pdf: false),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.picture_as_pdf_outlined),
+                  label: Text(t.shareAsPdf),
+                  onPressed: _busy ? null : () => _share(pdf: true),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The picture that is shared: on a page-coloured card, the ayah or
+/// title, the tab, the text and its source, and the app's name.
+class ShareCard extends StatelessWidget {
+  const ShareCard({
+    super.key,
+    required this.title,
+    required this.label,
+    required this.body,
+    required this.footer,
+    this.source,
+    this.quranTitle = false,
+  });
+
+  final String title;
+  final String label;
+  final String body;
+  final String? source;
+  final String footer;
+  final bool quranTitle;
+
+  @override
+  Widget build(BuildContext context) {
+    const paper = Color(0xFFFFF8EC);
+    const ink = Color(0xFF2B2B2B);
+    const green = Color(0xFF55692F);
+    const quran = Color(0xFF8E2442);
+    return Container(
+      decoration: BoxDecoration(
+        color: paper,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: green, width: 2),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            textDirection: TextDirection.rtl,
+            style: TextStyle(
+              fontSize: 21,
+              height: 1.9,
+              color: quranTitle ? quran : ink,
+              fontWeight: quranTitle ? null : FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+              decoration: BoxDecoration(
+                color: green,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                label,
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            body,
+            textAlign: TextAlign.justify,
+            textDirection: _isLatin(body)
+                ? TextDirection.ltr
+                : TextDirection.rtl,
+            style: const TextStyle(fontSize: 17, height: 1.8, color: ink),
+          ),
+          if (source != null) ...[
+            const SizedBox(height: 12),
+            Text(source!, style: const TextStyle(fontSize: 13, color: green)),
+          ],
+          const Divider(color: green),
+          Text(
+            footer,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 13, color: green),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Whether [text] starts in Latin letters, e.g. the English translation.
+bool _isLatin(String text) {
+  final first = RegExp(r'[A-Za-z\u0600-\u06FF]').firstMatch(text)?[0];
+  return first != null && RegExp('[A-Za-z]').hasMatch(first);
+}

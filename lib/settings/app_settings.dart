@@ -51,6 +51,7 @@ class AppSettings {
     this.followSystemFontSize = true,
     this.hideRecitationButton = false,
     this.showHizbMarks = true,
+    this.tajweedColors = false,
   });
 
   final AppLanguage language;
@@ -79,6 +80,9 @@ class AppSettings {
   /// The ۞ sign where each quarter of a hizb starts.
   final bool showHizbMarks;
 
+  /// Color the letters of the mushaf by the rules of tajweed.
+  final bool tajweedColors;
+
   AppSettings copyWith({
     AppLanguage? language,
     bool? nightMode,
@@ -93,6 +97,7 @@ class AppSettings {
     bool? followSystemFontSize,
     bool? hideRecitationButton,
     bool? showHizbMarks,
+    bool? tajweedColors,
   }) => AppSettings(
     language: language ?? this.language,
     nightMode: nightMode ?? this.nightMode,
@@ -107,6 +112,7 @@ class AppSettings {
     followSystemFontSize: followSystemFontSize ?? this.followSystemFontSize,
     hideRecitationButton: hideRecitationButton ?? this.hideRecitationButton,
     showHizbMarks: showHizbMarks ?? this.showHizbMarks,
+    tajweedColors: tajweedColors ?? this.tajweedColors,
   );
 
   Map<String, Object> toJson() => {
@@ -123,6 +129,7 @@ class AppSettings {
     'followSystemFontSize': followSystemFontSize,
     'hideRecitationButton': hideRecitationButton,
     'showHizbMarks': showHizbMarks,
+    'tajweedColors': tajweedColors,
   };
 
   /// Reads what [toJson] wrote. Missing or unknown values keep their
@@ -153,6 +160,7 @@ class AppSettings {
         d.hideRecitationButton,
       ),
       showHizbMarks: pick('showHizbMarks', d.showHizbMarks),
+      tajweedColors: pick('tajweedColors', d.tajweedColors),
     );
   }
 }

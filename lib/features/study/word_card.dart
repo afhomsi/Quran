@@ -10,6 +10,7 @@ import '../../l10n/strings.dart';
 import '../notes/notes_screen.dart';
 import 'ayah_tools.dart';
 import 'study_content.dart';
+import 'tajweed_view.dart';
 
 /// The word the reader pressed on the page: its ayah, its position in the
 /// ayah, and where on the screen it is.
@@ -244,25 +245,28 @@ class StudyContentView extends ConsumerWidget {
       height: 1.8,
     );
     final quranColor = studyQuranColor(context);
+    if (request.tab.isTajweed) {
+      return TajweedView(
+        ayah: request.ayah,
+        word: request.tab == StudyTab.wordTajweed ? request.word : null,
+        compact: compact,
+      );
+    }
     final content = ref.watch(studyContentProvider(request));
+    final book = request.book ?? request.tab.books.firstOrNull;
     return switch (content) {
       AsyncData(:final value) when value.isEmpty => Text(
-        request.tab.part == StudyPart.word
-            ? t.noWordEntry(request.book ?? request.tab.books.first)
-            : t.noAyahEntry(request.book ?? request.tab.books.first),
+        book == null
+            ? t.noWordMeaning
+            : request.tab.part == StudyPart.word
+            ? t.noWordEntry(book)
+            : t.noAyahEntry(book),
         textAlign: TextAlign.center,
         style: body.copyWith(color: theme.colorScheme.onSurfaceVariant),
       ),
       AsyncData(:final value) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (request.tab == StudyTab.wordTranslation)
-            Text(
-              t.wordTranslationNote,
-              style: theme.textTheme.labelLarge?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
           for (final (i, s) in value.indexed)
             Padding(
               padding: EdgeInsets.only(bottom: compact ? 4 : 16),
@@ -287,9 +291,7 @@ class StudyContentView extends ConsumerWidget {
                 ),
                 style: body,
                 textAlign: compact ? TextAlign.start : TextAlign.justify,
-                textDirection:
-                    request.book == StudyBook.english ||
-                        request.tab.books.contains(StudyBook.english)
+                textDirection: book == StudyBook.english
                     ? TextDirection.ltr
                     : TextDirection.rtl,
               ),
