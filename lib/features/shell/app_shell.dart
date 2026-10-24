@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/reading_state.dart';
-import '../../l10n/strings.dart';
 import '../bookmarks/bookmarks_screen.dart';
 import '../home/home_screen.dart';
 import '../khatma/khatma_screen.dart';
@@ -12,6 +11,8 @@ import 'navigation.dart';
 
 /// The app's main screen: the mushaf, khatma plans, index, bookmarks and
 /// more, switched with the bottom bar. Each tab keeps its state.
+///
+/// The mushaf draws the bottom bar over its page, and hides it with a tap.
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
 
@@ -26,7 +27,6 @@ class _AppShellState extends ConsumerState<AppShell> {
   @override
   Widget build(BuildContext context) {
     final tab = ref.watch(appTabProvider);
-    final t = S.of(context);
     return Scaffold(
       body: IndexedStack(
         index: tab.index,
@@ -38,38 +38,9 @@ class _AppShellState extends ConsumerState<AppShell> {
           const MoreScreen(),
         ],
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: tab.index,
-        onDestinationSelected: (i) =>
-            ref.read(appTabProvider.notifier).select(AppTab.values[i]),
-        destinations: [
-          NavigationDestination(
-            icon: const Icon(Icons.auto_stories_outlined),
-            selectedIcon: const Icon(Icons.auto_stories),
-            label: t.mushaf,
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.menu_book_outlined),
-            selectedIcon: const Icon(Icons.menu_book),
-            label: t.tabKhatma,
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.toc_outlined),
-            selectedIcon: const Icon(Icons.toc),
-            label: t.tabIndex,
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.bookmarks_outlined),
-            selectedIcon: const Icon(Icons.bookmarks),
-            label: t.tabBookmarks,
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.more_horiz),
-            selectedIcon: const Icon(Icons.more_horiz),
-            label: t.tabMore,
-          ),
-        ],
-      ),
+      bottomNavigationBar: tab == AppTab.mushaf
+          ? null
+          : const AppNavigationBar(),
     );
   }
 }

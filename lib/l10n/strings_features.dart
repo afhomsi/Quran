@@ -18,6 +18,20 @@ extension FeatureStrings on S {
       _('عرض النص', 'Text view', 'লেখা দেখুন', 'متن کا منظر');
   String get pageView =>
       _('عرض الصفحة', 'Page view', 'পৃষ্ঠা দেখুন', 'صفحے کا منظر');
+  String get pageNavigator => _(
+    'التنقل بين الصفحات',
+    'Go through the pages',
+    'পৃষ্ঠাগুলোতে যান',
+    'صفحات میں جائیں',
+  );
+
+  /// "1 Al-Fatihah (7)" in the running header: number, name, ayah count.
+  String surahHeader(Surah s) =>
+      '${n(s.number)} ${surahName(s)} (${n(s.ayahCount)})';
+
+  /// "Juz 1 (1/8)" in the running header: the juz and which of its eight
+  /// quarters the page is in.
+  String juzHeader(int j, int eighth) => '${juz(j)} (${n(eighth)}/${n(8)})';
   String get searchQuran =>
       _('بحث في القرآن', 'Search the Quran', 'কুরআনে খুঁজুন', 'قرآن میں تلاش');
   String get searchQuranHint => _(

@@ -59,6 +59,69 @@ class PageBookIcon extends StatelessWidget {
   }
 }
 
+/// An open book standing for the two hizbs of a juz, as in the running
+/// header of the mushaf: the half of the current hizb is filled. The first
+/// hizb of the juz is on the right, as in a printed spread.
+class HizbBookIcon extends StatelessWidget {
+  const HizbBookIcon({
+    super.key,
+    required this.hizb,
+    required this.firstLabel,
+    required this.secondLabel,
+    required this.background,
+  });
+
+  /// 1 to 60.
+  final int hizb;
+
+  /// The numbers of the juz's first and second hizb, in the reader's digits.
+  final String firstLabel;
+  final String secondLabel;
+
+  /// Color behind the icon, used to cut the ribbon out of the lines.
+  final Color background;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final first = hizb.isOdd;
+    Widget half(String label, bool filled) => Expanded(
+      child: Padding(
+        padding: const EdgeInsets.all(2),
+        child: FittedBox(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: filled ? colors.onPrimary : colors.primary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ),
+    );
+    return AspectRatio(
+      aspectRatio: 1.6,
+      child: CustomPaint(
+        painter: _BookPainter(
+          color: colors.primary,
+          background: background,
+          fillRight: first,
+        ),
+        child: FractionallySizedBox(
+          alignment: Alignment.topCenter,
+          heightFactor: 0.76,
+          child: Directionality(
+            textDirection: TextDirection.rtl,
+            child: Row(
+              children: [half(firstLabel, first), half(secondLabel, !first)],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _BookPainter extends CustomPainter {
   _BookPainter({
     required this.color,

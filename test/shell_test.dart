@@ -75,7 +75,7 @@ void main() {
   testWidgets('the bottom bar switches between the five tabs', (tester) async {
     await _start(tester);
     // Opens on the mushaf, at the first page.
-    expect(find.text('سورة الفاتحة'), findsWidgets);
+    expect(find.text('1 الفاتحة (7)'), findsWidgets);
     for (final (tab, title) in [
       ('ختمة', 'ختمتي'),
       ('الفهرس', 'الربع'),
@@ -191,5 +191,30 @@ void main() {
     }
     expect(find.text('النتيجة: 5 من 6'), findsOneWidget);
     expect(find.text('راجع هذه الآيات:'), findsOneWidget);
+  });
+  testWidgets('a tap on the page hides the bars and the header leads on', (
+    tester,
+  ) async {
+    final (container, _) = await _start(tester);
+    expect(find.byType(NavigationBar), findsOneWidget);
+    await _tap(tester, _word());
+    expect(find.byType(NavigationBar), findsNothing);
+    expect(find.byTooltip('بحث في القرآن'), findsNothing);
+
+    // The page number opens the page navigator.
+    await _tap(tester, find.byTooltip('التنقل بين الصفحات'));
+    expect(find.byType(Slider), findsOneWidget);
+    await _tap(tester, find.text('3').last);
+    expect(container.read(lastPageProvider), 3);
+    await _tap(tester, find.byTooltip('إغلاق'));
+    expect(find.byType(Slider), findsNothing);
+
+    // The juz opens its tab of the index.
+    await _tap(tester, find.text('الجزء 1 (1/8)'));
+    expect(find.text('جزء 1'), findsOneWidget);
+
+    await _tap(tester, find.text('المصحف'));
+    await _tap(tester, _word());
+    expect(find.byType(NavigationBar), findsOneWidget);
   });
 }

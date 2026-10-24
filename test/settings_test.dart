@@ -163,10 +163,10 @@ void main() {
     // The mushaf page itself stays right to left.
     await tester.tap(find.text('Al-Baqarah'));
     await tester.pumpAndSettle();
-    expect(find.text('Surah Al-Baqarah'), findsOneWidget);
+    expect(find.text('2 Al-Baqarah (286)'), findsOneWidget);
     await tester.tap(find.byTooltip('Next page'));
     await tester.pumpAndSettle();
-    expect(find.text('3'), findsOneWidget);
+    expect(find.text('3'), findsNWidgets(2));
   });
 
   testWidgets('night mode, digits and the recite button follow the settings', (
@@ -214,7 +214,8 @@ void main() {
     await tester.tap(find.text('البقرة'));
     await tester.pumpAndSettle();
     expect(find.text('1 – 2'), findsOneWidget);
-    expect(find.text('سورة الفاتحة'), findsWidgets);
+    expect(find.text('1 الفاتحة (7)'), findsOneWidget);
+    expect(find.text('2 البقرة (286)'), findsOneWidget);
 
     await tester.tap(find.byTooltip('الصفحة التالية'));
     await tester.pumpAndSettle();
@@ -299,6 +300,7 @@ void main() {
 
     // Al-Kahf 10 is on page 294.
     expect(prefs.getInt('last_page'), 294);
-    expect(find.text('294'), findsOneWidget);
+    // In the header and between the page buttons.
+    expect(find.text('294'), findsNWidgets(2));
   });
 }
