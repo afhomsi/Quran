@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/strings.dart';
+import '../../theme/app_theme.dart';
 import '../notes/notes_screen.dart';
 import '../profile/profile_screen.dart';
 import '../recitation/recitation_picker.dart';
@@ -21,87 +22,101 @@ class MoreScreen extends ConsumerWidget {
     void push(Widget screen) =>
         Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
 
+    final colors = Theme.of(context).colorScheme;
+    final tiles = [
+      _MoreTile(
+        icon: Icons.person_rounded,
+        label: t.myProfile,
+        color: colors.primary,
+        onTap: () => push(const ProfileScreen()),
+      ),
+      _MoreTile(
+        icon: Icons.fact_check_rounded,
+        label: t.selfTest,
+        color: const Color(0xFF7B4FD6),
+        onTap: () => push(const SelfTestScreen()),
+      ),
+      _MoreTile(
+        icon: Icons.mic_rounded,
+        label: t.recitationCheck,
+        color: const Color(0xFFD9534F),
+        onTap: () => showRecitationPicker(context),
+      ),
+      _MoreTile(
+        icon: Icons.sticky_note_2_rounded,
+        label: t.myNotes,
+        color: colors.secondary,
+        onTap: () => push(const NotesScreen()),
+      ),
+      _MoreTile(
+        icon: Icons.bookmark_rounded,
+        label: t.tabBookmarks,
+        color: const Color(0xFF2F72D9),
+        onTap: () => ref.read(appTabProvider.notifier).select(AppTab.bookmarks),
+      ),
+      _MoreTile(
+        icon: Icons.tune_rounded,
+        label: t.settings,
+        color: colors.primary,
+        onTap: () => openSettings(context),
+      ),
+      _MoreTile(
+        icon: Icons.verified_rounded,
+        label: t.sources,
+        color: const Color(0xFF12897A),
+        onTap: () => push(const SourcesScreen()),
+      ),
+    ];
+
     return Scaffold(
-      appBar: AppBar(title: Text(t.tabMore), centerTitle: true),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-        children: [
-          _MoreCard(
-            icon: Icons.person_outline,
-            label: t.myProfile,
-            onTap: () => push(const ProfileScreen()),
-          ),
-          _MoreCard(
-            icon: Icons.fact_check_outlined,
-            label: t.selfTest,
-            onTap: () => push(const SelfTestScreen()),
-          ),
-          _MoreCard(
-            icon: Icons.mic_none,
-            label: t.recitationCheck,
-            onTap: () => showRecitationPicker(context),
-          ),
-          _MoreCard(
-            icon: Icons.chat_outlined,
-            label: t.myNotes,
-            onTap: () => push(const NotesScreen()),
-          ),
-          _MoreCard(
-            icon: Icons.bookmark_border,
-            label: t.tabBookmarks,
-            onTap: () =>
-                ref.read(appTabProvider.notifier).select(AppTab.bookmarks),
-          ),
-          _MoreCard(
-            icon: Icons.settings_outlined,
-            label: t.settings,
-            onTap: () => openSettings(context),
-          ),
-          _MoreCard(
-            icon: Icons.info_outline,
-            label: t.sources,
-            onTap: () => push(const SourcesScreen()),
-          ),
-        ],
+      appBar: AppBar(title: Text(t.tabMore)),
+      body: GridView.count(
+        crossAxisCount: 2,
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        childAspectRatio: 1.5,
+        children: tiles,
       ),
     );
   }
 }
 
-class _MoreCard extends StatelessWidget {
-  const _MoreCard({
+class _MoreTile extends StatelessWidget {
+  const _MoreTile({
     required this.icon,
     required this.label,
+    required this.color,
     required this.onTap,
   });
 
   final IconData icon;
   final String label;
+  final Color color;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Card(
-      elevation: 0,
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(24),
-        side: BorderSide(color: theme.colorScheme.outlineVariant),
-      ),
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
-        borderRadius: BorderRadius.circular(24),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 24),
+          padding: const EdgeInsets.all(16),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(icon, size: 44, color: theme.colorScheme.primary),
-              const SizedBox(height: 12),
+              IconBadge(icon, color: color, size: 48),
               Text(
                 label,
-                style: theme.textTheme.titleLarge,
-                textAlign: TextAlign.center,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),

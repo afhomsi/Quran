@@ -26,11 +26,11 @@ enum KhatmaType {
 
 /// Colors of the plan's bookmark, from the plan form.
 const khatmaColors = [
-  Color(0xFF1B7A1B), // green
-  Color(0xFF8E3CF7), // purple
-  Color(0xFF1677E0), // blue
-  Color(0xFFC79A0A), // gold
-  Color(0xFFD7102A), // red
+  Color(0xFF12897A), // teal
+  Color(0xFF7B4FD6), // violet
+  Color(0xFF2F72D9), // blue
+  Color(0xFFC98A12), // amber
+  Color(0xFFD9534F), // coral
 ];
 
 /// First ayah of each of the 7 manzils of the hizb of the Salaf (فمي

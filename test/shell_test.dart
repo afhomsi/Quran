@@ -93,10 +93,10 @@ void main() {
     // Opens on the mushaf, at the first page.
     expect(find.text('1 الفاتحة (7)'), findsWidgets);
     for (final (tab, title) in [
-      ('ختمة', 'ختمتي'),
-      ('الفهرس', 'الربع'),
-      ('علاماتي', 'آيات محفوظة'),
-      ('المزيد', 'اختبار ذاتي للحفظ'),
+      ('وِردي', 'خطط الختم'),
+      ('تصفّح', 'الربع'),
+      ('إشاراتي', 'آيات محفوظة'),
+      ('أدواتي', 'اختبار ذاتي للحفظ'),
     ]) {
       await _tap(tester, find.text(tab));
       expect(find.text(title), findsOneWidget, reason: tab);
@@ -111,21 +111,21 @@ void main() {
     await tester.longPress(_word());
     await tester.pumpAndSettle();
     expect(find.byType(WordCard), findsOneWidget);
-    await _tap(tester, _inCard('فاصل'));
+    await _tap(tester, _inCard('علامة'));
     expect(container.read(bookmarksProvider), [const AyahRef(1, 1)]);
     expect(find.text('تمت إضافة العلامة المرجعية'), findsOneWidget);
 
     // "More" opens the study panel, with the place markers and colors.
-    await _tap(tester, _inCard('المزيد'));
+    await _tap(tester, _inCard('تفاصيل'));
     expect(find.byType(StudyPanel), findsOneWidget);
-    await _tap(tester, _inPanel('فاصل'));
+    await _tap(tester, _inPanel('علامة'));
     await _tap(tester, find.text('علامة الحفظ'));
     expect(container.read(markersProvider), {
       MarkerKind.hifz: const AyahRef(1, 1),
     });
-    await _tap(tester, _inPanel('تلوين'));
+    await _tap(tester, _inPanel('تظليل'));
     await _tap(tester, find.byTooltip('أزرق'));
-    await _tap(tester, find.widgetWithText(FilledButton, 'تلوين'));
+    await _tap(tester, find.widgetWithText(FilledButton, 'تظليل'));
     expect(container.read(highlightsProvider), {const AyahRef(1, 1): 2});
     await _tap(
       tester,
@@ -135,7 +135,7 @@ void main() {
       ),
     );
 
-    await _tap(tester, find.text('علاماتي'));
+    await _tap(tester, find.text('إشاراتي'));
     expect(find.text('الفاتحة : الآية 1'), findsWidgets);
     expect(find.text('الصفحة 1 - الآية 1'), findsWidgets);
 
@@ -146,21 +146,21 @@ void main() {
 
   testWidgets('creates a khatma and opens its next portion', (tester) async {
     final (container, _) = await _start(tester);
-    await _tap(tester, find.text('ختمة'));
-    await _tap(tester, find.byTooltip('ختمة جديدة'));
-    await _tap(tester, find.text('ختمة رمضان'));
+    await _tap(tester, find.text('وِردي'));
+    await _tap(tester, find.widgetWithText(FilledButton, 'خطة جديدة'));
+    await _tap(tester, find.text('شهر واحد'));
     await _tap(tester, find.text('التالي'));
-    await _tap(tester, find.byTooltip('لون العلامة 3'));
-    await _tap(tester, find.widgetWithText(FilledButton, 'إنشاء خطة'));
+    await _tap(tester, find.byTooltip('اللون 3'));
+    await _tap(tester, find.widgetWithText(FilledButton, 'ابدأ الخطة'));
 
     final plan = container.read(khatmaPlansProvider).single;
     expect(plan.type, KhatmaType.ramadan);
     expect(plan.color, 2);
     expect(find.text('الصفحات 1 – 21 · من الفاتحة 1'), findsOneWidget);
 
-    await _tap(tester, find.text('قرأته'));
+    await _tap(tester, find.text('أنهيته'));
     expect(find.text('الصفحات 22 – 41 · من البقرة 142'), findsOneWidget);
-    await _tap(tester, find.text('اقرأ الورد'));
+    await _tap(tester, find.text('ابدأ القراءة'));
     expect(container.read(lastPageProvider), 22);
     // The plan's ribbon is on the page where it stands.
     expect(find.byTooltip(plan.title), findsOneWidget);
@@ -201,7 +201,7 @@ void main() {
     expect(find.byType(MushafPageView), findsNothing);
     expect(find.textContaining('﴿٧﴾'), findsOneWidget);
 
-    await _tap(tester, find.byTooltip('الوضع الليلي'));
+    await _tap(tester, find.byTooltip('السمة الداكنة'));
     expect(
       Theme.of(tester.element(find.byType(Scaffold).first)).brightness,
       Brightness.dark,
@@ -212,7 +212,7 @@ void main() {
     tester,
   ) async {
     await _start(tester);
-    await _tap(tester, find.text('المزيد'));
+    await _tap(tester, find.text('أدواتي'));
     await _tap(tester, find.text('اختبار ذاتي للحفظ'));
     await _tap(tester, find.text('ابدأ الاختبار'));
     // Al-Fatiha has 7 ayat, so 6 can be asked about.
@@ -245,7 +245,7 @@ void main() {
     await _tap(tester, find.text('الجزء 1 (1/8)'));
     expect(find.text('جزء 1'), findsOneWidget);
 
-    await _tap(tester, find.text('المصحف'));
+    await _tap(tester, find.text('اقرأ'));
     await _tap(tester, _word());
     expect(find.byType(NavigationBar), findsOneWidget);
   });
@@ -254,7 +254,7 @@ void main() {
   ) async {
     await _start(tester);
     expect(find.byType(Slider), findsNothing);
-    await _tap(tester, find.text('المصحف'));
+    await _tap(tester, find.text('اقرأ'));
     expect(find.byType(Slider), findsOneWidget);
     // It opens with the bars hidden, in their place.
     expect(find.byType(NavigationBar), findsNothing);

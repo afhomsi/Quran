@@ -161,7 +161,7 @@ class _SelfTestScreenState extends ConsumerState<SelfTestScreen> {
         const SizedBox(height: 16),
         FilledButton.icon(
           style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-          icon: const Icon(Icons.play_arrow),
+          icon: const Icon(Icons.play_arrow_rounded),
           label: Text(t.startTest),
           onPressed: scope.length < 2
               ? null
@@ -246,7 +246,7 @@ class _SelfTestScreenState extends ConsumerState<SelfTestScreen> {
             children: [
               Expanded(
                 child: FilledButton.icon(
-                  icon: const Icon(Icons.check),
+                  icon: const Icon(Icons.check_rounded),
                   label: Text(t.gotItRight),
                   onPressed: () => _answer(correct: true),
                 ),
@@ -254,7 +254,7 @@ class _SelfTestScreenState extends ConsumerState<SelfTestScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: OutlinedButton.icon(
-                  icon: const Icon(Icons.close),
+                  icon: const Icon(Icons.close_rounded),
                   label: Text(t.gotItWrong),
                   onPressed: () => _answer(correct: false),
                 ),
@@ -281,7 +281,7 @@ class _SelfTestScreenState extends ConsumerState<SelfTestScreen> {
       children: [
         const SizedBox(height: 16),
         Icon(
-          _wrong.isEmpty ? Icons.emoji_events : Icons.school,
+          _wrong.isEmpty ? Icons.emoji_events_rounded : Icons.school_rounded,
           size: 64,
           color: theme.colorScheme.primary,
         ),
@@ -296,7 +296,7 @@ class _SelfTestScreenState extends ConsumerState<SelfTestScreen> {
           Text(t.reviewThese, style: theme.textTheme.titleMedium),
           for (final a in _wrong)
             ListTile(
-              leading: const Icon(Icons.replay),
+              leading: const Icon(Icons.replay_rounded),
               title: Text(t.surahAyah(surahs[a.surah - 1], a.ayah)),
               trailing: Text(t.n(mushaf.pageOf(a))),
               onTap: () => openMushaf(context, mushaf.pageOf(a), highlight: a),

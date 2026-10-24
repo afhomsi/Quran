@@ -7,17 +7,18 @@ import '../../data/mushaf_repository.dart';
 import '../../data/quran_models.dart';
 import '../../data/quran_repository.dart';
 import '../../l10n/strings.dart';
+import '../../theme/app_theme.dart';
 import '../shell/navigation.dart';
 
 IconData khatmaTypeIcon(KhatmaType type) => switch (type) {
-  KhatmaType.salaf => Icons.menu_book_outlined,
-  KhatmaType.ramadan => Icons.nightlight_outlined,
-  KhatmaType.dailyWird => Icons.event_repeat_outlined,
-  KhatmaType.custom => Icons.bookmarks_outlined,
+  KhatmaType.salaf => Icons.date_range_rounded,
+  KhatmaType.ramadan => Icons.nightlight_round,
+  KhatmaType.dailyWird => Icons.mosque_rounded,
+  KhatmaType.custom => Icons.tune_rounded,
 };
 
-/// "My khatmas": the user's plans to read the whole Quran, each with a
-/// colored bookmark that shows where the plan stands in the mushaf.
+/// "Reading plans": the user's plans to read the whole Quran, each with a
+/// colour whose ribbon shows where the plan stands in the mushaf.
 class KhatmaScreen extends ConsumerWidget {
   const KhatmaScreen({super.key});
 
@@ -28,18 +29,15 @@ class KhatmaScreen extends ConsumerWidget {
     final surahs = ref.watch(surahsProvider).value;
     final t = S.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: Text(t.myKhatmas),
-        centerTitle: true,
-        actions: [
-          IconButton.filled(
-            tooltip: t.newKhatma,
-            icon: const Icon(Icons.add),
-            onPressed: () => startNewKhatma(context),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
+      appBar: AppBar(title: Text(t.myKhatmas)),
+      floatingActionButton: plans.isEmpty
+          ? null
+          : FloatingActionButton.extended(
+              tooltip: t.newKhatma,
+              icon: const Icon(Icons.add_rounded),
+              label: Text(t.newKhatma),
+              onPressed: () => startNewKhatma(context),
+            ),
       body: mushaf == null || surahs == null
           ? const Center(child: CircularProgressIndicator())
           : plans.isEmpty
@@ -49,12 +47,16 @@ class KhatmaScreen extends ConsumerWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.auto_stories_outlined, size: 64),
-                    const SizedBox(height: 16),
-                    Text(t.noKhatma, textAlign: TextAlign.center),
-                    const SizedBox(height: 16),
+                    const IconBadge(Icons.event_note_rounded, size: 88),
+                    const SizedBox(height: 20),
+                    Text(
+                      t.noKhatma,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyLarge,
+                    ),
+                    const SizedBox(height: 20),
                     FilledButton.icon(
-                      icon: const Icon(Icons.add),
+                      icon: const Icon(Icons.add_rounded),
                       label: Text(t.newKhatma),
                       onPressed: () => startNewKhatma(context),
                     ),
@@ -63,7 +65,7 @@ class KhatmaScreen extends ConsumerWidget {
               ),
             )
           : ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
               children: [
                 for (final p in plans)
                   _PlanCard(plan: p, mushaf: mushaf, surahs: surahs),
@@ -101,7 +103,6 @@ class _TypePickerState extends State<_TypePicker> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
     final t = S.of(context);
     return SafeArea(
       child: SingleChildScrollView(
@@ -120,52 +121,103 @@ class _TypePickerState extends State<_TypePicker> {
                 ),
                 IconButton(
                   tooltip: t.close,
-                  icon: const Icon(Icons.close),
+                  icon: const Icon(Icons.close_rounded),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
             ),
             const SizedBox(height: 8),
-            for (final type in KhatmaType.values)
-              Card(
-                elevation: 0,
-                margin: const EdgeInsets.symmetric(vertical: 6),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  side: BorderSide(
-                    color: type == _type
-                        ? colors.primary
-                        : colors.outlineVariant,
-                    width: type == _type ? 2 : 1,
-                  ),
-                ),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  leading: Icon(
-                    khatmaTypeIcon(type),
-                    size: 36,
-                    color: colors.primary,
-                  ),
-                  title: Text(
-                    t.khatmaTitle(type),
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Text(t.khatmaSubtitle(type)),
-                  onTap: () => setState(() => _type = type),
+            for (var row = 0; row < KhatmaType.values.length; row += 2)
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (final type in KhatmaType.values.skip(row).take(2))
+                      Expanded(
+                        child: _TypeTile(
+                          type: type,
+                          selected: type == _type,
+                          onTap: () => setState(() => _type = type),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             const SizedBox(height: 8),
             FilledButton(
               style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(56),
+                minimumSize: const Size.fromHeight(52),
               ),
               onPressed: () => Navigator.pop(context, _type),
               child: Text(t.next),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TypeTile extends StatelessWidget {
+  const _TypeTile({
+    required this.type,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final KhatmaType type;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final t = S.of(context);
+    return Padding(
+      padding: const EdgeInsets.all(5),
+      child: Material(
+        color: selected ? colors.primaryContainer : colors.surfaceContainer,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(
+            color: selected ? colors.primary : colors.outlineVariant,
+            width: selected ? 2 : 1,
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    IconBadge(khatmaTypeIcon(type), size: 40),
+                    const Spacer(),
+                    if (selected)
+                      Icon(Icons.check_circle_rounded, color: colors.primary),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  t.khatmaTitle(type),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  t.khatmaSubtitle(type),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -237,9 +289,9 @@ class _PlanFormState extends ConsumerState<_PlanForm> {
                     children: [
                       Text(t.createPlan, style: theme.textTheme.headlineSmall),
                       Text(
-                        '[${t.khatmaTitle(widget.type)}]',
+                        t.khatmaTitle(widget.type),
                         style: theme.textTheme.titleLarge?.copyWith(
-                          color: const Color(0xFFD9822B),
+                          color: theme.colorScheme.secondary,
                         ),
                       ),
                     ],
@@ -247,7 +299,7 @@ class _PlanFormState extends ConsumerState<_PlanForm> {
                 ),
                 IconButton(
                   tooltip: t.close,
-                  icon: const Icon(Icons.close),
+                  icon: const Icon(Icons.close_rounded),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
@@ -264,25 +316,32 @@ class _PlanFormState extends ConsumerState<_PlanForm> {
                   Tooltip(
                     message: t.bookmarkColor(c + 1),
                     child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
+                      customBorder: const CircleBorder(),
                       onTap: () => setState(() => _color = c),
                       child: Container(
-                        width: 52,
-                        height: 52,
+                        width: 48,
+                        height: 48,
+                        padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
-                          color: khatmaColors[c].withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(12),
+                          shape: BoxShape.circle,
                           border: Border.all(
                             color: c == _color
                                 ? khatmaColors[c]
                                 : Colors.transparent,
-                            width: 2,
+                            width: 2.5,
                           ),
                         ),
-                        child: Icon(
-                          Icons.bookmark,
-                          color: khatmaColors[c],
-                          size: 30,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: khatmaColors[c],
+                            shape: BoxShape.circle,
+                          ),
+                          child: c == _color
+                              ? const Icon(
+                                  Icons.check_rounded,
+                                  color: Colors.white,
+                                )
+                              : null,
                         ),
                       ),
                     ),
@@ -297,7 +356,7 @@ class _PlanFormState extends ConsumerState<_PlanForm> {
               decoration: InputDecoration(
                 suffixIcon: IconButton(
                   tooltip: t.clear,
-                  icon: const Icon(Icons.clear),
+                  icon: const Icon(Icons.clear_rounded),
                   onPressed: () => setState(_title!.clear),
                 ),
               ),
@@ -371,53 +430,88 @@ class _PlanCard extends ConsumerWidget {
     final next = plan.nextPortion(mushaf);
     final day = plan.dayOn(DateTime.now()).clamp(1, plan.days);
     final color = khatmaColors[plan.color];
+    final progress = plan.done.length / portions.length;
+    final colors = theme.colorScheme;
     return Card(
-      elevation: 0,
       margin: const EdgeInsets.symmetric(vertical: 8),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: theme.colorScheme.outlineVariant),
-      ),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
         onTap: () => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => KhatmaPlanScreen(planId: plan.id)),
         ),
-        child: Padding(
+        child: Container(
+          decoration: BoxDecoration(
+            border: BorderDirectional(
+              start: BorderSide(color: color, width: 6),
+            ),
+          ),
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Icon(Icons.bookmark, color: color, size: 32),
-                  const SizedBox(width: 8),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(plan.title, style: theme.textTheme.titleMedium),
                         Text(
-                          t.khatmaTitle(plan.type),
-                          style: theme.textTheme.bodySmall,
+                          plan.title,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            _Chip(
+                              icon: khatmaTypeIcon(plan.type),
+                              text: t.khatmaTitle(plan.type),
+                              color: color,
+                            ),
+                            _Chip(
+                              icon: Icons.today_rounded,
+                              text: t.dayOf(day, plan.days),
+                              color: colors.secondary,
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ),
-                  Text(t.dayOf(day, plan.days)),
+                  const SizedBox(width: 12),
+                  SizedBox.square(
+                    dimension: 60,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        CircularProgressIndicator(
+                          value: progress,
+                          color: color,
+                          strokeWidth: 6,
+                          strokeCap: StrokeCap.round,
+                        ),
+                        Center(
+                          child: Text(
+                            '${t.n((progress * 100).round())}%',
+                            style: theme.textTheme.labelLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
-              const SizedBox(height: 12),
-              LinearProgressIndicator(
-                value: plan.done.length / portions.length,
-                color: color,
-                minHeight: 6,
-                borderRadius: BorderRadius.circular(3),
-              ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 8),
               Text(
                 t.doneOf(plan.done.length, portions.length),
-                style: theme.textTheme.bodySmall,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colors.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 12),
               if (next == null)
@@ -426,31 +520,51 @@ class _PlanCard extends ConsumerWidget {
                   style: theme.textTheme.titleMedium?.copyWith(color: color),
                 )
               else ...[
-                Text(
-                  t.nextPortion(portions[next].day),
-                  style: theme.textTheme.labelLarge,
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: colors.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        t.nextPortion(portions[next].day),
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: colors.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(portionLabel(t, portions[next], mushaf, surahs)),
+                    ],
+                  ),
                 ),
-                Text(portionLabel(t, portions[next], mushaf, surahs)),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                const SizedBox(height: 12),
+                Row(
                   children: [
-                    FilledButton.tonalIcon(
-                      icon: const Icon(Icons.menu_book),
-                      label: Text(t.readPortion),
-                      onPressed: () => openMushaf(
-                        context,
-                        portions[next].firstPage(mushaf),
-                        highlight: portions[next].from,
+                    Expanded(
+                      child: FilledButton.icon(
+                        icon: const Icon(Icons.import_contacts_rounded),
+                        label: Text(t.readPortion),
+                        onPressed: () => openMushaf(
+                          context,
+                          portions[next].firstPage(mushaf),
+                          highlight: portions[next].from,
+                        ),
                       ),
                     ),
-                    OutlinedButton.icon(
-                      icon: const Icon(Icons.check),
-                      label: Text(t.markRead),
-                      onPressed: () => ref
-                          .read(khatmaPlansProvider.notifier)
-                          .setRead(plan.id, next),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.done_all_rounded),
+                        label: Text(t.markRead),
+                        onPressed: () => ref
+                            .read(khatmaPlansProvider.notifier)
+                            .setRead(plan.id, next),
+                      ),
                     ),
                   ],
                 ),
@@ -458,6 +572,41 @@ class _PlanCard extends ConsumerWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// A small coloured label on a plan card.
+class _Chip extends StatelessWidget {
+  const _Chip({required this.icon, required this.text, required this.color});
+
+  final IconData icon;
+  final String text;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 12,
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -489,7 +638,7 @@ class KhatmaPlanScreen extends ConsumerWidget {
         actions: [
           IconButton(
             tooltip: t.deleteKhatma,
-            icon: const Icon(Icons.delete_outline),
+            icon: const Icon(Icons.delete_outline_rounded),
             onPressed: () async {
               final ok = await showDialog<bool>(
                 context: context,
@@ -534,7 +683,10 @@ class KhatmaPlanScreen extends ConsumerWidget {
             subtitle: Text(portionLabel(t, p, mushaf, surahs)),
             secondary: IconButton(
               tooltip: t.openInMushaf,
-              icon: Icon(Icons.menu_book, color: khatmaColors[plan.color]),
+              icon: Icon(
+                Icons.import_contacts_rounded,
+                color: khatmaColors[plan.color],
+              ),
               onPressed: () =>
                   openMushaf(context, p.firstPage(mushaf), highlight: p.from),
             ),

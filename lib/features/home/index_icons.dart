@@ -189,11 +189,9 @@ class RubIcon extends StatelessWidget {
   /// The hizb number in the reader's digits, shown on the first quarter.
   final String hizbLabel;
 
-  /// Brown, as quarter marks are printed in many mushafs.
+  /// The app's gold accent.
   static Color colorOf(BuildContext context) =>
-      Theme.of(context).brightness == Brightness.dark
-      ? const Color(0xFFD9A86C)
-      : const Color(0xFF8B5422);
+      Theme.of(context).colorScheme.secondary;
 
   @override
   Widget build(BuildContext context) {

@@ -116,7 +116,7 @@ class _RepeatSheetState extends ConsumerState<_RepeatSheet> {
             ),
             const SizedBox(height: 12),
             FilledButton.icon(
-              icon: const Icon(Icons.play_arrow),
+              icon: const Icon(Icons.play_arrow_rounded),
               label: Text(t.startListening),
               onPressed: () {
                 controller.playList(
@@ -214,7 +214,7 @@ class _Counter extends StatelessWidget {
           child: Text(label, style: Theme.of(context).textTheme.titleMedium),
         ),
         IconButton.outlined(
-          icon: const Icon(Icons.remove),
+          icon: const Icon(Icons.remove_rounded),
           onPressed: value > 1 ? () => onChanged(value - 1) : null,
         ),
         SizedBox(
@@ -226,7 +226,7 @@ class _Counter extends StatelessWidget {
           ),
         ),
         IconButton.outlined(
-          icon: const Icon(Icons.add),
+          icon: const Icon(Icons.add_rounded),
           onPressed: value < 20 ? () => onChanged(value + 1) : null,
         ),
       ],

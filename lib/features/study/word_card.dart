@@ -76,7 +76,10 @@ class WordCard extends ConsumerWidget {
             onPressed: () => _chooseTab(context, ref),
             child: Row(
               mainAxisSize: MainAxisSize.min,
-              children: [Text(tab.label(t)), const Icon(Icons.arrow_drop_down)],
+              children: [
+                Text(tab.label(t)),
+                const Icon(Icons.arrow_drop_down_rounded),
+              ],
             ),
           ),
           ConstrainedBox(
@@ -99,7 +102,7 @@ class WordCard extends ConsumerWidget {
               child: Row(
                 children: [
                   _Action(
-                    icon: Icons.play_arrow,
+                    icon: Icons.play_arrow_rounded,
                     label: t.listen,
                     onTap: () {
                       ref.read(audioProvider.notifier).playFrom(ayah);
@@ -108,24 +111,24 @@ class WordCard extends ConsumerWidget {
                   ),
                   _Action(
                     icon: ref.watch(bookmarksProvider).contains(ayah)
-                        ? Icons.bookmark
-                        : Icons.bookmark_border,
+                        ? Icons.bookmark_rounded
+                        : Icons.bookmark_border_rounded,
                     label: t.bookmarkAction,
                     onTap: () => toggleBookmark(context, ref, ayah),
                   ),
                   _Action(
-                    icon: Icons.format_color_fill_outlined,
+                    icon: Icons.format_color_fill_rounded,
                     label: t.colorAction,
                     onTap: () => showColorSheet(context, ayah),
                   ),
                   _Action(
-                    icon: Icons.chat_bubble_outline,
+                    icon: Icons.chat_bubble_outline_rounded,
                     label: t.comments,
                     onTap: () => editNote(context, ayah, word: word),
                   ),
                   _Action(
-                    icon: Icons.more_horiz,
-                    label: t.tabMore,
+                    icon: Icons.more_horiz_rounded,
+                    label: t.studyMore,
                     onTap: onMore,
                   ),
                 ],
@@ -303,7 +306,7 @@ class StudyContentView extends ConsumerWidget {
         children: [
           Text(t.studyLoadError, textAlign: TextAlign.center, style: body),
           TextButton.icon(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded),
             label: Text(t.retry),
             onPressed: () => ref.invalidate(studyContentProvider(request)),
           ),
