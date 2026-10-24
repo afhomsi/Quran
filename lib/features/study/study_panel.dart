@@ -220,29 +220,33 @@ class _StudyPanelState extends ConsumerState<StudyPanel> {
         children: [
           IconButton(
             tooltip: _full ? t.shrink : t.expand,
-            icon: Icon(_full ? Icons.close_fullscreen : Icons.open_in_full),
+            icon: Icon(
+              _full
+                  ? Icons.close_fullscreen_rounded
+                  : Icons.open_in_full_rounded,
+            ),
             onPressed: () => setState(() => _full = !_full),
           ),
           const Spacer(),
           IconButton(
             tooltip: t.previous,
-            icon: const Icon(Icons.chevron_left),
+            icon: const Icon(Icons.chevron_left_rounded),
             onPressed: () => _step(-1, surahs, mushaf),
           ),
           IconButton(
             tooltip: t.next,
-            icon: const Icon(Icons.chevron_right),
+            icon: const Icon(Icons.chevron_right_rounded),
             onPressed: () => _step(1, surahs, mushaf),
           ),
           const Spacer(),
           IconButton(
             tooltip: t.share,
-            icon: const Icon(Icons.share_outlined),
+            icon: const Icon(Icons.share_rounded),
             onPressed: () => _share(t, surahs, mushaf),
           ),
           IconButton(
             tooltip: t.close,
-            icon: const Icon(Icons.close),
+            icon: const Icon(Icons.close_rounded),
             onPressed: () => Navigator.pop(context, _ayah),
           ),
         ],
@@ -362,10 +366,10 @@ class _StudyPanelState extends ConsumerState<StudyPanel> {
             style: TextStyle(color: colors.onPrimary),
             child: Row(
               children: [
-                item(Icons.play_arrow, t.listen, () {
+                item(Icons.play_arrow_rounded, t.listen, () {
                   ref.read(audioProvider.notifier).playFrom(from);
                 }),
-                item(Icons.tune, t.settings, () {
+                item(Icons.tune_rounded, t.settings, () {
                   showRepeatSheet(context, from: from, to: to);
                 }),
                 if (_part != StudyPart.surah)
@@ -373,20 +377,20 @@ class _StudyPanelState extends ConsumerState<StudyPanel> {
                     child: MarkerMenuButton(
                       ayah: onAyah ? _ayah : page.firstAyah,
                       child: _BarLabel(
-                        icon: Icons.bookmarks_outlined,
+                        icon: Icons.bookmarks_rounded,
                         label: t.bookmarkAction,
                       ),
                     ),
                   ),
                 if (onAyah) ...[
-                  item(Icons.chat_bubble_outline, t.comment, () {
+                  item(Icons.chat_bubble_outline_rounded, t.comment, () {
                     editNote(
                       context,
                       _ayah,
                       word: _part == StudyPart.word ? word : null,
                     );
                   }),
-                  item(Icons.format_color_fill_outlined, t.colorAction, () {
+                  item(Icons.format_color_fill_rounded, t.colorAction, () {
                     showColorSheet(context, _ayah);
                   }),
                 ],

@@ -216,17 +216,21 @@ class _RecitationViewState extends ConsumerState<_RecitationView> {
             actions: [
               IconButton(
                 tooltip: t.listenToRecited,
-                icon: const Icon(Icons.headphones),
+                icon: const Icon(Icons.headphones_rounded),
                 onPressed: () => _listenTo(_ayat, t.listenToRecited),
               ),
               IconButton(
                 tooltip: _showText ? t.hideText : t.showText,
-                icon: Icon(_showText ? Icons.visibility_off : Icons.visibility),
+                icon: Icon(
+                  _showText
+                      ? Icons.visibility_off_rounded
+                      : Icons.visibility_rounded,
+                ),
                 onPressed: () => setState(() => _showText = !_showText),
               ),
               IconButton(
                 tooltip: t.restartRecitation,
-                icon: const Icon(Icons.restart_alt),
+                icon: const Icon(Icons.restart_alt_rounded),
                 onPressed: _reset,
               ),
             ],
@@ -237,7 +241,7 @@ class _RecitationViewState extends ConsumerState<_RecitationView> {
               if (_session.error != null)
                 _Banner(
                   color: Theme.of(context).colorScheme.errorContainer,
-                  icon: Icons.mic_off,
+                  icon: Icons.mic_off_rounded,
                   text: _session.error!,
                 ),
               if (mistakes.isNotEmpty)
@@ -267,7 +271,7 @@ class _RecitationViewState extends ConsumerState<_RecitationView> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                   child: OutlinedButton.icon(
-                    icon: const Icon(Icons.replay),
+                    icon: const Icon(Icons.replay_rounded),
                     label: Text(t.listenToMistakes),
                     onPressed: () =>
                         _listenTo(_mistakeAyat, t.listenToMistakes),
@@ -285,7 +289,9 @@ class _RecitationViewState extends ConsumerState<_RecitationView> {
               FloatingActionButtonLocation.centerFloat,
           floatingActionButton: FloatingActionButton.extended(
             onPressed: _toggleListening,
-            icon: Icon(_session.isListening ? Icons.stop : Icons.mic),
+            icon: Icon(
+              _session.isListening ? Icons.stop_rounded : Icons.mic_rounded,
+            ),
             label: Text(_session.isListening ? t.stop : t.startRecitation),
           ),
         );

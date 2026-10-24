@@ -51,7 +51,7 @@ class TajweedView extends ConsumerWidget {
         if (!compact)
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            secondary: const Icon(Icons.brush_outlined),
+            secondary: const Icon(Icons.brush_rounded),
             title: Text(t.tajweedOnPage),
             value: tajweedOn,
             onChanged: (v) => ref

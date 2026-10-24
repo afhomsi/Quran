@@ -66,9 +66,9 @@ class SourcesScreen extends StatelessWidget {
             ),
           const Divider(),
           ListTile(
-            leading: const Icon(Icons.code),
+            leading: const Icon(Icons.code_rounded),
             title: Text(t.softwareLicences),
-            trailing: const Icon(Icons.chevron_right),
+            trailing: const Icon(Icons.chevron_right_rounded),
             onTap: () => showLicensePage(context: context),
           ),
         ],

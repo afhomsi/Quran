@@ -384,107 +384,119 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
   ) {
     final t = S.of(context);
     final settings = ref.read(settingsProvider);
-    return Material(
-      color: background ?? Theme.of(context).colorScheme.surface,
-      elevation: 3,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: SizedBox(
-          height: kToolbarHeight,
-          child: Row(
-            children: [
-              const SizedBox(width: 4),
-              PopupMenuButton<VoidCallback>(
-                tooltip: t.menu,
-                icon: const Icon(Icons.menu),
-                onSelected: (action) => action(),
-                itemBuilder: (context) => [
-                  PopupMenuItem(
-                    value: () => _goToPage(context),
-                    child: ListTile(
-                      leading: const Icon(Icons.numbers),
-                      title: Text(t.goTo),
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: () => _showNavigator(true),
-                    child: ListTile(
-                      leading: const Icon(Icons.view_carousel_outlined),
-                      title: Text(t.pageNavigator),
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: () => ref
-                        .read(audioProvider.notifier)
-                        .show(mushaf.page(_page).firstAyah),
-                    child: ListTile(
-                      leading: const Icon(Icons.headphones),
-                      title: Text(t.listen),
-                    ),
-                  ),
-                  if (!settings.hideRecitationButton)
-                    PopupMenuItem(
-                      value: () => showRecitationPicker(context, page: _page),
-                      child: ListTile(
-                        leading: const Icon(Icons.mic),
-                        title: Text(t.recite),
-                      ),
-                    ),
-                  if (settings.autoPageTurn)
-                    PopupMenuItem(
-                      value: () {
-                        setState(() => _autoTurnPaused = !_autoTurnPaused);
-                        _scheduleAutoTurn();
-                      },
-                      child: ListTile(
-                        leading: Icon(
-                          _autoTurnPaused ? Icons.play_arrow : Icons.pause,
-                        ),
-                        title: Text(
-                          _autoTurnPaused ? t.resumeAutoTurn : t.pauseAutoTurn,
+    final colors = Theme.of(context).colorScheme;
+    // A floating rounded bar, with the page showing around it.
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(10, 6, 10, 0),
+        child: Material(
+          color: colors.surfaceContainerLowest,
+          elevation: 2,
+          shadowColor: Colors.black26,
+          borderRadius: BorderRadius.circular(18),
+          child: IconTheme.merge(
+            data: IconThemeData(color: colors.primary),
+            child: SizedBox(
+              height: 52,
+              child: Row(
+                children: [
+                  const SizedBox(width: 4),
+                  PopupMenuButton<VoidCallback>(
+                    tooltip: t.menu,
+                    icon: const Icon(Icons.segment_rounded),
+                    onSelected: (action) => action(),
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: () => _goToPage(context),
+                        child: ListTile(
+                          leading: const Icon(Icons.numbers_rounded),
+                          title: Text(t.goTo),
                         ),
                       ),
-                    ),
-                  PopupMenuItem(
-                    value: () => openSettings(context),
-                    child: ListTile(
-                      leading: const Icon(Icons.settings_outlined),
-                      title: Text(t.settings),
-                    ),
+                      PopupMenuItem(
+                        value: () => _showNavigator(true),
+                        child: ListTile(
+                          leading: const Icon(Icons.view_carousel_rounded),
+                          title: Text(t.pageNavigator),
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: () => ref
+                            .read(audioProvider.notifier)
+                            .show(mushaf.page(_page).firstAyah),
+                        child: ListTile(
+                          leading: const Icon(Icons.headphones_rounded),
+                          title: Text(t.listen),
+                        ),
+                      ),
+                      if (!settings.hideRecitationButton)
+                        PopupMenuItem(
+                          value: () =>
+                              showRecitationPicker(context, page: _page),
+                          child: ListTile(
+                            leading: const Icon(Icons.mic_rounded),
+                            title: Text(t.recite),
+                          ),
+                        ),
+                      if (settings.autoPageTurn)
+                        PopupMenuItem(
+                          value: () {
+                            setState(() => _autoTurnPaused = !_autoTurnPaused);
+                            _scheduleAutoTurn();
+                          },
+                          child: ListTile(
+                            leading: Icon(
+                              _autoTurnPaused
+                                  ? Icons.play_arrow_rounded
+                                  : Icons.pause_rounded,
+                            ),
+                            title: Text(
+                              _autoTurnPaused
+                                  ? t.resumeAutoTurn
+                                  : t.pauseAutoTurn,
+                            ),
+                          ),
+                        ),
+                      PopupMenuItem(
+                        value: () => openSettings(context),
+                        child: ListTile(
+                          leading: const Icon(Icons.settings_rounded),
+                          title: Text(t.settings),
+                        ),
+                      ),
+                    ],
                   ),
+                  IconButton(
+                    tooltip: settings.nightMode ? t.dayMode : t.nightMode,
+                    icon: Icon(
+                      settings.nightMode
+                          ? Icons.light_mode_rounded
+                          : Icons.dark_mode_rounded,
+                    ),
+                    onPressed: () => ref
+                        .read(settingsProvider.notifier)
+                        .update((s) => s.copyWith(nightMode: !s.nightMode)),
+                  ),
+                  const Expanded(child: Center(child: _Clock())),
+                  IconButton(
+                    tooltip: _textMode ? t.pageView : t.textView,
+                    icon: Icon(
+                      _textMode
+                          ? Icons.auto_stories_rounded
+                          : Icons.chrome_reader_mode_rounded,
+                    ),
+                    onPressed: () => setState(() => _textMode = !_textMode),
+                  ),
+                  IconButton(
+                    tooltip: t.searchQuran,
+                    icon: const Icon(Icons.search_rounded),
+                    onPressed: () => _search(context, mushaf, surahs),
+                  ),
+                  const SizedBox(width: 4),
                 ],
               ),
-              IconButton(
-                tooltip: settings.nightMode ? t.dayMode : t.nightMode,
-                icon: Icon(
-                  settings.nightMode
-                      ? Icons.light_mode_outlined
-                      : Icons.dark_mode_outlined,
-                ),
-                onPressed: () => ref
-                    .read(settingsProvider.notifier)
-                    .update((s) => s.copyWith(nightMode: !s.nightMode)),
-              ),
-              const Expanded(child: Center(child: _Clock())),
-              IconButton(
-                tooltip: _textMode ? t.pageView : t.textView,
-                icon: Icon(
-                  _textMode
-                      ? Icons.auto_stories_outlined
-                      : Icons.chrome_reader_mode_outlined,
-                ),
-                onPressed: () => setState(() => _textMode = !_textMode),
-              ),
-              IconButton(
-                tooltip: t.searchQuran,
-                icon: const Icon(Icons.search_rounded),
-                onPressed: () => _search(context, mushaf, surahs),
-              ),
-              const SizedBox(width: 4),
-            ],
+            ),
           ),
         ),
       ),
@@ -793,7 +805,7 @@ class _PageSlot extends ConsumerWidget {
                             Tooltip(
                               message: name,
                               child: Icon(
-                                Icons.bookmark,
+                                Icons.bookmark_rounded,
                                 color: color,
                                 size: 20,
                               ),
@@ -1032,7 +1044,10 @@ class _PageNavigatorState extends State<_PageNavigator> {
                   alignment: AlignmentDirectional.centerEnd,
                   child: IconButton(
                     tooltip: t.close,
-                    icon: Icon(Icons.highlight_off, color: colors.primary),
+                    icon: Icon(
+                      Icons.highlight_off_rounded,
+                      color: colors.primary,
+                    ),
                     onPressed: widget.onClose,
                   ),
                 ),
@@ -1174,63 +1189,80 @@ class _PageBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = S.of(context);
     // Drawn over the page, on the bottom tabs.
-    return Material(
-      color: Theme.of(context).colorScheme.surfaceContainer,
-      child: Row(
-        children: [
-          Expanded(
-            child: Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: TextButton.icon(
-                icon: const Icon(Icons.headphones),
-                label: Text(t.listen),
-                onPressed: onListen,
-              ),
-            ),
-          ),
-          IconButton(
-            tooltip: t.previousPage,
-            // Chevrons mirror in right-to-left layouts, so this one points
-            // right, away from the page number.
-            icon: const Icon(Icons.chevron_left),
-            onPressed: onPrevious,
-          ),
-          Tooltip(
-            message: t.pageNavigator,
-            child: InkWell(
-              onTap: onLabel,
-              borderRadius: BorderRadius.circular(8),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: 56, minHeight: 40),
-                child: Center(
-                  widthFactor: 1,
-                  child: Text(
-                    label,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.titleMedium,
+    final colors = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+      child: Material(
+        color: colors.surfaceContainerLowest,
+        elevation: 2,
+        shadowColor: Colors.black26,
+        borderRadius: BorderRadius.circular(28),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          child: Row(
+            children: [
+              Expanded(
+                child: Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: FilledButton.tonalIcon(
+                    icon: const Icon(Icons.headphones_rounded),
+                    label: Text(t.listen),
+                    onPressed: onListen,
                   ),
                 ),
               ),
-            ),
-          ),
-          IconButton(
-            tooltip: t.nextPage,
-            icon: const Icon(Icons.chevron_right),
-            onPressed: onNext,
-          ),
-          Expanded(
-            child: Align(
-              alignment: AlignmentDirectional.centerEnd,
-              child: onRecite == null
-                  ? null
-                  : TextButton.icon(
-                      icon: const Icon(Icons.mic),
-                      label: Text(t.recite),
-                      onPressed: onRecite,
+              IconButton(
+                tooltip: t.previousPage,
+                // Chevrons mirror in right-to-left layouts, so this one points
+                // right, away from the page number.
+                icon: const Icon(Icons.chevron_left_rounded),
+                onPressed: onPrevious,
+              ),
+              Tooltip(
+                message: t.pageNavigator,
+                child: InkWell(
+                  onTap: onLabel,
+                  borderRadius: BorderRadius.circular(8),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      minWidth: 56,
+                      minHeight: 40,
                     ),
-            ),
+                    child: Center(
+                      widthFactor: 1,
+                      child: Text(
+                        label,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              color: colors.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              IconButton(
+                tooltip: t.nextPage,
+                icon: const Icon(Icons.chevron_right_rounded),
+                onPressed: onNext,
+              ),
+              Expanded(
+                child: Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: onRecite == null
+                      ? null
+                      : FilledButton.tonalIcon(
+                          icon: const Icon(Icons.mic_rounded),
+                          label: Text(t.recite),
+                          onPressed: onRecite,
+                        ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

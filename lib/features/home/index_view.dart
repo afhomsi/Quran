@@ -75,10 +75,10 @@ class _SearchField extends StatelessWidget {
           // Balances the icon on the other side, so the text stays centered.
           prefixIcon: const SizedBox(width: 48),
           suffixIcon: controller.text.isEmpty
-              ? Icon(Icons.search, color: colors.primary)
+              ? Icon(Icons.search_rounded, color: colors.primary)
               : IconButton(
                   tooltip: t.clearSearch,
-                  icon: const Icon(Icons.clear),
+                  icon: const Icon(Icons.clear_rounded),
                   onPressed: () {
                     controller.clear();
                     onChanged();
@@ -292,7 +292,10 @@ class _JuzCard extends StatelessWidget {
                       ),
                     ),
                     PopupMenuButton<void>(
-                      icon: Icon(Icons.more_horiz, color: colors.primary),
+                      icon: Icon(
+                        Icons.more_horiz_rounded,
+                        color: colors.primary,
+                      ),
                       itemBuilder: (context) => [
                         PopupMenuItem(
                           onTap: () => openMushaf(context, pages.first),

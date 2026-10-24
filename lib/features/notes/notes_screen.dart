@@ -44,7 +44,7 @@ class NotesScreen extends ConsumerWidget {
                   onTap: () => editNote(context, ayah),
                   trailing: IconButton(
                     tooltip: t.openInMushaf,
-                    icon: const Icon(Icons.menu_book),
+                    icon: const Icon(Icons.menu_book_rounded),
                     onPressed: () => openMushaf(context, page, highlight: ayah),
                   ),
                 );

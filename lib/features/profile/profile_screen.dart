@@ -43,7 +43,7 @@ class ProfileScreen extends ConsumerWidget {
           if (history.isNotEmpty)
             IconButton(
               tooltip: t.clearHistory,
-              icon: const Icon(Icons.delete_sweep_outlined),
+              icon: const Icon(Icons.delete_sweep_rounded),
               onPressed: () => _confirmClear(context, ref),
             ),
         ],
@@ -75,7 +75,7 @@ class ProfileScreen extends ConsumerWidget {
                   Text(t.ayatWithMistakes, style: sectionStyle),
                   const SizedBox(height: 8),
                   FilledButton.icon(
-                    icon: const Icon(Icons.playlist_play),
+                    icon: const Icon(Icons.playlist_play_rounded),
                     label: Text(t.listenToAll),
                     onPressed: () => showRepeatSheet(
                       context,
@@ -211,12 +211,12 @@ class _MistakeAyahTile extends ConsumerWidget {
         children: [
           IconButton(
             tooltip: t.play,
-            icon: const Icon(Icons.play_circle_outline),
+            icon: const Icon(Icons.play_circle_outline_rounded),
             onPressed: () => _playNow(ref, [ayah]),
           ),
           IconButton(
             tooltip: t.repeatAyat,
-            icon: const Icon(Icons.repeat),
+            icon: const Icon(Icons.repeat_rounded),
             onPressed: () => showRepeatSheet(
               context,
               ayat: [ayah],
@@ -257,7 +257,9 @@ class _RecordTile extends ConsumerWidget {
       clipBehavior: Clip.antiAlias,
       child: ExpansionTile(
         leading: Icon(
-          record.mistakes.isEmpty ? Icons.check_circle : Icons.error_outline,
+          record.mistakes.isEmpty
+              ? Icons.check_circle_rounded
+              : Icons.error_outline_rounded,
           color: record.mistakes.isEmpty
               ? Colors.green.shade700
               : theme.colorScheme.error,
@@ -286,7 +288,7 @@ class _RecordTile extends ConsumerWidget {
             runSpacing: 8,
             children: [
               OutlinedButton.icon(
-                icon: const Icon(Icons.headphones),
+                icon: const Icon(Icons.headphones_rounded),
                 label: Text(t.listenToRecited),
                 onPressed: () => showRepeatSheet(
                   context,
@@ -296,7 +298,7 @@ class _RecordTile extends ConsumerWidget {
               ),
               if (mistakeAyat.isNotEmpty)
                 FilledButton.tonalIcon(
-                  icon: const Icon(Icons.replay),
+                  icon: const Icon(Icons.replay_rounded),
                   label: Text(t.listenToMistakes),
                   onPressed: () => showRepeatSheet(
                     context,
@@ -319,7 +321,7 @@ class _RecordTile extends ConsumerWidget {
                   ? null
                   : IconButton(
                       tooltip: t.play,
-                      icon: const Icon(Icons.play_circle_outline),
+                      icon: const Icon(Icons.play_circle_outline_rounded),
                       onPressed: () => _playNow(ref, [m.ayah!]),
                     ),
             ),

@@ -90,7 +90,7 @@ void main() {
 
     await tester.tap(find.text('استمع لها كلها مع التكرار'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.add).last); // the group twice
+    await tester.tap(find.byIcon(Icons.add_rounded).last); // the group twice
     await tester.pump();
     await tester.tap(find.text('ابدأ الاستماع'));
     await tester.pumpAndSettle();

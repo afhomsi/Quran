@@ -16,8 +16,9 @@ QuranSearchIndex loadSearchIndex() => QuranSearchIndex(
 
 void main() {
   final index = loadSearchIndex();
-  List<AyahRef> find(String q, [SearchOptions o = const SearchOptions()]) =>
-      [for (final h in index.search(q, o)) h.ayah];
+  List<AyahRef> find(String q, [SearchOptions o = const SearchOptions()]) => [
+    for (final h in index.search(q, o)) h.ayah,
+  ];
 
   test('the books have one text for every ayah', () {
     expect(index.tafsir, hasLength(6236));

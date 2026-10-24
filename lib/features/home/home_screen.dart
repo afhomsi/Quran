@@ -48,13 +48,13 @@ class HomeScreen extends ConsumerWidget {
             actions: [
               if (!hideRecite)
                 FilledButton.tonalIcon(
-                  icon: const Icon(Icons.mic),
+                  icon: const Icon(Icons.mic_rounded),
                   label: Text(s.recite),
                   onPressed: () => showRecitationPicker(context),
                 ),
               IconButton(
                 tooltip: s.goTo,
-                icon: const Icon(Icons.numbers),
+                icon: const Icon(Icons.numbers_rounded),
                 onPressed: () async {
                   final target = await showGoToDialog(context);
                   if (target != null && context.mounted) {
@@ -64,7 +64,7 @@ class HomeScreen extends ConsumerWidget {
               ),
               IconButton(
                 tooltip: s.settings,
-                icon: const Icon(Icons.settings_outlined),
+                icon: const Icon(Icons.settings_rounded),
                 onPressed: () => openSettings(context),
               ),
             ],
@@ -79,7 +79,7 @@ class HomeScreen extends ConsumerWidget {
               ? null
               : FloatingActionButton.extended(
                   onPressed: () => openMushaf(context, lastPage),
-                  icon: const Icon(Icons.menu_book),
+                  icon: const Icon(Icons.menu_book_rounded),
                   label: Text(s.continueReading(lastPage)),
                 ),
           body: switch ((mushaf, surahs)) {

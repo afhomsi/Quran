@@ -46,7 +46,7 @@ Finder _inSheet(String text) =>
 void main() {
   testWidgets('any surah can be recited from the home screen', (tester) async {
     await _pump(tester, const HifzApp());
-    await tester.tap(find.text('الفهرس'));
+    await tester.tap(find.text('تصفّح'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('تسميع'));
@@ -102,8 +102,8 @@ void main() {
     );
 
     // The recite button sits beside the page number, next to listen.
-    expect(find.widgetWithText(TextButton, 'استماع'), findsOneWidget);
-    await tester.tap(find.widgetWithText(TextButton, 'تسميع'));
+    expect(find.widgetWithText(FilledButton, 'استماع'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'تسميع'));
     await tester.pumpAndSettle();
     expect(find.byType(MushafScreen), findsOneWidget);
     expect(listener.listening, isTrue);

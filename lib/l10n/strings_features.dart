@@ -4,11 +4,11 @@ part of 'strings.dart';
 /// audio player.
 extension FeatureStrings on S {
   // Bottom tabs.
-  String get tabKhatma => _('ختمة', 'Khatma', 'খতম', 'ختم');
-  String get tabIndex => _('الفهرس', 'Index', 'সূচি', 'فہرست');
-  String get tabBookmarks =>
-      _('علاماتي', 'My marks', 'আমার চিহ্ন', 'میرے نشان');
-  String get tabMore => _('المزيد', 'More', 'আরও', 'مزید');
+  String get tabRead => _('اقرأ', 'Read', 'পড়ুন', 'پڑھیں');
+  String get tabKhatma => _('وِردي', 'My plan', 'আমার পরিকল্পনা', 'میرا ورد');
+  String get tabIndex => _('تصفّح', 'Browse', 'খুঁজুন', 'فہرست');
+  String get tabBookmarks => _('إشاراتي', 'Saved', 'সংরক্ষিত', 'محفوظ نشان');
+  String get tabMore => _('أدواتي', 'Tools', 'টুলস', 'اوزار');
 
   // Mushaf top bar and menu.
   String get menu => _('القائمة', 'Menu', 'মেনু', 'مینو');
@@ -114,7 +114,8 @@ extension FeatureStrings on S {
     'এখনো ${markerName(kind)} নেই। মুসহাফে কোনো আয়াত চেপে ধরে রাখুন।',
     'ابھی ${markerName(kind)} نہیں۔ مصحف میں آیت کو دیر تک دبائیں۔',
   );
-  String get highlights => _('تلوين', 'Highlights', 'রঙিন আয়াত', 'رنگین آیات');
+  String get highlights =>
+      _('مظلّلة', 'Highlights', 'রঙিন আয়াত', 'رنگین آیات');
   String get filterByColor => _(
     'تصفية حسب اللون',
     'Filter by color',
@@ -171,102 +172,86 @@ extension FeatureStrings on S {
   );
 
   // Khatma.
-  String get myKhatmas => _('ختمتي', 'My khatmas', 'আমার খতম', 'میرے ختم');
-  String get newKhatma => _('ختمة جديدة', 'New khatma', 'নতুন খতম', 'نیا ختم');
+  String get myKhatmas =>
+      _('خطط الختم', 'Reading plans', 'পাঠ পরিকল্পনা', 'ختم کے منصوبے');
+  String get newKhatma =>
+      _('خطة جديدة', 'New plan', 'নতুন পরিকল্পনা', 'نیا منصوبہ');
   String get noKhatma => _(
-    'لا توجد ختمة بعد.\nابدأ خطة لختم القرآن واتبع وردك كل يوم.',
-    'No khatma yet.\nStart a plan to read the whole Quran, a portion a day.',
-    'এখনো কোনো খতম নেই।\nপুরো কুরআন পড়ার একটি পরিকল্পনা শুরু করুন।',
-    'ابھی کوئی ختم نہیں۔\nپورا قرآن پڑھنے کا منصوبہ شروع کریں۔',
+    'لم تبدأ أي خطة بعد.\nاختر الوتيرة التي تناسبك، ونقسّم لك القرآن إلى وِرد يومي.',
+    'No plan yet.\nPick a pace that suits you and the Quran is split into a daily portion.',
+    'এখনো কোনো পরিকল্পনা নেই।\nনিজের গতি বেছে নিন, কুরআন দৈনিক অংশে ভাগ হবে।',
+    'ابھی کوئی منصوبہ نہیں۔\nاپنی رفتار چنیں، قرآن روزانہ کے حصوں میں بٹ جائے گا۔',
   );
   String get chooseKhatmaType => _(
-    'اختر نوع الختمة',
-    'Choose the kind of khatma',
-    'খতমের ধরন বেছে নিন',
-    'ختم کی قسم چنیں',
+    'كيف تحب أن تختم القرآن؟',
+    'How would you like to read the Quran?',
+    'কীভাবে কুরআন খতম করতে চান?',
+    'آپ قرآن کیسے ختم کرنا چاہیں گے؟',
   );
   String get close => _('إغلاق', 'Close', 'বন্ধ', 'بند کریں');
   String get next => _('التالي', 'Next', 'পরবর্তী', 'اگلا');
   String khatmaTitle(KhatmaType type) => switch (type) {
-    KhatmaType.salaf => _(
-      'تحزيب السلف',
-      'Hizb of the Salaf',
-      'সালাফের হিযব',
-      'سلف کی حزب بندی',
-    ),
-    KhatmaType.ramadan => _(
-      'ختمة رمضان',
-      'Ramadan khatma',
-      'রমজানের খতম',
-      'رمضان کا ختم',
-    ),
+    KhatmaType.salaf => _('أسبوع واحد', 'One week', 'এক সপ্তাহ', 'ایک ہفتہ'),
+    KhatmaType.ramadan => _('شهر واحد', 'One month', 'এক মাস', 'ایک مہینہ'),
     KhatmaType.dailyWird => _(
-      'الورد اليومي',
-      'Daily wird',
-      'দৈনিক ওয়িরদ',
-      'روزانہ ورد',
+      'مع الصلوات الخمس',
+      'With the five prayers',
+      'পাঁচ ওয়াক্ত নামাজের সাথে',
+      'پانچ نمازوں کے ساتھ',
     ),
     KhatmaType.custom => _(
-      'ختمة مخصصة',
-      'Custom khatma',
-      'নিজস্ব খতম',
-      'اپنی مرضی کا ختم',
+      'مدة من اختياري',
+      'My own pace',
+      'নিজের গতিতে',
+      'اپنی رفتار سے',
     ),
   };
   String khatmaSubtitle(KhatmaType type) => switch (type) {
     KhatmaType.salaf => _(
-      'ختم القرآن في ${n(7)} أيام',
-      'The whole Quran in ${n(7)} days',
+      'سُبع القرآن كل يوم على تحزيب السلف',
+      'A seventh a day, as the Salaf divided it',
       '${n(7)} দিনে পুরো কুরআন',
       '${n(7)} دن میں پورا قرآن',
     ),
     KhatmaType.ramadan => _(
-      'جزء واحد يوميًا',
-      'One juz a day',
+      'جزء كل يوم، يناسب شهر رمضان',
+      'A juz a day, ideal for Ramadan',
       'প্রতিদিন এক পারা',
       'روزانہ ایک پارہ',
     ),
     KhatmaType.dailyWird => _(
-      'صفحتين بعد كل صلاة',
-      'Two pages after each prayer',
+      'صفحتان بعد كل صلاة مفروضة',
+      'Two pages after each obligatory prayer',
       'প্রতি নামাজের পর দুই পৃষ্ঠা',
       'ہر نماز کے بعد دو صفحے',
     ),
     KhatmaType.custom => _(
-      'خصص الختمة كما تريد',
-      'Pick your own number of days',
+      'حدد عدد الأيام ونحسب لك الورد',
+      'Choose the days, the portion is worked out for you',
       'নিজের মতো দিন বেছে নিন',
       'اپنی مرضی کے دن چنیں',
     ),
   };
   String get createPlan =>
-      _('إنشاء خطة', 'Create plan', 'পরিকল্পনা তৈরি', 'منصوبہ بنائیں');
-  String get planBookmark => _(
-    'العلامة المرجعية:',
-    'Bookmark color:',
-    'বুকমার্কের রং:',
-    'نشان کا رنگ:',
-  );
+      _('ابدأ الخطة', 'Start the plan', 'পরিকল্পনা শুরু', 'منصوبہ شروع کریں');
+  String get planBookmark =>
+      _('لون الخطة', 'Plan colour', 'পরিকল্পনার রং', 'نشان کا رنگ:');
   String bookmarkColor(int i) => _(
-    'لون العلامة ${n(i)}',
-    'Bookmark color ${n(i)}',
+    'اللون ${n(i)}',
+    'Colour ${n(i)}',
     'বুকমার্কের রং ${n(i)}',
     'نشان کا رنگ ${n(i)}',
   );
   String get planTitle =>
-      _('عنوان الخطة:', 'Plan title:', 'পরিকল্পনার নাম:', 'منصوبے کا نام:');
-  String defaultPlanTitle(String date) => _(
-    'ختمتي ($date)',
-    'My khatma ($date)',
-    'আমার খতম ($date)',
-    'میرا ختم ($date)',
-  );
+      _('اسم الخطة', 'Plan name', 'পরিকল্পনার নাম', 'منصوبے کا نام');
+  String defaultPlanTitle(String date) =>
+      _('ختمة $date', 'Khatma $date', 'আমার খতম ($date)', 'میرا ختم ($date)');
   String get clear => _('مسح', 'Clear', 'মুছুন', 'صاف کریں');
   String get khatmaDays => _(
-    'عدد أيام الختمة:',
-    'Number of days:',
-    'দিনের সংখ্যা:',
-    'دنوں کی تعداد:',
+    'كم يومًا تحتاج للختم؟',
+    'How many days?',
+    'কত দিন লাগবে?',
+    'کتنے دن چاہییں؟',
   );
   String get daysRange => _(
     'أدخل عددًا من 1 إلى 604',
@@ -320,32 +305,33 @@ extension FeatureStrings on S {
       _('اليوم ${n(day)}', 'Day ${n(day)}', 'দিন ${n(day)}', 'دن ${n(day)}');
   String get today => _('اليوم', 'today', 'আজ', 'آج');
   String doneOf(int done, int total) => _(
-    'أنجزت ${n(done)} من ${n(total)}',
-    '${n(done)} of ${n(total)} done',
+    'أتممت ${n(done)} من ${n(total)} وِردًا',
+    '${n(done)} of ${n(total)} portions read',
     '${n(total)}টির মধ্যে ${n(done)}টি সম্পন্ন',
     '${n(total)} میں سے ${n(done)} مکمل',
   );
   String get khatmaComplete => _(
-    'تمت الختمة، تقبل الله منك 🎉',
-    'Khatma complete, may Allah accept it 🎉',
+    'أتممت الختمة، تقبّل الله منك',
+    'Plan complete, may Allah accept it',
     'খতম সম্পন্ন, আল্লাহ কবুল করুন 🎉',
     'ختم مکمل، اللہ قبول فرمائے 🎉',
   );
   String nextPortion(int day) => _(
-    'الورد التالي (اليوم ${n(day)}):',
-    'Next portion (day ${n(day)}):',
+    'وِرد اليوم ${n(day)}',
+    'Day ${n(day)} portion',
     'পরবর্তী অংশ (দিন ${n(day)}):',
     'اگلا حصہ (دن ${n(day)}):',
   );
-  String get readPortion => _('اقرأ الورد', 'Read it', 'পড়ুন', 'پڑھیں');
-  String get markRead => _('قرأته', 'Done', 'পড়েছি', 'پڑھ لیا');
+  String get readPortion =>
+      _('ابدأ القراءة', 'Start reading', 'পড়া শুরু', 'پڑھنا شروع کریں');
+  String get markRead => _('أنهيته', 'Finished', 'শেষ করেছি', 'مکمل کر لیا');
   String get deleteKhatma =>
-      _('حذف الختمة', 'Delete khatma', 'খতম মুছুন', 'ختم حذف کریں');
+      _('حذف الخطة', 'Delete plan', 'পরিকল্পনা মুছুন', 'منصوبہ حذف کریں');
   String get deleteKhatmaQuestion => _(
-    'حذف الختمة؟',
-    'Delete this khatma?',
-    'খতমটি মুছবেন?',
-    'یہ ختم حذف کریں؟',
+    'حذف هذه الخطة؟',
+    'Delete this plan?',
+    'এই পরিকল্পনা মুছবেন?',
+    'یہ منصوبہ حذف کریں؟',
   );
   String deleteKhatmaExplain(String title) => _(
     'سيتم حذف "$title" وما أنجزته فيها.',
@@ -373,7 +359,7 @@ extension FeatureStrings on S {
     'ভুল সতর্কতাসহ তিলাওয়াত',
     'غلطیوں کی نشاندہی کے ساتھ تسمیع',
   );
-  String get myNotes => _('تعليقاتي', 'My notes', 'আমার নোট', 'میرے نوٹ');
+  String get myNotes => _('ملاحظاتي', 'My notes', 'আমার নোট', 'میرے نوٹ');
 
   // Notes.
   String get noNotes => _(

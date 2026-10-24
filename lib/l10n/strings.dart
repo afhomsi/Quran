@@ -279,12 +279,31 @@ class S {
   String get extraWord => _('زائدة', 'Extra', 'অতিরিক্ত', 'زائد');
 
   // Settings.
-  String get languageTitle => _('اللغة', 'Language', 'ভাষা', 'زبان');
-  String get pagesSection => _('الصفحات', 'Pages', 'পৃষ্ঠা', 'صفحات');
+  String get languageTitle => _(
+    'اللغة والأرقام',
+    'Language and numbers',
+    'ভাষা ও সংখ্যা',
+    'زبان اور اعداد',
+  );
+  String get appearanceSection =>
+      _('المظهر', 'Appearance', 'চেহারা', 'ظاہری شکل');
+  String get pagesSection => _('القراءة والتصفح', 'Reading', 'পড়া', 'پڑھنا');
+  String get reciteSection => _(
+    'التسميع والاستماع',
+    'Recite and listen',
+    'তিলাওয়াত ও শোনা',
+    'تسمیع اور سننا',
+  );
+  String get laterSection =>
+      _('ميزات قيد الإعداد', 'Coming later', 'পরে আসছে', 'بعد میں آ رہا ہے');
   String get nightMode =>
-      _('الوضع الليلي', 'Night mode', 'রাতের মোড', 'نائٹ موڈ');
-  String get pageColor =>
-      _('اختر نمطا', 'Page color', 'পৃষ্ঠার রং', 'صفحے کا رنگ');
+      _('السمة الداكنة', 'Dark theme', 'গাঢ় থিম', 'گہری تھیم');
+  String get pageColor => _(
+    'لون خلفية الصفحة',
+    'Page background',
+    'পৃষ্ঠার পটভূমি',
+    'صفحے کا پس منظر',
+  );
   String get pageColorInNightMode => _(
     'يُستخدم في الوضع النهاري',
     'Used in day mode',
@@ -292,20 +311,20 @@ class S {
     'دن کے موڈ میں استعمال ہوتا ہے',
   );
   String get twoPagesInLandscape => _(
-    'صفحتان في الوضع الأفقي',
-    'Two pages in landscape',
+    'صفحتان متجاورتان عند تدوير الجهاز',
+    'Two pages side by side when turned',
     'ল্যান্ডস্কেপে দুই পৃষ্ঠা',
     'افقی حالت میں دو صفحات',
   );
   String get playerOnTouch => _(
-    'تفعيل المشغل مع اللمس',
-    'Play recitation on touch',
+    'الاستماع إلى الآية عند لمسها',
+    'Listen to an ayah when touched',
     'স্পর্শে তিলাওয়াত শুনুন',
     'چھونے پر تلاوت سنیں',
   );
   String get autoPageTurn => _(
-    'تغيير الصفحة تلقائيًا',
-    'Turn pages automatically',
+    'تقليب الصفحات تلقائيًا',
+    'Turn pages by themselves',
     'স্বয়ংক্রিয়ভাবে পৃষ্ঠা উল্টান',
     'خودکار صفحہ پلٹیں',
   );
@@ -316,82 +335,80 @@ class S {
     'ہر ${n(seconds)} سیکنڈ بعد',
   );
   String get verticalScroll => _(
-    'تصفح رأسي متحرك',
-    'Scroll pages vertically',
+    'التمرير من الأعلى إلى الأسفل',
+    'Scroll from top to bottom',
     'উপর-নিচে স্ক্রল করুন',
     'صفحات اوپر نیچے اسکرول کریں',
   );
-  String get tajweed =>
-      _('نص التجويد', 'Tajweed colors', 'তাজবীদের রং', 'تجوید کے رنگ');
+  String get tajweed => _(
+    'تلوين أحكام التجويد',
+    'Colour the tajweed rules',
+    'তাজবীদের রং',
+    'تجوید کے رنگ',
+  );
   String get tapOpensAyahMenu => _(
-    'تفعيل المحتوى السريع بلمسة خفيفة',
-    'Open the ayah menu with one tap',
+    'فتح بطاقة الكلمة بلمسة واحدة',
+    'Open the word card with one tap',
     'এক স্পর্শে আয়াতের মেনু খুলুন',
     'ایک بار چھونے پر آیت کا مینو کھولیں',
   );
   String get keepScreenOn => _(
-    'عدم قفل الشاشة عند استخدام التطبيق',
-    'Keep the screen on while using the app',
+    'إبقاء الشاشة مضاءة أثناء القراءة',
+    'Keep the screen on while reading',
     'অ্যাপ ব্যবহারের সময় স্ক্রিন চালু রাখুন',
     'ایپ استعمال کرتے وقت اسکرین بند نہ ہو',
   );
   String get thematicTafsir => _(
-    'التفصيل الموضوعي',
+    'التفسير الموضوعي',
     'Thematic tafsir',
     'বিষয়ভিত্তিক তাফসীর',
     'موضوعاتی تفسیر',
   );
   String get westernDigitsTitle => _(
-    'استخدام الأرقام (123 بدلا من ١٢٣)',
-    'Use 123 digits',
+    'عرض الأرقام بصيغة 123 بدل ١٢٣',
+    'Show numbers as 123',
     '১২৩ এর বদলে 123 ব্যবহার করুন',
     '۱۲۳ کی بجائے 123 استعمال کریں',
   );
   String get followSystemFontSize => _(
-    'الارتباط بحجم خط النظام',
-    'Follow the system font size',
+    'حجم الخط حسب إعدادات الهاتف',
+    'Use the phone\'s text size',
     'সিস্টেমের ফন্ট সাইজ অনুসরণ করুন',
     'سسٹم کے فونٹ سائز کی پیروی کریں',
   );
   String get hideRecitationButton => _(
-    'إخفاء زر التسميع',
-    'Hide the recite button',
+    'إخفاء زر التسميع من أسفل الصفحة',
+    'Hide the recite button under the page',
     'তিলাওয়াত যাচাই বোতাম লুকান',
     'تسمیع کا بٹن چھپائیں',
   );
   String get showHizbMarks => _(
-    'إظهار رمز الحزب داخل الصفحة',
-    'Show hizb marks on the page',
+    'علامة الحزب في هامش الصفحة',
+    'Hizb sign in the page margin',
     'পৃষ্ঠায় হিযবের চিহ্ন দেখান',
     'صفحے پر حزب کی علامت دکھائیں',
   );
   String get plansInAyahMenu => _(
-    'عرض الخطط في العرض السريع للمحتوى',
-    'Show plans in the ayah menu',
+    'خطط الختم في بطاقة الآية',
+    'Reading plans in the ayah card',
     'আয়াতের মেনুতে পরিকল্পনা দেখান',
     'آیت کے مینو میں منصوبے دکھائیں',
   );
-  String get notesSection => _(
-    'تعليقات على الكلمات والآيات',
-    'Notes on words and ayat',
-    'শব্দ ও আয়াতে নোট',
-    'الفاظ اور آیات پر نوٹس',
-  );
   String get advancedEditor => _(
-    'استخدم محرر نصوص متقدم',
-    'Use an advanced text editor',
+    'محرر ملاحظات متقدم',
+    'Advanced notes editor',
     'উন্নত টেক্সট এডিটর ব্যবহার করুন',
     'جدید ٹیکسٹ ایڈیٹر استعمال کریں',
   );
-  String get dataSection => _('البيانات', 'Data', 'ডেটা', 'ڈیٹا');
+  String get dataSection => _('بياناتي', 'My data', 'আমার ডেটা', 'میرا ڈیٹا');
   String get backupRestore => _(
-    'نسخ احتياطي/استعادة نسخة احتياطية',
-    'Back up / restore',
+    'حفظ بياناتي واسترجاعها',
+    'Save and restore my data',
     'ব্যাকআপ / পুনরুদ্ধার',
     'بیک اپ / بحالی',
   );
   String get comingSoon =>
-      _('قريبًا', 'Coming soon', 'শীঘ্রই আসছে', 'جلد آ رہا ہے');
+      _('قريبًا إن شاء الله', 'Coming soon', 'শীঘ্রই আসছে', 'جلد آ رہا ہے');
 
   // Backup.
   String get backupExplain => _(
