@@ -75,9 +75,6 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
   /// The word open in the word card, if any.
   WordSelection? _word;
 
-  /// Whether the page navigator (thumbnails and a slider) is open.
-  bool _navigator = false;
-
   /// Takes the arrow keys, also after coming back from another tab.
   final _focus = FocusNode();
 
@@ -189,13 +186,13 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
     final bars = <Widget>[
       if (recitation != null) const RecitationBar(),
       if (audio.visible) const AudioBar(),
-      if (_navigator)
+      if (ref.watch(pageNavigatorProvider))
         _PageNavigator(
           page: _page,
           surahs: surahs,
           mushaf: mushaf,
           onGo: (page) => _controller.jumpToPage(_indexOf(page)),
-          onClose: () => setState(() => _navigator = false),
+          onClose: () => _showNavigator(false),
         ),
     ];
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -386,7 +383,7 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
   /// Opens or closes the page navigator. It opens with the bars hidden, as
   /// it takes their place under the page.
   void _showNavigator(bool open) {
-    setState(() => _navigator = open);
+    ref.read(pageNavigatorProvider.notifier).set(open);
     if (open) ref.read(mushafChromeProvider.notifier).set(false);
   }
 
@@ -553,7 +550,7 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
       onAyahTap: settings.tapOpensAyahMenu ? _openWord : null,
       onAyahLongPress: _openWord,
       onSurahTap: () => openIndex(context, 0),
-      onPageTap: () => _showNavigator(!_navigator),
+      onPageTap: () => _showNavigator(!ref.read(pageNavigatorProvider)),
       onJuzTap: () => openIndex(context, 1),
     );
   }
