@@ -31,6 +31,9 @@ MushafPalette mushafPalette(BuildContext context) =>
     ? MushafPalette.dark
     : MushafPalette.light;
 
+/// Called with the word pressed and where it is on the screen.
+typedef WordCallback = void Function(MushafWord word, Offset position);
+
 /// Draws one mushaf page line by line, as printed in the Madinah mushaf.
 class MushafPageView extends StatelessWidget {
   const MushafPageView({
@@ -38,6 +41,7 @@ class MushafPageView extends StatelessWidget {
     required this.page,
     required this.surahName,
     this.selected,
+    this.selectedWord,
     this.highlights = const {},
     this.showHizbMarks = false,
     this.onAyahTap,
@@ -48,13 +52,17 @@ class MushafPageView extends StatelessWidget {
   final String Function(int surah) surahName;
   final AyahRef? selected;
 
+  /// A word to show in red, as the word open in the word card: its ayah
+  /// and position.
+  final (AyahRef, int)? selectedWord;
+
   /// Ayat colored by the reader, with their color.
   final Map<AyahRef, Color> highlights;
 
   /// Put ۞ over the first word of each quarter of a hizb.
   final bool showHizbMarks;
-  final ValueChanged<AyahRef>? onAyahTap;
-  final ValueChanged<AyahRef>? onAyahLongPress;
+  final WordCallback? onAyahTap;
+  final WordCallback? onAyahLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -121,6 +129,7 @@ class MushafPageView extends StatelessWidget {
                   family: PageFonts.familyFor(page.number, palette),
                   fontSize: fontSize,
                   selected: w.ayah == selected,
+                  wordSelected: selectedWord == (w.ayah, w.position),
                   highlight: highlights[w.ayah],
                   hizbMark:
                       showHizbMarks &&
@@ -143,6 +152,7 @@ class _Word extends StatelessWidget {
     required this.family,
     required this.fontSize,
     required this.selected,
+    this.wordSelected = false,
     this.highlight,
     this.hizbMark = false,
     this.onTap,
@@ -153,10 +163,11 @@ class _Word extends StatelessWidget {
   final String family;
   final double fontSize;
   final bool selected;
+  final bool wordSelected;
   final Color? highlight;
   final bool hizbMark;
-  final ValueChanged<AyahRef>? onTap;
-  final ValueChanged<AyahRef>? onLongPress;
+  final WordCallback? onTap;
+  final WordCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -164,11 +175,15 @@ class _Word extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: onTap == null ? null : () => onTap!(word.ayah),
-      onLongPress: onLongPress == null ? null : () => onLongPress!(word.ayah),
+      onTapUp: onTap == null ? null : (d) => onTap!(word, d.globalPosition),
+      onLongPressStart: onLongPress == null
+          ? null
+          : (d) => onLongPress!(word, d.globalPosition),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: selected
+          color: wordSelected
+              ? _wordColor(dark).withValues(alpha: 0.18)
+              : selected
               ? colors.primaryContainer
               // Highlighter colors are light, so tone them down at night.
               : highlight?.withValues(alpha: dark ? 0.35 : 0.8),
@@ -184,7 +199,7 @@ class _Word extends StatelessWidget {
                 fontSize: fontSize,
                 height: _linePitchEm,
                 // Ayah numbers bring their own colours from the font.
-                color: colors.onSurface,
+                color: wordSelected ? _wordColor(dark) : colors.onSurface,
               ),
             ),
             if (hizbMark)
@@ -207,6 +222,10 @@ class _Word extends StatelessWidget {
     );
   }
 }
+
+/// The colour of the word open in the word card.
+Color _wordColor(bool dark) =>
+    dark ? const Color(0xFFE58FA6) : const Color(0xFF8E2442);
 
 class _SurahHeader extends StatelessWidget {
   const _SurahHeader({
