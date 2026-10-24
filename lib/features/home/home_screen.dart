@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../data/mushaf_models.dart';
 import '../../data/mushaf_repository.dart';
 import '../../data/quran_repository.dart';
 import '../../data/reading_state.dart';
 import '../../l10n/strings.dart';
 import '../../settings/app_settings.dart';
 import '../settings/settings_screen.dart';
+import '../shell/navigation.dart';
 import '../mushaf/mushaf_screen.dart';
 import '../recitation/recitation_picker.dart';
 import 'index_view.dart';
 
-/// Index of the mushaf (see [IndexView]), plus "continue reading".
+export '../shell/navigation.dart' show openMushaf;
+
+/// The index tab: the mushaf's index (see [IndexView]), plus "continue
+/// reading".
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -30,7 +33,7 @@ class HomeScreen extends ConsumerWidget {
       length: s.indexTabs.length,
       child: Scaffold(
         appBar: AppBar(
-          title: Text(s.mushaf),
+          title: Text(s.tabIndex),
           actions: [
             if (!hideRecite)
               FilledButton.tonalIcon(
@@ -80,12 +83,4 @@ class HomeScreen extends ConsumerWidget {
       ),
     );
   }
-}
-
-void openMushaf(BuildContext context, int page, {AyahRef? highlight}) {
-  Navigator.of(context).push(
-    MaterialPageRoute(
-      builder: (_) => MushafScreen(initialPage: page, highlight: highlight),
-    ),
-  );
 }

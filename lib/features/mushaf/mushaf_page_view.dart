@@ -32,6 +32,7 @@ class MushafPageView extends StatelessWidget {
     required this.page,
     required this.surahName,
     this.selected,
+    this.highlights = const {},
     this.showHizbMarks = false,
     this.onAyahTap,
     this.onAyahLongPress,
@@ -40,6 +41,9 @@ class MushafPageView extends StatelessWidget {
   final MushafPage page;
   final String Function(int surah) surahName;
   final AyahRef? selected;
+
+  /// Ayat colored by the reader, with their color.
+  final Map<AyahRef, Color> highlights;
 
   /// Put ۞ over the first word of each quarter of a hizb.
   final bool showHizbMarks;
@@ -109,6 +113,7 @@ class MushafPageView extends StatelessWidget {
                   family: PageFonts.familyFor(page.number),
                   fontSize: fontSize,
                   selected: w.ayah == selected,
+                  highlight: highlights[w.ayah],
                   hizbMark:
                       showHizbMarks &&
                       w.position == 1 &&
@@ -130,6 +135,7 @@ class _Word extends StatelessWidget {
     required this.family,
     required this.fontSize,
     required this.selected,
+    this.highlight,
     this.hizbMark = false,
     this.onTap,
     this.onLongPress,
@@ -139,6 +145,7 @@ class _Word extends StatelessWidget {
   final String family;
   final double fontSize;
   final bool selected;
+  final Color? highlight;
   final bool hizbMark;
   final ValueChanged<AyahRef>? onTap;
   final ValueChanged<AyahRef>? onLongPress;
@@ -146,13 +153,17 @@ class _Word extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap == null ? null : () => onTap!(word.ayah),
       onLongPress: onLongPress == null ? null : () => onLongPress!(word.ayah),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: selected ? colors.primaryContainer : null,
+          color: selected
+              ? colors.primaryContainer
+              // Highlighter colors are light, so tone them down at night.
+              : highlight?.withValues(alpha: dark ? 0.35 : 0.8),
         ),
         child: Stack(
           clipBehavior: Clip.none,

@@ -7,10 +7,11 @@ import '../../data/mushaf_repository.dart';
 import '../../data/quran_models.dart';
 import '../../data/quran_repository.dart';
 import '../../data/reading_state.dart';
+import '../../l10n/strings.dart';
 import '../shell/navigation.dart';
 
-/// "My bookmarks": the reading, hifz and review markers, highlighted
-/// ayat (filterable by color) and saved ayat.
+/// "My marks": the reading, hifz and review markers, highlighted ayat
+/// (filterable by color) and saved ayat.
 class BookmarksScreen extends ConsumerStatefulWidget {
   const BookmarksScreen({super.key});
 
@@ -27,12 +28,19 @@ class _BookmarksScreenState extends ConsumerState<BookmarksScreen> {
     final mushaf = ref.watch(mushafProvider).value;
     final surahs = ref.watch(surahsProvider).value;
     final markers = ref.watch(markersProvider);
-    final highlights = ref.watch(highlightsProvider);
     final saved = ref.watch(bookmarksProvider);
     final theme = Theme.of(context);
+    final t = S.of(context);
+    final sectionStyle = theme.textTheme.titleLarge?.copyWith(
+      color: theme.colorScheme.primary,
+      fontWeight: FontWeight.bold,
+    );
+
+    void open(AyahRef ayah) =>
+        openMushaf(context, mushaf!.pageOf(ayah), highlight: ayah);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('علاماتي'), centerTitle: true),
+      appBar: AppBar(title: Text(t.tabBookmarks), centerTitle: true),
       body: mushaf == null || surahs == null
           ? const Center(child: CircularProgressIndicator())
           : ListView(
@@ -42,7 +50,7 @@ class _BookmarksScreenState extends ConsumerState<BookmarksScreen> {
                   Align(
                     alignment: AlignmentDirectional.centerStart,
                     child: Chip(
-                      label: Text(kind.label),
+                      label: Text(t.markerName(kind)),
                       labelStyle: theme.textTheme.titleMedium?.copyWith(
                         color: Colors.white,
                       ),
@@ -53,37 +61,28 @@ class _BookmarksScreenState extends ConsumerState<BookmarksScreen> {
                   ),
                   if (markers[kind] case final ayah?)
                     _MarkRow(
-                      title: ayahTitle(surahs, ayah),
-                      trailingText: 'الصفحة ${mushaf.pageOf(ayah)}',
-                      onOpen: () => openMushaf(
-                        context,
-                        mushaf.pageOf(ayah),
-                        highlight: ayah,
-                      ),
+                      title: t.surahAyah(surahs[ayah.surah - 1], ayah.ayah),
+                      trailingText: t.page(mushaf.pageOf(ayah)),
+                      onOpen: () => open(ayah),
                       onRemove: () =>
                           ref.read(markersProvider.notifier).clear(kind),
                     )
                   else
-                    _EmptyRow(
-                      'لم تضع ${kind.label} بعد. اضغط مطولًا على آية في '
-                      'المصحف لوضعها.',
-                    ),
+                    _EmptyRow(t.noMarker(kind)),
                   const SizedBox(height: 12),
                 ],
                 Row(
                   children: [
+                    const SizedBox(width: 48),
                     Expanded(
                       child: Text(
-                        'تلوين',
+                        t.highlights,
                         textAlign: TextAlign.center,
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          color: theme.colorScheme.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: sectionStyle,
                       ),
                     ),
                     PopupMenuButton<int>(
-                      tooltip: 'تصفية حسب اللون',
+                      tooltip: t.filterByColor,
                       icon: Icon(
                         _colorFilter == null
                             ? Icons.filter_alt_outlined
@@ -95,10 +94,7 @@ class _BookmarksScreenState extends ConsumerState<BookmarksScreen> {
                       onSelected: (c) =>
                           setState(() => _colorFilter = c < 0 ? null : c),
                       itemBuilder: (_) => [
-                        const PopupMenuItem(
-                          value: -1,
-                          child: Text('كل الألوان'),
-                        ),
+                        PopupMenuItem(value: -1, child: Text(t.allColors)),
                         for (var c = 0; c < highlightColors.length; c++)
                           PopupMenuItem(
                             value: c,
@@ -106,7 +102,7 @@ class _BookmarksScreenState extends ConsumerState<BookmarksScreen> {
                               children: [
                                 _Swatch(highlightColors[c]),
                                 const SizedBox(width: 12),
-                                Text(highlightColorNames[c]),
+                                Text(t.colorNames[c]),
                               ],
                             ),
                           ),
@@ -114,28 +110,21 @@ class _BookmarksScreenState extends ConsumerState<BookmarksScreen> {
                     ),
                   ],
                 ),
-                ..._highlightRows(mushaf, surahs, highlights),
+                ..._highlightRows(t, mushaf, surahs, open),
                 const SizedBox(height: 16),
                 Text(
-                  'آيات محفوظة',
+                  t.savedAyat,
                   textAlign: TextAlign.center,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: sectionStyle,
                 ),
                 if (saved.isEmpty)
-                  const _EmptyRow('لا توجد آيات محفوظة بعد.')
+                  _EmptyRow(t.noSavedAyat)
                 else
                   for (final ayah in saved.reversed)
                     _MarkRow(
-                      title: ayahTitle(surahs, ayah),
-                      trailingText: 'الصفحة ${mushaf.pageOf(ayah)}',
-                      onOpen: () => openMushaf(
-                        context,
-                        mushaf.pageOf(ayah),
-                        highlight: ayah,
-                      ),
+                      title: t.surahAyah(surahs[ayah.surah - 1], ayah.ayah),
+                      trailingText: t.page(mushaf.pageOf(ayah)),
+                      onOpen: () => open(ayah),
                       onRemove: () =>
                           ref.read(bookmarksProvider.notifier).toggle(ayah),
                     ),
@@ -145,40 +134,33 @@ class _BookmarksScreenState extends ConsumerState<BookmarksScreen> {
   }
 
   List<Widget> _highlightRows(
+    S t,
     Mushaf mushaf,
     List<Surah> surahs,
-    Map<AyahRef, int> highlights,
+    void Function(AyahRef) open,
   ) {
+    final highlights = ref.watch(highlightsProvider);
     final shown = [
       for (final e in highlights.entries.toList().reversed)
         if (_colorFilter == null || e.value == _colorFilter) e,
     ];
     if (shown.isEmpty) {
       return [
-        _EmptyRow(
-          highlights.isEmpty
-              ? 'لا توجد آيات ملونة بعد. اضغط مطولًا على آية لتلوينها.'
-              : 'لا توجد آيات بهذا اللون.',
-        ),
+        _EmptyRow(highlights.isEmpty ? t.noHighlights : t.noHighlightsInColor),
       ];
     }
     return [
       for (final e in shown)
         _MarkRow(
-          title: surahs[e.key.surah - 1].name,
-          subtitle: 'الصفحة ${mushaf.pageOf(e.key)} - الآية ${e.key.ayah}',
+          title: t.surahName(surahs[e.key.surah - 1]),
+          subtitle: t.pageAndAyah(mushaf.pageOf(e.key), e.key.ayah),
           swatch: highlightColors[e.value],
-          onOpen: () =>
-              openMushaf(context, mushaf.pageOf(e.key), highlight: e.key),
+          onOpen: () => open(e.key),
           onRemove: () => ref.read(highlightsProvider.notifier).remove(e.key),
         ),
     ];
   }
 }
-
-/// "البقرة : الآية 177".
-String ayahTitle(List<Surah> surahs, AyahRef ayah) =>
-    '${surahs[ayah.surah - 1].name} : الآية ${ayah.ayah}';
 
 class _MarkRow extends StatelessWidget {
   const _MarkRow({
@@ -216,15 +198,13 @@ class _MarkRow extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (trailingText != null)
-              Text(
-                trailingText!,
-                style: TextStyle(color: colors.tertiary, fontSize: 16),
-              ),
+              Text(trailingText!, style: TextStyle(color: colors.tertiary)),
             if (swatch != null) _Swatch(swatch!),
             const SizedBox(width: 8),
+            // Mirrors in right-to-left, so it points left, at the page.
             Icon(Icons.chevron_right, color: colors.primary),
             IconButton(
-              tooltip: 'حذف',
+              tooltip: S.of(context).delete,
               icon: Icon(Icons.remove_circle_outline, color: colors.primary),
               onPressed: onRemove,
             ),

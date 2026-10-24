@@ -1,7 +1,12 @@
 import 'package:flutter/widgets.dart';
 
+import '../audio/ayah_audio.dart';
+import '../data/khatma.dart';
+import '../data/marks.dart';
 import '../data/quran_models.dart';
 import '../settings/app_settings.dart';
+
+part 'strings_features.dart';
 
 /// The app's texts in the language chosen in the settings. Put above the
 /// screens by `HifzApp`; read with `S.of(context)`.

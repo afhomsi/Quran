@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,33 +9,7 @@ import 'package:hifz/data/quran_repository.dart';
 import 'package:hifz/data/reading_state.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class FakePlayer implements AyahPlayer {
-  final played = <String>[];
-  final _completed = StreamController<void>.broadcast(sync: true);
-
-  void finish() => _completed.add(null);
-
-  @override
-  Future<void> play(String url, {double speed = 1}) async => played.add(url);
-
-  @override
-  Future<void> pause() async {}
-
-  @override
-  Future<void> resume() async {}
-
-  @override
-  Future<void> stop() async {}
-
-  @override
-  Future<void> setSpeed(double speed) async {}
-
-  @override
-  Stream<void> get completed => _completed.stream;
-
-  @override
-  void dispose() {}
-}
+import 'fake_player.dart';
 
 void main() {
   final mushaf = parseMushaf(File(mushafLayoutAssetPath).readAsStringSync());

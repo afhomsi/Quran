@@ -5,6 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../audio/ayah_audio.dart';
+import '../../data/arabic_search.dart';
+import '../../data/khatma.dart';
+import '../../data/marks.dart';
 import '../../data/mushaf_models.dart';
 import '../../data/mushaf_repository.dart';
 import '../../data/page_fonts.dart';
@@ -13,11 +17,18 @@ import '../../data/quran_repository.dart';
 import '../../data/reading_state.dart';
 import '../../l10n/strings.dart';
 import '../../settings/app_settings.dart';
+import '../audio/audio_bar.dart';
+import '../notes/notes_screen.dart';
 import '../recitation/recitation_picker.dart';
 import '../settings/settings_screen.dart';
+import '../shell/navigation.dart';
 import 'mushaf_page_view.dart';
 
 /// Swipeable 604-page mushaf. Remembers the last page read.
+///
+/// The top bar has a menu, night mode, a clock, a switch to plain text and
+/// ayah search. The audio player sits under the page while it is open, and
+/// the page follows the ayah being recited.
 ///
 /// Follows the settings: two facing pages on a wide screen, vertical
 /// scrolling, automatic page turning, the page color and the ayah menu on
@@ -48,6 +59,12 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
   Timer? _autoTurn;
   bool _autoTurnPaused = false;
 
+  /// Show the ayat of the page as plain text instead of the printed page.
+  bool _textMode = false;
+
+  /// Takes the arrow keys, also after coming back from another tab.
+  final _focus = FocusNode();
+
   @override
   void initState() {
     super.initState();
@@ -58,6 +75,7 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
   void dispose() {
     _autoTurn?.cancel();
     _controller.dispose();
+    _focus.dispose();
     super.dispose();
   }
 
@@ -108,10 +126,36 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
       settingsProvider.select((s) => (s.autoPageTurn, s.autoPageSeconds)),
       (_, _) => _scheduleAutoTurn(),
     );
+    ref.listen(appTabProvider, (_, tab) {
+      // After the tab is shown: hidden tabs cannot take focus.
+      if (tab == AppTab.mushaf) {
+        WidgetsBinding.instance.addPostFrameCallback(
+          (_) => _focus.requestFocus(),
+        );
+      }
+    });
+    ref.listen(mushafJumpProvider, (_, jump) {
+      if (jump == null) return;
+      setState(() => _selected = jump.highlight);
+      if (_controller.hasClients) _controller.jumpToPage(_indexOf(jump.page));
+    });
+    ref.listen(audioProvider.select((a) => a.current), (_, ayah) {
+      final m = ref.read(mushafProvider).value;
+      if (ayah == null || m == null || !ref.read(audioProvider).playing) {
+        return;
+      }
+      final page = m.pageOf(ayah);
+      if (page < _page || page >= _page + _step) _turnTo(page);
+    });
     if (mushaf == null || surahs == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     final t = S.of(context);
+    final audio = ref.watch(audioProvider);
+    // The pages draw these, so redraw when they change.
+    ref.watch(highlightsProvider);
+    ref.watch(markersProvider);
+    ref.watch(khatmaPlansProvider);
     final dark = Theme.of(context).brightness == Brightness.dark;
     final background = dark ? null : settings.pageTheme.color;
     final vertical = settings.verticalScroll;
@@ -119,33 +163,93 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
       backgroundColor: background,
       appBar: AppBar(
         backgroundColor: background,
-        actions: [
-          if (settings.autoPageTurn)
+        leadingWidth: 104,
+        leading: Row(
+          children: [
+            PopupMenuButton<VoidCallback>(
+              tooltip: t.menu,
+              icon: const Icon(Icons.menu),
+              onSelected: (action) => action(),
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: () => _goToPage(context),
+                  child: ListTile(
+                    leading: const Icon(Icons.numbers),
+                    title: Text(t.goToPage),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: () => ref
+                      .read(audioProvider.notifier)
+                      .show(mushaf.page(_page).firstAyah),
+                  child: ListTile(
+                    leading: const Icon(Icons.headphones),
+                    title: Text(t.listen),
+                  ),
+                ),
+                if (!settings.hideRecitationButton)
+                  PopupMenuItem(
+                    value: () => showRecitationPicker(context, page: _page),
+                    child: ListTile(
+                      leading: const Icon(Icons.mic),
+                      title: Text(t.recite),
+                    ),
+                  ),
+                if (settings.autoPageTurn)
+                  PopupMenuItem(
+                    value: () {
+                      setState(() => _autoTurnPaused = !_autoTurnPaused);
+                      _scheduleAutoTurn();
+                    },
+                    child: ListTile(
+                      leading: Icon(
+                        _autoTurnPaused ? Icons.play_arrow : Icons.pause,
+                      ),
+                      title: Text(
+                        _autoTurnPaused ? t.resumeAutoTurn : t.pauseAutoTurn,
+                      ),
+                    ),
+                  ),
+                PopupMenuItem(
+                  value: () => openSettings(context),
+                  child: ListTile(
+                    leading: const Icon(Icons.settings_outlined),
+                    title: Text(t.settings),
+                  ),
+                ),
+              ],
+            ),
             IconButton(
-              tooltip: _autoTurnPaused ? t.resumeAutoTurn : t.pauseAutoTurn,
-              icon: Icon(_autoTurnPaused ? Icons.play_arrow : Icons.pause),
-              onPressed: () {
-                setState(() => _autoTurnPaused = !_autoTurnPaused);
-                _scheduleAutoTurn();
-              },
+              tooltip: settings.nightMode ? t.dayMode : t.nightMode,
+              icon: Icon(
+                settings.nightMode
+                    ? Icons.light_mode_outlined
+                    : Icons.dark_mode_outlined,
+              ),
+              onPressed: () => ref
+                  .read(settingsProvider.notifier)
+                  .update((s) => s.copyWith(nightMode: !s.nightMode)),
             ),
+          ],
+        ),
+        title: const _Clock(),
+        centerTitle: true,
+        actions: [
           IconButton(
-            tooltip: t.goToPage,
-            icon: const Icon(Icons.numbers),
-            onPressed: () => _goToPage(context),
+            tooltip: _textMode ? t.pageView : t.textView,
+            icon: Icon(
+              _textMode
+                  ? Icons.auto_stories_outlined
+                  : Icons.chrome_reader_mode_outlined,
+            ),
+            onPressed: () => setState(() => _textMode = !_textMode),
           ),
           IconButton(
-            tooltip: t.settings,
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () => openSettings(context),
+            tooltip: t.searchQuran,
+            icon: const Icon(Icons.search),
+            onPressed: () => _search(context, mushaf, surahs),
           ),
-          if (!settings.hideRecitationButton)
-            FilledButton.tonalIcon(
-              icon: const Icon(Icons.mic),
-              label: Text(t.recite),
-              onPressed: () => showRecitationPicker(context, page: _page),
-            ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
         ],
       ),
       body: CallbackShortcuts(
@@ -158,6 +262,7 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
         },
         child: Focus(
           autofocus: true,
+          focusNode: _focus,
           child: SafeArea(
             // The mushaf reads right to left in every app language.
             child: Directionality(
@@ -205,6 +310,7 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
                       },
                     ),
                   ),
+                  if (audio.visible) const AudioBar(),
                   _PageBar(
                     label: _spread && _page + 1 <= mushafPageCount
                         ? '${t.n(_page)} – ${t.n(_page + 1)}'
@@ -223,12 +329,36 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
 
   Widget _slot(Mushaf mushaf, List<Surah> surahs, int page) {
     final settings = ref.read(settingsProvider);
+    final audio = ref.read(audioProvider);
+    final playing = audio.visible ? audio.current : null;
+    if (_textMode) {
+      return _TextPage(
+        page: mushaf.page(page),
+        surahs: surahs,
+        selected: playing ?? _selected,
+        onAyahTap: (a) => _showAyahActions(context, a, surahs),
+      );
+    }
+    final highlights = ref.read(highlightsProvider);
+    final markers = ref.read(markersProvider);
     return _PageSlot(
       page: mushaf.page(page),
+      highlights: {
+        for (final e in highlights.entries) e.key: highlightColors[e.value],
+      },
+      bookmarks: [
+        for (final kind in MarkerKind.values)
+          if (markers[kind] case final a? when mushaf.pageOf(a) == page)
+            (kind.color, S.of(context).markerName(kind)),
+        for (final plan in ref.read(khatmaPlansProvider))
+          if (plan.nextPortion(mushaf) case final i?
+              when plan.portions(mushaf)[i].firstPage(mushaf) == page)
+            (khatmaColors[plan.color], plan.title),
+      ],
       juz: mushaf.juzOfPage(page),
       hizb: mushaf.hizbOfPage(page),
       surahs: surahs,
-      selected: _selected,
+      selected: playing ?? _selected,
       showHizbMarks: settings.showHizbMarks,
       onAyahTap: settings.tapOpensAyahMenu
           ? (a) => _showAyahActions(context, a, surahs)
@@ -267,40 +397,324 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
     final text = surahs[ayah.surah - 1].ayahs[ayah.ayah - 1];
     showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       builder: (context) => Consumer(
         builder: (context, ref, _) {
           final bookmarked = ref.watch(bookmarksProvider).contains(ayah);
+          final markers = ref.watch(markersProvider);
+          final highlight = ref.watch(highlightsProvider)[ayah];
+          final hasNote = ref.watch(notesProvider).containsKey(ayah);
           final t = S.of(context);
+          void done() => Navigator.pop(context);
           return SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  title: Text(t.ayahLabel(surahs[ayah.surah - 1], ayah.ayah)),
-                ),
-                ListTile(
-                  leading: Icon(
-                    bookmarked ? Icons.bookmark_remove : Icons.bookmark_add,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    title: Text(t.ayahLabel(surahs[ayah.surah - 1], ayah.ayah)),
                   ),
-                  title: Text(bookmarked ? t.removeBookmark : t.addBookmark),
-                  onTap: () {
-                    ref.read(bookmarksProvider.notifier).toggle(ayah);
-                    Navigator.pop(context);
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.copy),
-                  title: Text(t.copyAyah),
-                  onTap: () {
-                    Clipboard.setData(ClipboardData(text: text));
-                    Navigator.pop(context);
-                  },
-                ),
-              ],
+                  ListTile(
+                    leading: const Icon(Icons.play_circle_outline),
+                    title: Text(t.playFromHere),
+                    onTap: () {
+                      ref.read(audioProvider.notifier).playFrom(ayah);
+                      done();
+                    },
+                  ),
+                  for (final kind in MarkerKind.values)
+                    ListTile(
+                      leading: Icon(Icons.bookmark, color: kind.color),
+                      title: Text(
+                        markers[kind] == ayah
+                            ? t.removeMarker(kind)
+                            : t.setMarker(kind),
+                      ),
+                      onTap: () {
+                        final notifier = ref.read(markersProvider.notifier);
+                        markers[kind] == ayah
+                            ? notifier.clear(kind)
+                            : notifier.set(kind, ayah);
+                        done();
+                      },
+                    ),
+                  ListTile(
+                    leading: const Icon(Icons.format_color_fill),
+                    title: Text(t.highlightAyah),
+                    subtitle: Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (var c = 0; c < highlightColors.length; c++)
+                            _ColorDot(
+                              color: highlightColors[c],
+                              tooltip: t.colorNames[c],
+                              selected: highlight == c,
+                              onTap: () {
+                                ref
+                                    .read(highlightsProvider.notifier)
+                                    .set(ayah, c);
+                                done();
+                              },
+                            ),
+                          if (highlight != null)
+                            IconButton(
+                              tooltip: t.removeHighlight,
+                              icon: const Icon(Icons.format_color_reset),
+                              onPressed: () {
+                                ref
+                                    .read(highlightsProvider.notifier)
+                                    .remove(ayah);
+                                done();
+                              },
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.chat_outlined),
+                    title: Text(hasNote ? t.editNote : t.addNote),
+                    onTap: () {
+                      done();
+                      editNote(this.context, ayah);
+                    },
+                  ),
+                  ListTile(
+                    leading: Icon(
+                      bookmarked ? Icons.bookmark_remove : Icons.bookmark_add,
+                    ),
+                    title: Text(bookmarked ? t.removeBookmark : t.addBookmark),
+                    onTap: () {
+                      ref.read(bookmarksProvider.notifier).toggle(ayah);
+                      done();
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.copy),
+                    title: Text(t.copyAyah),
+                    onTap: () {
+                      Clipboard.setData(ClipboardData(text: text));
+                      done();
+                    },
+                  ),
+                ],
+              ),
             ),
           );
         },
       ),
+    );
+  }
+
+  Future<void> _search(
+    BuildContext context,
+    Mushaf mushaf,
+    List<Surah> surahs,
+  ) async {
+    final ayah = await showSearch<AyahRef?>(
+      context: context,
+      delegate: _AyahSearch(surahs, S.of(context)),
+    );
+    if (ayah == null) return;
+    setState(() => _selected = ayah);
+    _controller.jumpToPage(_indexOf(mushaf.pageOf(ayah)));
+  }
+}
+
+class _ColorDot extends StatelessWidget {
+  const _ColorDot({
+    required this.color,
+    required this.tooltip,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final Color color;
+  final String tooltip;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message: tooltip,
+    child: InkWell(
+      customBorder: const CircleBorder(),
+      onTap: onTap,
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: selected
+                ? Theme.of(context).colorScheme.onSurface
+                : Colors.black12,
+            width: selected ? 3 : 1,
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+/// Searches the text of every ayah, ignoring diacritics.
+class _AyahSearch extends SearchDelegate<AyahRef?> {
+  _AyahSearch(this.surahs, this.t) : super(searchFieldLabel: t.searchQuranHint);
+
+  final List<Surah> surahs;
+  final S t;
+  static const _limit = 200;
+
+  /// Every ayah with its text ready for matching, made on first search.
+  late final _index = [
+    for (final s in surahs)
+      for (var a = 0; a < s.ayahCount; a++)
+        (AyahRef(s.number, a + 1), normalizeForSearch(s.ayahs[a])),
+  ];
+
+  @override
+  List<Widget> buildActions(BuildContext context) => [
+    if (query.isNotEmpty)
+      IconButton(
+        tooltip: t.clearSearch,
+        icon: const Icon(Icons.clear),
+        onPressed: () => query = '',
+      ),
+  ];
+
+  @override
+  Widget buildLeading(BuildContext context) => const BackButton();
+
+  @override
+  Widget buildResults(BuildContext context) => buildSuggestions(context);
+
+  @override
+  Widget buildSuggestions(BuildContext context) {
+    final q = normalizeForSearch(query);
+    if (q.length < 2) return const SizedBox();
+    final found = <AyahRef>[];
+    for (final (ayah, text) in _index) {
+      if (text.contains(q)) found.add(ayah);
+      if (found.length > _limit) break;
+    }
+    if (found.isEmpty) return Center(child: Text(t.noResults));
+    final more = found.length > _limit;
+    final shown = found.take(_limit).toList();
+    return ListView.separated(
+      itemCount: shown.length + 1,
+      separatorBuilder: (_, _) => const Divider(height: 1),
+      itemBuilder: (context, i) {
+        if (i == 0) {
+          return ListTile(
+            dense: true,
+            title: Text(t.searchResults(shown.length, more: more)),
+          );
+        }
+        final a = shown[i - 1];
+        final surah = surahs[a.surah - 1];
+        return ListTile(
+          title: Text(
+            surah.ayahs[a.ayah - 1],
+            textDirection: TextDirection.rtl,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
+          subtitle: Text(t.surahAyah(surah, a.ayah)),
+          onTap: () => close(context, a),
+        );
+      },
+    );
+  }
+}
+
+/// The time, as in the top bar of the screenshots. Updates every minute.
+class _Clock extends StatefulWidget {
+  const _Clock();
+
+  @override
+  State<_Clock> createState() => _ClockState();
+}
+
+class _ClockState extends State<_Clock> {
+  Timer? _timer;
+  var _now = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 15), (_) {
+      final now = DateTime.now();
+      if (now.minute != _now.minute) setState(() => _now = now);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Text(
+    S.of(context).clock(_now.hour, _now.minute),
+    style: Theme.of(context).textTheme.titleMedium,
+  );
+}
+
+/// The ayat of one page as plain text, for reading in a larger font or
+/// when the page font is hard to read.
+class _TextPage extends StatelessWidget {
+  const _TextPage({
+    required this.page,
+    required this.surahs,
+    required this.selected,
+    required this.onAyahTap,
+  });
+
+  final MushafPage page;
+  final List<Surah> surahs;
+  final AyahRef? selected;
+  final ValueChanged<AyahRef> onAyahTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final t = S.of(context);
+    final ayat = page.words.map((w) => w.ayah).toSet().toList();
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        for (final a in ayat) ...[
+          if (a.ayah == 1)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                t.surah(surahs[a.surah - 1]),
+                textAlign: TextAlign.center,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+            ),
+          InkWell(
+            onTap: () => onAyahTap(a),
+            child: Container(
+              color: a == selected ? theme.colorScheme.primaryContainer : null,
+              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+              child: Text(
+                '${surahs[a.surah - 1].ayahs[a.ayah - 1]} '
+                '﴿${S(AppLanguage.ar, westernDigits: false).n(a.ayah)}﴾',
+                textDirection: TextDirection.rtl,
+                style: theme.textTheme.headlineSmall?.copyWith(height: 1.9),
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
@@ -313,6 +727,8 @@ class _PageSlot extends ConsumerWidget {
     required this.hizb,
     required this.surahs,
     required this.selected,
+    required this.highlights,
+    required this.bookmarks,
     required this.showHizbMarks,
     required this.onAyahTap,
     required this.onAyahLongPress,
@@ -323,6 +739,11 @@ class _PageSlot extends ConsumerWidget {
   final int hizb;
   final List<Surah> surahs;
   final AyahRef? selected;
+  final Map<AyahRef, Color> highlights;
+
+  /// Markers and khatma plans that stand on this page: their color and
+  /// name, drawn as ribbons in the header.
+  final List<(Color, String)> bookmarks;
   final bool showHizbMarks;
   final ValueChanged<AyahRef> onAyahTap;
   final ValueChanged<AyahRef> onAyahLongPress;
@@ -371,6 +792,12 @@ class _PageSlot extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(width: 8),
+                        for (final (color, name) in bookmarks)
+                          Tooltip(
+                            message: name,
+                            child: Icon(Icons.bookmark, color: color, size: 20),
+                          ),
+                        const SizedBox(width: 8),
                         Flexible(
                           child: Text(
                             t.juzAndHizb(juz, hizb),
@@ -389,6 +816,7 @@ class _PageSlot extends ConsumerWidget {
                       page: page,
                       surahName: (s) => surahs[s - 1].name,
                       selected: selected,
+                      highlights: highlights,
                       showHizbMarks: showHizbMarks,
                       onAyahTap: onAyahTap,
                       onAyahLongPress: onAyahLongPress,

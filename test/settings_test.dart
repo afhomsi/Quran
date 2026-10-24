@@ -48,6 +48,9 @@ Future<SharedPreferences> _start(
     ),
   );
   await tester.pumpAndSettle();
+  // The app opens on the mushaf; start from the index.
+  await tester.tap(find.text(const S(AppLanguage.ar).tabIndex));
+  await tester.pumpAndSettle();
   return prefs;
 }
 
@@ -211,7 +214,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(prefs.getInt('last_page'), 3);
 
-    await tester.tap(find.byTooltip('إيقاف التقليب التلقائي'));
+    await tester.tap(find.byTooltip('القائمة'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('إيقاف التقليب التلقائي'));
     await tester.pump(const Duration(seconds: 60));
     await tester.pumpAndSettle();
     expect(prefs.getInt('last_page'), 3);

@@ -1,45 +1,54 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../l10n/strings.dart';
 import '../notes/notes_screen.dart';
 import '../recitation/recitation_picker.dart';
 import '../self_test/self_test_screen.dart';
+import '../settings/settings_screen.dart';
 import '../shell/navigation.dart';
 
-/// "More": the hifz self-test, notes, bookmarks and recitation check.
+/// "More": the hifz self-test, recitation check, notes, bookmarks and
+/// settings.
 class MoreScreen extends ConsumerWidget {
   const MoreScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final t = S.of(context);
     void push(Widget screen) =>
         Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('المزيد'), centerTitle: true),
+      appBar: AppBar(title: Text(t.tabMore), centerTitle: true),
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
         children: [
           _MoreCard(
             icon: Icons.fact_check_outlined,
-            label: 'اختبار ذاتي للحفظ',
+            label: t.selfTest,
             onTap: () => push(const SelfTestScreen()),
           ),
           _MoreCard(
             icon: Icons.mic_none,
-            label: 'تسميع مع تنبيه الأخطاء',
+            label: t.recitationCheck,
             onTap: () => showRecitationPicker(context),
           ),
           _MoreCard(
             icon: Icons.chat_outlined,
-            label: 'تعليقاتي',
+            label: t.myNotes,
             onTap: () => push(const NotesScreen()),
           ),
           _MoreCard(
             icon: Icons.bookmark_border,
-            label: 'علاماتي',
+            label: t.tabBookmarks,
             onTap: () =>
                 ref.read(appTabProvider.notifier).select(AppTab.bookmarks),
+          ),
+          _MoreCard(
+            icon: Icons.settings_outlined,
+            label: t.settings,
+            onTap: () => openSettings(context),
           ),
         ],
       ),
@@ -72,12 +81,16 @@ class _MoreCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 28),
+          padding: const EdgeInsets.symmetric(vertical: 24),
           child: Column(
             children: [
-              Icon(icon, size: 48, color: theme.colorScheme.primary),
+              Icon(icon, size: 44, color: theme.colorScheme.primary),
               const SizedBox(height: 12),
-              Text(label, style: theme.textTheme.titleLarge),
+              Text(
+                label,
+                style: theme.textTheme.titleLarge,
+                textAlign: TextAlign.center,
+              ),
             ],
           ),
         ),

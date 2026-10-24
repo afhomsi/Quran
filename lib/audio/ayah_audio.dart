@@ -13,9 +13,10 @@ const _audioSettingsKey = 'audio_settings';
 
 /// A reciter whose ayah-by-ayah recordings are served by everyayah.com.
 class Reciter {
-  const Reciter(this.name, this.folder);
+  const Reciter(this.name, this.latinName, this.folder);
 
   final String name;
+  final String latinName;
   final String folder;
 
   /// URL of the recording of [ayah], e.g. `.../002255.mp3`.
@@ -25,13 +26,25 @@ class Reciter {
 }
 
 const reciters = [
-  Reciter('مشاري العفاسي', 'Alafasy_128kbps'),
-  Reciter('محمود خليل الحصري', 'Husary_128kbps'),
-  Reciter('محمد صديق المنشاوي', 'Minshawy_Murattal_128kbps'),
-  Reciter('عبد الباسط عبد الصمد', 'Abdul_Basit_Murattal_192kbps'),
-  Reciter('عبد الرحمن السديس', 'Abdurrahmaan_As-Sudais_192kbps'),
-  Reciter('سعد الغامدي', 'Ghamadi_40kbps'),
-  Reciter('ماهر المعيقلي', 'MaherAlMuaiqly128kbps'),
+  Reciter('مشاري العفاسي', 'Mishary Alafasy', 'Alafasy_128kbps'),
+  Reciter('محمود خليل الحصري', 'Mahmoud Khalil Al-Husary', 'Husary_128kbps'),
+  Reciter(
+    'محمد صديق المنشاوي',
+    'Muhammad Siddiq Al-Minshawi',
+    'Minshawy_Murattal_128kbps',
+  ),
+  Reciter(
+    'عبد الباسط عبد الصمد',
+    'Abdul Basit Abdus Samad',
+    'Abdul_Basit_Murattal_192kbps',
+  ),
+  Reciter(
+    'عبد الرحمن السديس',
+    'Abdur-Rahman As-Sudais',
+    'Abdurrahmaan_As-Sudais_192kbps',
+  ),
+  Reciter('سعد الغامدي', 'Saad Al-Ghamdi', 'Ghamadi_40kbps'),
+  Reciter('ماهر المعيقلي', 'Maher Al-Muaiqly', 'MaherAlMuaiqly128kbps'),
 ];
 
 /// What playback goes back to when it reaches the end of it.
@@ -96,7 +109,7 @@ class AudioState {
     this.visible = false,
     this.playing = false,
     this.loading = false,
-    this.error,
+    this.failed = false,
     this.loop = AudioLoop.none,
     this.reciter = 0,
     this.repeats = 1,
@@ -110,7 +123,10 @@ class AudioState {
   final bool visible;
   final bool playing;
   final bool loading;
-  final String? error;
+
+  /// Whether the last recording could not be played, usually because the
+  /// device is offline.
+  final bool failed;
   final AudioLoop loop;
 
   /// Index in [reciters].
@@ -125,7 +141,7 @@ class AudioState {
     bool? visible,
     bool? playing,
     bool? loading,
-    String? Function()? error,
+    bool? failed,
     AudioLoop? loop,
     int? reciter,
     int? repeats,
@@ -135,7 +151,7 @@ class AudioState {
     visible: visible ?? this.visible,
     playing: playing ?? this.playing,
     loading: loading ?? this.loading,
-    error: error == null ? this.error : error(),
+    failed: failed ?? this.failed,
     loop: loop ?? this.loop,
     reciter: reciter ?? this.reciter,
     repeats: repeats ?? this.repeats,
@@ -171,9 +187,12 @@ class AudioController extends Notifier<AudioState> {
 
   AyahPlayer get _player => ref.read(ayahPlayerProvider);
 
-  /// Shows the player bar without playing, ready to start at [ayah].
-  void show(AyahRef ayah) =>
-      state = state.copyWith(visible: true, current: state.current ?? ayah);
+  /// Shows the player bar, ready to start at [ayah] unless something is
+  /// playing already.
+  void show(AyahRef ayah) => state = state.copyWith(
+    visible: true,
+    current: state.playing ? state.current : ayah,
+  );
 
   Future<void> playFrom(AyahRef ayah) {
     _played = 0;
@@ -186,17 +205,13 @@ class AudioController extends Notifier<AudioState> {
       visible: true,
       playing: true,
       loading: true,
-      error: () => null,
+      failed: false,
     );
     try {
       await _player.play(reciters[state.reciter].url(ayah), speed: state.speed);
       if (state.current == ayah) state = state.copyWith(loading: false);
     } catch (e) {
-      state = state.copyWith(
-        playing: false,
-        loading: false,
-        error: () => 'تعذر تشغيل التلاوة، تحقق من الاتصال بالإنترنت',
-      );
+      state = state.copyWith(playing: false, loading: false, failed: true);
     }
   }
 
@@ -206,7 +221,7 @@ class AudioController extends Notifier<AudioState> {
     if (state.playing) {
       state = state.copyWith(playing: false);
       await _player.pause();
-    } else if (state.loading || state.error != null) {
+    } else if (state.loading || state.failed) {
       await playFrom(current);
     } else {
       state = state.copyWith(playing: true);

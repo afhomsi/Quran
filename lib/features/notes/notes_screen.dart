@@ -5,6 +5,7 @@ import '../../data/marks.dart';
 import '../../data/mushaf_models.dart';
 import '../../data/mushaf_repository.dart';
 import '../../data/quran_repository.dart';
+import '../../l10n/strings.dart';
 import '../shell/navigation.dart';
 
 /// "My notes": what the user wrote on ayat, newest first.
@@ -13,22 +14,19 @@ class NotesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final notes = ref.watch(notesProvider);
+    final notes = ref.watch(notesProvider).entries.toList().reversed.toList();
     final surahs = ref.watch(surahsProvider).value;
     final mushaf = ref.watch(mushafProvider).value;
+    final t = S.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('تعليقاتي')),
+      appBar: AppBar(title: Text(t.myNotes)),
       body: surahs == null || mushaf == null
           ? const Center(child: CircularProgressIndicator())
           : notes.isEmpty
-          ? const Center(
+          ? Center(
               child: Padding(
-                padding: EdgeInsets.all(32),
-                child: Text(
-                  'لا توجد تعليقات بعد.\nاضغط مطولًا على آية في المصحف '
-                  'واختر "إضافة تعليق".',
-                  textAlign: TextAlign.center,
-                ),
+                padding: const EdgeInsets.all(32),
+                child: Text(t.noNotes, textAlign: TextAlign.center),
               ),
             )
           : ListView.separated(
@@ -36,20 +34,18 @@ class NotesScreen extends ConsumerWidget {
               itemCount: notes.length,
               separatorBuilder: (_, _) => const Divider(height: 1),
               itemBuilder: (context, i) {
-                final e = notes.entries.toList().reversed.elementAt(i);
-                final page = mushaf.pageOf(e.key);
+                final MapEntry(key: ayah, value: note) = notes[i];
+                final page = mushaf.pageOf(ayah);
                 return ListTile(
                   title: Text(
-                    '${surahs[e.key.surah - 1].name} · الآية ${e.key.ayah} '
-                    '· الصفحة $page',
+                    t.ayahOnPage(surahs[ayah.surah - 1], ayah.ayah, page),
                   ),
-                  subtitle: Text(e.value),
-                  onTap: () => editNote(context, e.key),
+                  subtitle: Text(note),
+                  onTap: () => editNote(context, ayah),
                   trailing: IconButton(
-                    tooltip: 'افتح في المصحف',
+                    tooltip: t.openInMushaf,
                     icon: const Icon(Icons.menu_book),
-                    onPressed: () =>
-                        openMushaf(context, page, highlight: e.key),
+                    onPressed: () => openMushaf(context, page, highlight: ayah),
                   ),
                 );
               },
@@ -88,32 +84,35 @@ class _NoteDialogState extends State<_NoteDialog> {
   }
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: const Text('تعليق على الآية'),
-    content: TextField(
-      controller: _text,
-      autofocus: true,
-      minLines: 3,
-      maxLines: 8,
-      decoration: const InputDecoration(
-        hintText: 'اكتب تعليقك أو فائدة عن الآية',
-        border: OutlineInputBorder(),
-      ),
-    ),
-    actions: [
-      if (widget.initial.isNotEmpty)
-        TextButton(
-          onPressed: () => Navigator.pop(context, ''),
-          child: const Text('حذف'),
+  Widget build(BuildContext context) {
+    final t = S.of(context);
+    return AlertDialog(
+      title: Text(t.noteOnAyah),
+      content: TextField(
+        controller: _text,
+        autofocus: true,
+        minLines: 3,
+        maxLines: 8,
+        decoration: InputDecoration(
+          hintText: t.noteHint,
+          border: const OutlineInputBorder(),
         ),
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('إلغاء'),
       ),
-      FilledButton(
-        onPressed: () => Navigator.pop(context, _text.text),
-        child: const Text('حفظ'),
-      ),
-    ],
-  );
+      actions: [
+        if (widget.initial.isNotEmpty)
+          TextButton(
+            onPressed: () => Navigator.pop(context, ''),
+            child: Text(t.delete),
+          ),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(t.cancel),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _text.text),
+          child: Text(t.save),
+        ),
+      ],
+    );
+  }
 }

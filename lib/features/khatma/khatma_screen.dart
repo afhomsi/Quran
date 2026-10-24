@@ -5,21 +5,8 @@ import '../../data/khatma.dart';
 import '../../data/mushaf_repository.dart';
 import '../../data/quran_models.dart';
 import '../../data/quran_repository.dart';
+import '../../l10n/strings.dart';
 import '../shell/navigation.dart';
-
-String khatmaTypeTitle(KhatmaType type) => switch (type) {
-  KhatmaType.salaf => 'تحزيب السلف',
-  KhatmaType.ramadan => 'ختمة رمضان',
-  KhatmaType.dailyWird => 'الورد اليومي',
-  KhatmaType.custom => 'ختمة مخصصة',
-};
-
-String khatmaTypeSubtitle(KhatmaType type) => switch (type) {
-  KhatmaType.salaf => 'ختم القرآن في 7 أيام',
-  KhatmaType.ramadan => 'جزء واحد يوميًا',
-  KhatmaType.dailyWird => 'صفحتين بعد كل صلاة',
-  KhatmaType.custom => 'خصص الختمة كما تريد',
-};
 
 IconData khatmaTypeIcon(KhatmaType type) => switch (type) {
   KhatmaType.salaf => Icons.menu_book_outlined,
@@ -38,13 +25,14 @@ class KhatmaScreen extends ConsumerWidget {
     final plans = ref.watch(khatmaPlansProvider);
     final mushaf = ref.watch(mushafProvider).value;
     final surahs = ref.watch(surahsProvider).value;
+    final t = S.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ختمتي'),
+        title: Text(t.myKhatmas),
         centerTitle: true,
         actions: [
           IconButton.filled(
-            tooltip: 'ختمة جديدة',
+            tooltip: t.newKhatma,
             icon: const Icon(Icons.add),
             onPressed: () => startNewKhatma(context),
           ),
@@ -62,14 +50,11 @@ class KhatmaScreen extends ConsumerWidget {
                   children: [
                     const Icon(Icons.auto_stories_outlined, size: 64),
                     const SizedBox(height: 16),
-                    const Text(
-                      'لا توجد ختمة بعد.\nابدأ خطة لختم القرآن واتبع وردك كل يوم.',
-                      textAlign: TextAlign.center,
-                    ),
+                    Text(t.noKhatma, textAlign: TextAlign.center),
                     const SizedBox(height: 16),
                     FilledButton.icon(
                       icon: const Icon(Icons.add),
-                      label: const Text('ختمة جديدة'),
+                      label: Text(t.newKhatma),
                       onPressed: () => startNewKhatma(context),
                     ),
                   ],
@@ -116,8 +101,9 @@ class _TypePickerState extends State<_TypePicker> {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final t = S.of(context);
     return SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -127,27 +113,29 @@ class _TypePickerState extends State<_TypePicker> {
               children: [
                 Expanded(
                   child: Text(
-                    'اختر نوع الختمة',
+                    t.chooseKhatmaType,
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                 ),
                 IconButton(
-                  tooltip: 'إغلاق',
+                  tooltip: t.close,
                   icon: const Icon(Icons.close),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
             ),
             const SizedBox(height: 8),
-            for (final t in KhatmaType.values)
+            for (final type in KhatmaType.values)
               Card(
                 elevation: 0,
                 margin: const EdgeInsets.symmetric(vertical: 6),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
                   side: BorderSide(
-                    color: t == _type ? colors.primary : colors.outlineVariant,
-                    width: t == _type ? 2 : 1,
+                    color: type == _type
+                        ? colors.primary
+                        : colors.outlineVariant,
+                    width: type == _type ? 2 : 1,
                   ),
                 ),
                 child: ListTile(
@@ -156,16 +144,16 @@ class _TypePickerState extends State<_TypePicker> {
                     vertical: 8,
                   ),
                   leading: Icon(
-                    khatmaTypeIcon(t),
+                    khatmaTypeIcon(type),
                     size: 36,
                     color: colors.primary,
                   ),
                   title: Text(
-                    khatmaTypeTitle(t),
+                    t.khatmaTitle(type),
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  subtitle: Text(khatmaTypeSubtitle(t)),
-                  onTap: () => setState(() => _type = t),
+                  subtitle: Text(t.khatmaSubtitle(type)),
+                  onTap: () => setState(() => _type = type),
                 ),
               ),
             const SizedBox(height: 8),
@@ -174,7 +162,7 @@ class _TypePickerState extends State<_TypePicker> {
                 minimumSize: const Size.fromHeight(56),
               ),
               onPressed: () => Navigator.pop(context, _type),
-              child: const Text('التالي'),
+              child: Text(t.next),
             ),
           ],
         ),
@@ -182,10 +170,6 @@ class _TypePickerState extends State<_TypePicker> {
     );
   }
 }
-
-String _defaultTitle(DateTime now) =>
-    'ختمتي (${now.year}-${'${now.month}'.padLeft(2, '0')}-'
-    '${'${now.day}'.padLeft(2, '0')})';
 
 class _PlanForm extends ConsumerStatefulWidget {
   const _PlanForm({required this.type});
@@ -197,31 +181,44 @@ class _PlanForm extends ConsumerStatefulWidget {
 }
 
 class _PlanFormState extends ConsumerState<_PlanForm> {
-  late final _title = TextEditingController(
-    text: _defaultTitle(DateTime.now()),
-  );
+  TextEditingController? _title;
   final _days = TextEditingController(text: '30');
   var _color = 0;
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final now = DateTime.now();
+    _title ??= TextEditingController(
+      text: S
+          .of(context)
+          .defaultPlanTitle(
+            '${now.year}-${'${now.month}'.padLeft(2, '0')}-'
+            '${'${now.day}'.padLeft(2, '0')}',
+          ),
+    );
+  }
+
+  @override
   void dispose() {
-    _title.dispose();
+    _title?.dispose();
     _days.dispose();
     super.dispose();
   }
 
   int? get _customDays {
     final n = int.tryParse(_days.text);
-    return n != null && n >= 1 && n <= 604 ? n : null;
+    return n != null && n >= 1 && n <= mushafPageCount ? n : null;
   }
 
   bool get _valid =>
-      _title.text.trim().isNotEmpty &&
+      _title!.text.trim().isNotEmpty &&
       (widget.type != KhatmaType.custom || _customDays != null);
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final t = S.of(context);
     final labelStyle = theme.textTheme.titleMedium;
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
@@ -236,9 +233,9 @@ class _PlanFormState extends ConsumerState<_PlanForm> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('إنشاء خطة', style: theme.textTheme.headlineSmall),
+                      Text(t.createPlan, style: theme.textTheme.headlineSmall),
                       Text(
-                        '[${khatmaTypeTitle(widget.type)}]',
+                        '[${t.khatmaTitle(widget.type)}]',
                         style: theme.textTheme.titleLarge?.copyWith(
                           color: const Color(0xFFD9822B),
                         ),
@@ -247,14 +244,14 @@ class _PlanFormState extends ConsumerState<_PlanForm> {
                   ),
                 ),
                 IconButton(
-                  tooltip: 'إغلاق',
+                  tooltip: t.close,
                   icon: const Icon(Icons.close),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
             ),
             const SizedBox(height: 16),
-            Text('العلامة المرجعية:', style: labelStyle),
+            Text(t.planBookmark, style: labelStyle),
             const SizedBox(height: 8),
             Wrap(
               alignment: WrapAlignment.center,
@@ -263,7 +260,7 @@ class _PlanFormState extends ConsumerState<_PlanForm> {
               children: [
                 for (var c = 0; c < khatmaColors.length; c++)
                   Tooltip(
-                    message: 'لون العلامة ${c + 1}',
+                    message: t.bookmarkColor(c + 1),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(12),
                       onTap: () => setState(() => _color = c),
@@ -291,30 +288,31 @@ class _PlanFormState extends ConsumerState<_PlanForm> {
               ],
             ),
             const SizedBox(height: 24),
-            Text('عنوان الخطة:', style: labelStyle),
+            Text(t.planTitle, style: labelStyle),
             TextField(
               controller: _title,
               onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
                 suffixIcon: IconButton(
-                  tooltip: 'مسح',
+                  tooltip: t.clear,
                   icon: const Icon(Icons.clear),
-                  onPressed: () => setState(_title.clear),
+                  onPressed: () => setState(_title!.clear),
                 ),
               ),
             ),
             if (widget.type == KhatmaType.custom) ...[
               const SizedBox(height: 24),
-              Text('عدد أيام الختمة:', style: labelStyle),
+              Text(t.khatmaDays, style: labelStyle),
               TextField(
                 controller: _days,
                 keyboardType: TextInputType.number,
                 onChanged: (_) => setState(() {}),
                 decoration: InputDecoration(
                   helperText: _customDays == null
-                      ? 'أدخل عددًا من 1 إلى 604'
-                      : 'حوالي ${(604 / _customDays!).toStringAsFixed(1)} '
-                            'صفحة في اليوم',
+                      ? t.daysRange
+                      : t.pagesPerDay(
+                          (mushafPageCount / _customDays!).toStringAsFixed(1),
+                        ),
                 ),
               ),
             ],
@@ -324,7 +322,7 @@ class _PlanFormState extends ConsumerState<_PlanForm> {
                 minimumSize: const Size.fromHeight(52),
               ),
               onPressed: _valid ? _create : null,
-              child: const Text('إنشاء خطة'),
+              child: Text(t.createPlan),
             ),
           ],
         ),
@@ -337,7 +335,7 @@ class _PlanFormState extends ConsumerState<_PlanForm> {
         .read(khatmaPlansProvider.notifier)
         .add(
           type: widget.type,
-          title: _title.text.trim(),
+          title: _title!.text.trim(),
           color: _color,
           customDays: _customDays ?? 30,
         );
@@ -345,16 +343,11 @@ class _PlanFormState extends ConsumerState<_PlanForm> {
   }
 }
 
-/// "الصفحات 1 – 21" or "الصفحة 5".
-String pagesLabel(int first, int last) =>
-    first == last ? 'الصفحة $first' : 'الصفحات $first – $last';
-
-String portionLabel(KhatmaPortion p, Mushaf m, List<Surah> surahs) {
-  final pages = pagesLabel(p.firstPage(m), p.lastPage(m));
-  final from = '${surahs[p.from.surah - 1].name} ${p.from.ayah}';
+String portionLabel(S t, KhatmaPortion p, Mushaf m, List<Surah> surahs) {
+  final pages = t.pages(p.firstPage(m), p.lastPage(m));
   return p.prayer == null
-      ? '$pages · من $from'
-      : 'بعد ${prayerNames[p.prayer!]} · $pages';
+      ? '$pages · ${t.fromAyah(surahs[p.from.surah - 1], p.from.ayah)}'
+      : '${t.afterPrayer(p.prayer!)} · $pages';
 }
 
 class _PlanCard extends ConsumerWidget {
@@ -371,6 +364,7 @@ class _PlanCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final t = S.of(context);
     final portions = plan.portions(mushaf);
     final next = plan.nextPortion(mushaf);
     final day = plan.dayOn(DateTime.now()).clamp(1, plan.days);
@@ -402,13 +396,13 @@ class _PlanCard extends ConsumerWidget {
                       children: [
                         Text(plan.title, style: theme.textTheme.titleMedium),
                         Text(
-                          khatmaTypeTitle(plan.type),
+                          t.khatmaTitle(plan.type),
                           style: theme.textTheme.bodySmall,
                         ),
                       ],
                     ),
                   ),
-                  Text('اليوم $day من ${plan.days}'),
+                  Text(t.dayOf(day, plan.days)),
                 ],
               ),
               const SizedBox(height: 12),
@@ -420,37 +414,38 @@ class _PlanCard extends ConsumerWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'أنجزت ${plan.done.length} من ${portions.length}',
+                t.doneOf(plan.done.length, portions.length),
                 style: theme.textTheme.bodySmall,
               ),
               const SizedBox(height: 12),
               if (next == null)
                 Text(
-                  'تمت الختمة، تقبل الله منك 🎉',
+                  t.khatmaComplete,
                   style: theme.textTheme.titleMedium?.copyWith(color: color),
                 )
               else ...[
                 Text(
-                  'الورد التالي (اليوم ${portions[next].day}):',
+                  t.nextPortion(portions[next].day),
                   style: theme.textTheme.labelLarge,
                 ),
-                Text(portionLabel(portions[next], mushaf, surahs)),
+                Text(portionLabel(t, portions[next], mushaf, surahs)),
                 const SizedBox(height: 8),
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
                     FilledButton.tonalIcon(
                       icon: const Icon(Icons.menu_book),
-                      label: const Text('اقرأ الورد'),
+                      label: Text(t.readPortion),
                       onPressed: () => openMushaf(
                         context,
                         portions[next].firstPage(mushaf),
                         highlight: portions[next].from,
                       ),
                     ),
-                    const SizedBox(width: 8),
                     OutlinedButton.icon(
                       icon: const Icon(Icons.check),
-                      label: const Text('قرأته'),
+                      label: Text(t.markRead),
                       onPressed: () => ref
                           .read(khatmaPlansProvider.notifier)
                           .setRead(plan.id, next),
@@ -480,6 +475,7 @@ class KhatmaPlanScreen extends ConsumerWidget {
         .firstOrNull;
     final mushaf = ref.watch(mushafProvider).value;
     final surahs = ref.watch(surahsProvider).value;
+    final t = S.of(context);
     if (plan == null || mushaf == null || surahs == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
@@ -490,22 +486,22 @@ class KhatmaPlanScreen extends ConsumerWidget {
         title: Text(plan.title),
         actions: [
           IconButton(
-            tooltip: 'حذف الختمة',
+            tooltip: t.deleteKhatma,
             icon: const Icon(Icons.delete_outline),
             onPressed: () async {
               final ok = await showDialog<bool>(
                 context: context,
                 builder: (context) => AlertDialog(
-                  title: const Text('حذف الختمة؟'),
-                  content: Text('سيتم حذف "${plan.title}" وما أنجزته فيها.'),
+                  title: Text(t.deleteKhatmaQuestion),
+                  content: Text(t.deleteKhatmaExplain(plan.title)),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(context, false),
-                      child: const Text('إلغاء'),
+                      child: Text(t.cancel),
                     ),
                     FilledButton(
                       onPressed: () => Navigator.pop(context, true),
-                      child: const Text('حذف'),
+                      child: Text(t.delete),
                     ),
                   ],
                 ),
@@ -522,21 +518,20 @@ class KhatmaPlanScreen extends ConsumerWidget {
         itemCount: portions.length,
         itemBuilder: (context, i) {
           final p = portions[i];
-          final read = plan.done.contains(i);
           return CheckboxListTile(
-            value: read,
+            value: plan.done.contains(i),
             onChanged: (v) => ref
                 .read(khatmaPlansProvider.notifier)
                 .setRead(plan.id, i, read: v ?? false),
             title: Text(
-              'اليوم ${p.day}${p.day == today ? ' (اليوم)' : ''}',
+              p.day == today ? '${t.day(p.day)} (${t.today})' : t.day(p.day),
               style: TextStyle(
                 fontWeight: p.day == today ? FontWeight.bold : null,
               ),
             ),
-            subtitle: Text(portionLabel(p, mushaf, surahs)),
+            subtitle: Text(portionLabel(t, p, mushaf, surahs)),
             secondary: IconButton(
-              tooltip: 'افتح في المصحف',
+              tooltip: t.openInMushaf,
               icon: Icon(Icons.menu_book, color: khatmaColors[plan.color]),
               onPressed: () =>
                   openMushaf(context, p.firstPage(mushaf), highlight: p.from),

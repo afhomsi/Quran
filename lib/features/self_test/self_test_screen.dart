@@ -9,6 +9,7 @@ import '../../data/mushaf_repository.dart';
 import '../../data/quran_models.dart';
 import '../../data/quran_repository.dart';
 import '../../data/self_test.dart';
+import '../../l10n/strings.dart';
 import '../shell/navigation.dart';
 
 enum _ScopeKind { surah, juz, hifz }
@@ -47,7 +48,7 @@ class _SelfTestScreenState extends ConsumerState<SelfTestScreen> {
     final mushaf = ref.watch(mushafProvider).value;
     final hifz = ref.watch(markersProvider)[MarkerKind.hifz];
     return Scaffold(
-      appBar: AppBar(title: const Text('اختبار ذاتي للحفظ')),
+      appBar: AppBar(title: Text(S.of(context).selfTest)),
       body: surahs == null || mushaf == null
           ? const Center(child: CircularProgressIndicator())
           : switch (_questions) {
@@ -80,16 +81,20 @@ class _SelfTestScreenState extends ConsumerState<SelfTestScreen> {
   Widget _setup(List<Surah> surahs, AyahRef? hifz) {
     final scope = _scope(surahs, hifz);
     final theme = Theme.of(context);
+    final t = S.of(context);
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Text('ماذا تريد أن تختبر؟', style: theme.textTheme.titleMedium),
+        Text(t.whatToTest, style: theme.textTheme.titleMedium),
         const SizedBox(height: 8),
         SegmentedButton<_ScopeKind>(
-          segments: const [
-            ButtonSegment(value: _ScopeKind.surah, label: Text('سورة')),
-            ButtonSegment(value: _ScopeKind.juz, label: Text('جزء')),
-            ButtonSegment(value: _ScopeKind.hifz, label: Text('ما حفظته')),
+          segments: [
+            ButtonSegment(value: _ScopeKind.surah, label: Text(t.surahWord)),
+            ButtonSegment(value: _ScopeKind.juz, label: Text(t.juzWord)),
+            ButtonSegment(
+              value: _ScopeKind.hifz,
+              label: Text(t.whatIMemorized),
+            ),
           ],
           selected: {_scopeKind},
           onSelectionChanged: (s) => setState(() => _scopeKind = s.first),
@@ -98,55 +103,53 @@ class _SelfTestScreenState extends ConsumerState<SelfTestScreen> {
         switch (_scopeKind) {
           _ScopeKind.surah => DropdownButtonFormField<int>(
             initialValue: _surah,
-            decoration: const InputDecoration(labelText: 'السورة'),
+            decoration: InputDecoration(labelText: t.surahWord),
             items: [
               for (final s in surahs)
                 DropdownMenuItem(
                   value: s.number,
-                  child: Text('${s.number}. ${s.name}'),
+                  child: Text('${t.n(s.number)}. ${t.surahName(s)}'),
                 ),
             ],
             onChanged: (v) => setState(() => _surah = v ?? _surah),
           ),
           _ScopeKind.juz => DropdownButtonFormField<int>(
             initialValue: _juz,
-            decoration: const InputDecoration(labelText: 'الجزء'),
+            decoration: InputDecoration(labelText: t.juzWord),
             items: [
               for (var j = 1; j <= juzStarts.length; j++)
-                DropdownMenuItem(value: j, child: Text('الجزء $j')),
+                DropdownMenuItem(value: j, child: Text(t.juz(j))),
             ],
             onChanged: (v) => setState(() => _juz = v ?? _juz),
           ),
           _ScopeKind.hifz => Text(
             hifz == null
-                ? 'لم تضع علامة الحفظ بعد. اضغط مطولًا على آخر آية حفظتها '
-                      'في المصحف واختر "علامة الحفظ".'
-                : 'من أول المصحف حتى ${surahs[hifz.surah - 1].name} '
-                      'الآية ${hifz.ayah}',
+                ? t.noHifzMarker
+                : t.upToHifz(surahs[hifz.surah - 1], hifz.ayah),
           ),
         },
         const SizedBox(height: 24),
-        Text('نوع السؤال', style: theme.textTheme.titleMedium),
+        Text(t.questionType, style: theme.textTheme.titleMedium),
         RadioGroup<SelfTestMode>(
           groupValue: _mode,
           onChanged: (m) => setState(() => _mode = m ?? _mode),
-          child: const Column(
+          child: Column(
             children: [
               RadioListTile(
                 value: SelfTestMode.nextAyah,
-                title: Text('ما الآية التالية؟'),
-                subtitle: Text('تظهر آية وتسمّع الآية التي بعدها'),
+                title: Text(t.whatComesNext),
+                subtitle: Text(t.whatComesNextExplain),
               ),
               RadioListTile(
                 value: SelfTestMode.completeAyah,
-                title: Text('أكمل الآية'),
-                subtitle: Text('تظهر بداية الآية وتكمل الباقي'),
+                title: Text(t.completeTheAyah),
+                subtitle: Text(t.completeTheAyahExplain),
               ),
             ],
           ),
         ),
         const SizedBox(height: 8),
-        Text('عدد الأسئلة: $_count', style: theme.textTheme.titleMedium),
+        Text(t.questionCount(_count), style: theme.textTheme.titleMedium),
         Slider(
           value: _count.toDouble(),
           min: 5,
@@ -159,7 +162,7 @@ class _SelfTestScreenState extends ConsumerState<SelfTestScreen> {
         FilledButton.icon(
           style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
           icon: const Icon(Icons.play_arrow),
-          label: const Text('ابدأ الاختبار'),
+          label: Text(t.startTest),
           onPressed: scope.length < 2
               ? null
               : () => setState(() {
@@ -175,6 +178,7 @@ class _SelfTestScreenState extends ConsumerState<SelfTestScreen> {
 
   Widget _question(List<Surah> surahs, List<AyahRef> questions) {
     final theme = Theme.of(context);
+    final t = S.of(context);
     final ayah = questions[_index];
     final text = surahs[ayah.surah - 1].ayahs[ayah.ayah - 1];
     final next = ayah.ayah < surahs[ayah.surah - 1].ayahCount
@@ -188,13 +192,13 @@ class _SelfTestScreenState extends ConsumerState<SelfTestScreen> {
     if (_mode == SelfTestMode.nextAyah) {
       prompt = text;
       answer = surahs[next.surah - 1].ayahs[next.ayah - 1];
-      question = 'ما الآية التالية؟';
+      question = t.whatComesNext;
     } else {
       final words = text.split(' ');
       final shown = promptWordCount(text);
       prompt = '${words.take(shown).join(' ')} …';
       answer = words.skip(shown).join(' ');
-      question = 'أكمل الآية';
+      question = t.completeTheAyah;
     }
 
     return ListView(
@@ -203,8 +207,8 @@ class _SelfTestScreenState extends ConsumerState<SelfTestScreen> {
         LinearProgressIndicator(value: _index / questions.length),
         const SizedBox(height: 8),
         Text(
-          'السؤال ${_index + 1} من ${questions.length} · '
-          '${surahs[ayah.surah - 1].name} ${ayah.ayah}',
+          '${t.questionOf(_index + 1, questions.length)} · '
+          '${t.surahName(surahs[ayah.surah - 1])} ${t.n(ayah.ayah)}',
           style: theme.textTheme.labelLarge,
         ),
         const SizedBox(height: 16),
@@ -227,7 +231,7 @@ class _SelfTestScreenState extends ConsumerState<SelfTestScreen> {
               minimumSize: const Size.fromHeight(52),
             ),
             onPressed: () => setState(() => _revealed = true),
-            child: const Text('أظهر الإجابة'),
+            child: Text(t.showAnswer),
           )
         else ...[
           Card(
@@ -243,7 +247,7 @@ class _SelfTestScreenState extends ConsumerState<SelfTestScreen> {
               Expanded(
                 child: FilledButton.icon(
                   icon: const Icon(Icons.check),
-                  label: const Text('أصبت'),
+                  label: Text(t.gotItRight),
                   onPressed: () => _answer(correct: true),
                 ),
               ),
@@ -251,7 +255,7 @@ class _SelfTestScreenState extends ConsumerState<SelfTestScreen> {
               Expanded(
                 child: OutlinedButton.icon(
                   icon: const Icon(Icons.close),
-                  label: const Text('أخطأت'),
+                  label: Text(t.gotItWrong),
                   onPressed: () => _answer(correct: false),
                 ),
               ),
@@ -270,6 +274,7 @@ class _SelfTestScreenState extends ConsumerState<SelfTestScreen> {
 
   Widget _result(List<Surah> surahs, Mushaf mushaf, List<AyahRef> questions) {
     final theme = Theme.of(context);
+    final t = S.of(context);
     final right = questions.length - _wrong.length;
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -282,25 +287,25 @@ class _SelfTestScreenState extends ConsumerState<SelfTestScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          'النتيجة: $right من ${questions.length}',
+          t.score(right, questions.length),
           style: theme.textTheme.headlineSmall,
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 16),
         if (_wrong.isNotEmpty) ...[
-          Text('راجع هذه الآيات:', style: theme.textTheme.titleMedium),
+          Text(t.reviewThese, style: theme.textTheme.titleMedium),
           for (final a in _wrong)
             ListTile(
               leading: const Icon(Icons.replay),
-              title: Text('${surahs[a.surah - 1].name} · الآية ${a.ayah}'),
-              trailing: Text('${mushaf.pageOf(a)}'),
+              title: Text(t.surahAyah(surahs[a.surah - 1], a.ayah)),
+              trailing: Text(t.n(mushaf.pageOf(a))),
               onTap: () => openMushaf(context, mushaf.pageOf(a), highlight: a),
             ),
         ],
         const SizedBox(height: 16),
         FilledButton(
           onPressed: () => setState(() => _questions = null),
-          child: const Text('اختبار جديد'),
+          child: Text(t.newTest),
         ),
       ],
     );

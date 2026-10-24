@@ -13,13 +13,12 @@ const _notesKey = 'notes';
 /// The three place markers: where the reader stopped reading, memorizing
 /// and reviewing. Each points to one ayah.
 enum MarkerKind {
-  reading('علامة القراءة', Color(0xFF7B0A1E)),
-  hifz('علامة الحفظ', Color(0xFFEF7F1A)),
-  review('علامة المراجعة', Color(0xFF4E8A2E));
+  reading(Color(0xFF7B0A1E)),
+  hifz(Color(0xFFEF7F1A)),
+  review(Color(0xFF4E8A2E));
 
-  const MarkerKind(this.label, this.color);
+  const MarkerKind(this.color);
 
-  final String label;
   final Color color;
 }
 
@@ -68,8 +67,6 @@ const highlightColors = [
   Color(0xFFF8BBD0), // pink
   Color(0xFFFFCC80), // orange
 ];
-
-const highlightColorNames = ['أصفر', 'أخضر', 'أزرق', 'وردي', 'برتقالي'];
 
 /// Highlighted ayat and the index of their color in [highlightColors], in
 /// the order they were highlighted.

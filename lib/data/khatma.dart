@@ -46,8 +46,6 @@ const salafManzilStarts = [
   AyahRef(50, 1),
 ];
 
-const prayerNames = ['الفجر', 'الظهر', 'العصر', 'المغرب', 'العشاء'];
-
 /// One part of a plan: read from [from] up to, but not including, [until]
 /// (the end of the Quran when null), on [day] of the plan.
 class KhatmaPortion {
@@ -62,7 +60,7 @@ class KhatmaPortion {
   final AyahRef from;
   final AyahRef? until;
 
-  /// Index in [prayerNames] for the daily wird, which has one portion
+  /// 0 to 4, Fajr to Isha, for the daily wird, which has one portion
   /// after each prayer.
   final int? prayer;
 

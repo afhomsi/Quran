@@ -45,6 +45,8 @@ void main() {
     final dir = Directionality.of(tester.element(find.text('المصحف')));
     expect(dir, TextDirection.rtl);
 
+    await tester.tap(find.text('الفهرس'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('البقرة'));
     await tester.pumpAndSettle();
 
@@ -88,6 +90,8 @@ void main() {
         child: const HifzApp(),
       ),
     );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('الفهرس'));
     await tester.pumpAndSettle();
 
     // Without diacritics or hamza, as people type.
