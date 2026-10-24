@@ -4,12 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../audio/ayah_audio.dart';
 import '../../data/quran_repository.dart';
 import '../../l10n/strings.dart';
+import '../../settings/app_settings.dart';
 import 'repeat_sheet.dart';
 
 /// Compact player controls under the mushaf page: close, next ayah, play
 /// or pause, previous ayah, loop and more options. Repeating a group of
 /// ayat is in the options. A line above the buttons shows only an error
-/// or the round of a repeated group.
+/// or the round of a repeated group. The eye button hides the ayat not
+/// heard yet, so each appears as the reciter reaches it.
 class AudioBar extends ConsumerWidget {
   const AudioBar({super.key});
 
@@ -21,6 +23,9 @@ class AudioBar extends ConsumerWidget {
     final colors = Theme.of(context).colorScheme;
     final t = S.of(context);
     final current = audio.current;
+    final hide = ref.watch(
+      settingsProvider.select((s) => s.hideWhileListening),
+    );
 
     return Container(
       margin: const EdgeInsets.fromLTRB(8, 0, 8, 4),
@@ -58,6 +63,19 @@ class AudioBar extends ConsumerWidget {
                 tooltip: t.closePlayer,
                 icon: Icon(Icons.cancel_rounded, color: colors.primary),
                 onPressed: controller.close,
+              ),
+              // Hides the ayat not heard yet, or shows the whole page.
+              IconButton(
+                tooltip: hide ? t.showText : t.hideText,
+                icon: Icon(
+                  hide
+                      ? Icons.visibility_rounded
+                      : Icons.visibility_off_rounded,
+                  color: colors.primary,
+                ),
+                onPressed: () => ref
+                    .read(settingsProvider.notifier)
+                    .update((s) => s.copyWith(hideWhileListening: !hide)),
               ),
               IconButton(
                 tooltip: t.nextAyah,

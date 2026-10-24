@@ -121,6 +121,13 @@ class SettingsScreen extends ConsumerWidget {
                 onChanged: (v) =>
                     update((s) => s.copyWith(hideRecitationButton: v)),
               ),
+              _Switch(
+                icon: Icons.visibility_off_rounded,
+                title: t.hideWhileListening,
+                value: settings.hideWhileListening,
+                onChanged: (v) =>
+                    update((s) => s.copyWith(hideWhileListening: v)),
+              ),
             ],
           ),
           _SectionTitle(t.languageTitle, Icons.translate_rounded),

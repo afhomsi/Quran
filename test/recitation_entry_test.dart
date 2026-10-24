@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hifz/app.dart';
+import 'package:hifz/data/mushaf_models.dart';
 import 'package:hifz/data/mushaf_repository.dart';
 import 'package:hifz/data/quran_repository.dart';
 import 'package:hifz/data/reading_state.dart';
@@ -108,13 +109,33 @@ void main() {
     expect(find.byType(MushafScreen), findsOneWidget);
     expect(listener.listening, isTrue);
     expect(find.textContaining('تسميع الصفحة 1'), findsOneWidget);
-
-    listener.say('بسم الله الرحمن الرحيم الحمد لله رب الناس', isFinal: true);
-    await tester.pump();
-    expect(find.textContaining('خطأ في الآية 2'), findsOneWidget);
     final container = ProviderScope.containerOf(
       tester.element(find.byType(MushafScreen)),
     );
+    // The words are hidden until recited.
+    expect(container.read(pageRecitationProvider)!.hideText, isTrue);
+    expect(container.read(pageRecitationProvider)!.recitedWords, isEmpty);
+
+    listener.say('بسم الله الرحمن الرحيم الحمد لله', isFinal: true);
+    await tester.pump();
+    expect(container.read(pageRecitationProvider)!.recitedWords, {
+      const AyahRef(1, 1): PageRecitation.allWords,
+      const AyahRef(1, 2): 2,
+    });
+    await tester.pump(const Duration(seconds: 1));
+    listener.say('رب الناس', isFinal: true);
+    await tester.pump();
+    expect(
+      container.read(pageRecitationProvider)!.recitedWords[const AyahRef(1, 2)],
+      PageRecitation.allWords,
+    );
+
+    // The eye button shows the whole page.
+    await tester.tap(find.byTooltip('إظهار النص'));
+    await tester.pump();
+    expect(container.read(pageRecitationProvider)!.hideText, isFalse);
+    expect(find.byTooltip('إخفاء النص'), findsOneWidget);
+    expect(find.textContaining('خطأ في الآية 2'), findsOneWidget);
     final states = container.read(pageRecitationProvider)!.ayahStates;
     expect(states.values, [AyahRecitation.correct, AyahRecitation.mistake]);
 

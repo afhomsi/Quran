@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../audio/ayah_audio.dart';
+import '../../audio/heard_ayat.dart';
 import '../../data/khatma.dart';
 import '../../data/marks.dart';
 import '../../data/mushaf_models.dart';
@@ -167,6 +168,7 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
     ref.watch(markersProvider);
     ref.watch(khatmaPlansProvider);
     final recitation = ref.watch(pageRecitationProvider);
+    ref.watch(heardAyatProvider);
     final dark = Theme.of(context).brightness == Brightness.dark;
     final background = dark ? null : settings.pageTheme.color;
     final vertical = settings.verticalScroll;
@@ -528,6 +530,14 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
                 ? _mistakeColor
                 : _correctColor,
       },
+      recitedWords: recitation?.page == page && recitation!.hideText
+          ? recitation.recitedWords
+          : audio.visible && settings.hideWhileListening
+          ? {
+              for (final a in ref.read(heardAyatProvider))
+                a: PageRecitation.allWords,
+            }
+          : null,
       bookmarks: [
         for (final kind in MarkerKind.values)
           if (markers[kind] case final a? when mushaf.pageOf(a) == page)
@@ -724,6 +734,7 @@ class _PageSlot extends ConsumerWidget {
     required this.selected,
     required this.selectedWord,
     required this.highlights,
+    this.recitedWords,
     required this.bookmarks,
     required this.showHizbMarks,
     required this.onAyahTap,
@@ -741,6 +752,7 @@ class _PageSlot extends ConsumerWidget {
   final List<Surah> surahs;
   final AyahRef? selected;
   final Map<AyahRef, Color> highlights;
+  final Map<AyahRef, int>? recitedWords;
 
   /// Markers and khatma plans that stand on this page: their color and
   /// name, drawn as ribbons in the header.
@@ -846,6 +858,7 @@ class _PageSlot extends ConsumerWidget {
                   selected: selected,
                   selectedWord: selectedWord,
                   highlights: highlights,
+                  recitedWords: recitedWords,
                   showHizbMarks: showHizbMarks,
                   tajweed: tajweed,
                   onAyahTap: onAyahTap,
