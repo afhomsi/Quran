@@ -9,9 +9,9 @@ file as export_onnx.py) with its model loading pointed at our checkpoint.
 reads ./quran-base.pt and writes quran-base-encoder.int8.onnx,
 quran-base-decoder.int8.onnx and quran-base-tokens.txt.
 
-It also writes quran-base-decoder.small.onnx, which quantizes the token
-embedding too. Most of the int8 decoder is that embedding left in float32,
-so this makes the download much smaller.
+It also writes quran-base-decoder.small.onnx, the int8 decoder with its
+token embedding in int8 too (see shrink_embedding.py), which makes the
+download much smaller.
 """
 
 import argparse
@@ -38,15 +38,9 @@ def main() -> None:
     with disable_sdpa():
         export_onnx.main()
 
-    from onnxruntime.quantization import QuantType, quantize_dynamic
+    from shrink_embedding import shrink
 
-    quantize_dynamic(
-        model_input=f"{name}-decoder.onnx",
-        model_output=f"{name}-decoder.small.onnx",
-        op_types_to_quantize=["MatMul", "Gather"],
-        weight_type=QuantType.QInt8,
-    )
-
+    shrink(f"{name}-decoder.int8.onnx", f"{name}-decoder.small.onnx")
 
 if __name__ == "__main__":
     main()
