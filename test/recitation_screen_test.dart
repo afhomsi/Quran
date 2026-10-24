@@ -9,6 +9,7 @@ import 'package:hifz/data/quran_repository.dart';
 import 'package:hifz/data/reading_state.dart';
 import 'package:hifz/data/recitation_history.dart';
 import 'package:hifz/features/recitation/recitation_screen.dart';
+import 'package:hifz/recitation/alert_sound.dart';
 import 'package:hifz/recitation/speech_listener.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -56,12 +57,14 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     final player = FakePlayer();
+    var alerts = 0;
     final container = ProviderContainer(
       overrides: [
         surahsProvider.overrideWith((ref) async => surahs),
         speechListenerProvider.overrideWithValue(listener),
         sharedPreferencesProvider.overrideWithValue(prefs),
         ayahPlayerProvider.overrideWithValue(player),
+        mistakeAlertProvider.overrideWithValue(() => alerts++),
       ],
     );
     await tester.pumpWidget(
@@ -94,6 +97,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('سمعت: الناس'), findsOneWidget);
+    expect(alerts, 1);
 
     // After stopping, the ayah recited wrongly can be played and repeated.
     await tester.tap(find.text('إيقاف'));

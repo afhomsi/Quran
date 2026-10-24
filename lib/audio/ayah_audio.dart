@@ -85,6 +85,9 @@ class JustAudioAyahPlayer implements AyahPlayer {
 
   @override
   Future<void> play(String url, {double speed = 1}) async {
+    // Loading a new recording over a finished one is ignored on the web, so
+    // the first ayah played again and again. Stop first to start afresh.
+    await _player.stop();
     await _player.setUrl(url);
     await _player.setSpeed(speed);
     // play() only returns once playback stops, so don't wait for it.
@@ -104,8 +107,10 @@ class JustAudioAyahPlayer implements AyahPlayer {
   Future<void> setSpeed(double speed) => _player.setSpeed(speed);
 
   @override
-  Stream<void> get completed => _player.playerStateStream
-      .where((s) => s.processingState == ProcessingState.completed)
+  Stream<void> get completed => _player.processingStateStream
+      // Once per ending: stopping a finished recording repeats its state.
+      .distinct()
+      .where((s) => s == ProcessingState.completed)
       .map((_) {});
 
   @override
@@ -213,7 +218,9 @@ class AudioController extends Notifier<AudioState> {
   @override
   AudioState build() {
     final player = ref.watch(ayahPlayerProvider);
-    _completed = player.completed.listen((_) => _onCompleted());
+    // Go on outside the player's own event, which cannot load the next
+    // recording while it is being delivered.
+    _completed = player.completed.listen((_) => Future(_onCompleted));
     ref.onDispose(() => _completed?.cancel());
     final raw = ref
         .read(sharedPreferencesProvider)

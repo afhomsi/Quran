@@ -105,7 +105,7 @@ class _RecitationViewState extends ConsumerState<_RecitationView> {
     listener: widget.listener,
     expected: widget.words,
     surahName: (s) => widget.surahs[s - 1].name,
-  )..onMistake = (_) => playMistakeAlert();
+  )..onMistake = (_) => ref.read(mistakeAlertProvider)();
 
   late final List<_Group> _groups = _groupWords(widget.words);
   final _scroll = ScrollController();
