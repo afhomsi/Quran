@@ -61,12 +61,13 @@ extension StudyStrings on S {
     'বিষয় বেছে নিন',
     'مواد چنیں',
   );
-  String get bookmarkAction => _('فاصل', 'Bookmark', 'বুকমার্ক', 'نشان');
-  String get colorAction => _('تلوين', 'Color', 'রং', 'رنگ');
-  String get comments => _('تعليقات', 'Notes', 'নোট', 'تبصرے');
+  String get bookmarkAction => _('علامة', 'Bookmark', 'বুকমার্ক', 'نشان');
+  String get colorAction => _('تظليل', 'Highlight', 'রং', 'رنگ');
+  String get comments => _('ملاحظات', 'Notes', 'নোট', 'نوٹس');
+  String get studyMore => _('تفاصيل', 'Details', 'বিস্তারিত', 'تفصیل');
   String get comment => _('تعليق', 'Note', 'নোট', 'تبصرہ');
   String get removeColor =>
-      _('إزالة التلوين', 'Remove color', 'রং সরান', 'رنگ ہٹائیں');
+      _('إزالة التظليل', 'Remove highlight', 'রং সরান', 'رنگ ہٹائیں');
   String get bookmarkAdded => _(
     'تمت إضافة العلامة المرجعية',
     'Bookmark added',

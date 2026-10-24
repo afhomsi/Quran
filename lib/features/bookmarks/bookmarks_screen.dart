@@ -86,7 +86,7 @@ class _BookmarksScreenState extends ConsumerState<BookmarksScreen> {
                       icon: Icon(
                         _colorFilter == null
                             ? Icons.filter_alt_outlined
-                            : Icons.filter_alt,
+                            : Icons.filter_alt_rounded,
                         color: _colorFilter == null
                             ? null
                             : highlightColors[_colorFilter!],
@@ -202,10 +202,13 @@ class _MarkRow extends StatelessWidget {
             if (swatch != null) _Swatch(swatch!),
             const SizedBox(width: 8),
             // Mirrors in right-to-left, so it points left, at the page.
-            Icon(Icons.chevron_right, color: colors.primary),
+            Icon(Icons.chevron_right_rounded, color: colors.primary),
             IconButton(
               tooltip: S.of(context).delete,
-              icon: Icon(Icons.remove_circle_outline, color: colors.primary),
+              icon: Icon(
+                Icons.remove_circle_outline_rounded,
+                color: colors.primary,
+              ),
               onPressed: onRemove,
             ),
           ],

@@ -78,7 +78,7 @@ class _ColorSheetState extends ConsumerState<_ColorSheet> {
               alignment: AlignmentDirectional.centerEnd,
               child: IconButton(
                 tooltip: t.close,
-                icon: const Icon(Icons.close),
+                icon: const Icon(Icons.close_rounded),
                 onPressed: () => Navigator.pop(context),
               ),
             ),
@@ -171,7 +171,9 @@ class MarkerMenuButton extends ConsumerWidget {
             child: ListTile(
               contentPadding: EdgeInsets.zero,
               leading: Icon(
-                markers[kind] == ayah ? Icons.bookmark_remove : Icons.bookmark,
+                markers[kind] == ayah
+                    ? Icons.bookmark_remove_rounded
+                    : Icons.bookmark_rounded,
                 color: kind.color,
               ),
               title: Text(
@@ -365,7 +367,7 @@ class _SharePreviewState extends State<SharePreview> {
             children: [
               Expanded(
                 child: FilledButton.icon(
-                  icon: const Icon(Icons.image_outlined),
+                  icon: const Icon(Icons.image_rounded),
                   label: Text(t.shareAsImage),
                   onPressed: _busy ? null : () => _share(pdf: false),
                 ),
@@ -373,7 +375,7 @@ class _SharePreviewState extends State<SharePreview> {
               const SizedBox(width: 12),
               Expanded(
                 child: OutlinedButton.icon(
-                  icon: const Icon(Icons.picture_as_pdf_outlined),
+                  icon: const Icon(Icons.picture_as_pdf_rounded),
                   label: Text(t.shareAsPdf),
                   onPressed: _busy ? null : () => _share(pdf: true),
                 ),

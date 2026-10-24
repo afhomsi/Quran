@@ -79,24 +79,26 @@ class RecitationBar extends ConsumerWidget {
             children: [
               IconButton(
                 tooltip: t.closeRecitation,
-                icon: Icon(Icons.cancel, color: colors.primary),
+                icon: Icon(Icons.cancel_rounded, color: colors.primary),
                 onPressed: controller.close,
               ),
               IconButton(
                 tooltip: t.restartRecitation,
-                icon: Icon(Icons.restart_alt, color: colors.primary),
+                icon: Icon(Icons.restart_alt_rounded, color: colors.primary),
                 onPressed: controller.restart,
               ),
               IconButton.filled(
                 tooltip: session.isListening ? t.stop : t.startRecitation,
                 iconSize: 30,
-                icon: Icon(session.isListening ? Icons.stop : Icons.mic),
+                icon: Icon(
+                  session.isListening ? Icons.stop_rounded : Icons.mic_rounded,
+                ),
                 onPressed: controller.toggleListening,
               ),
               IconButton(
                 tooltip: t.listenToMistakes,
                 icon: Icon(
-                  Icons.replay,
+                  Icons.replay_rounded,
                   color: mistakeAyat.isEmpty ? null : colors.error,
                 ),
                 onPressed: mistakeAyat.isEmpty

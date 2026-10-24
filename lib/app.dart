@@ -7,6 +7,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import 'features/shell/app_shell.dart';
 import 'l10n/strings.dart';
 import 'settings/app_settings.dart';
+import 'theme/app_theme.dart';
 
 /// Keeps the screen on or lets it sleep. Replaced in tests, where the
 /// platform plugin is missing.
@@ -48,8 +49,8 @@ class _HifzAppState extends ConsumerState<HifzApp> {
       locale: settings.language.locale,
       supportedLocales: [for (final l in AppLanguage.values) l.locale],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
-      theme: _theme(Brightness.light),
-      darkTheme: _theme(Brightness.dark),
+      theme: appTheme(Brightness.light),
+      darkTheme: appTheme(Brightness.dark),
       themeMode: settings.nightMode ? ThemeMode.dark : ThemeMode.light,
       scrollBehavior: const _DragAnywhereScrollBehavior(),
       builder: (context, child) {
@@ -66,14 +67,6 @@ class _HifzAppState extends ConsumerState<HifzApp> {
       home: const AppShell(),
     );
   }
-
-  ThemeData _theme(Brightness brightness) => ThemeData(
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: const Color(0xFF1B5E20),
-      brightness: brightness,
-    ),
-    useMaterial3: true,
-  );
 }
 
 /// Lets every list scroll by dragging with a mouse or a trackpad too, not

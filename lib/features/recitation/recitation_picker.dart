@@ -49,13 +49,13 @@ class _RecitationPicker extends ConsumerWidget {
         children: [
           if (page != null) ...[
             ListTile(
-              leading: const Icon(Icons.menu_book),
+              leading: const Icon(Icons.menu_book_rounded),
               title: Text(t.recitePage(page!)),
               onTap: () => open(RecitationScreen.page(page!)),
             ),
             for (final s in onPage)
               ListTile(
-                leading: const Icon(Icons.mic),
+                leading: const Icon(Icons.mic_rounded),
                 title: Text(t.reciteWholeSurah(surahs[s - 1])),
                 onTap: () => open(RecitationScreen.surah(s)),
               ),

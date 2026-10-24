@@ -116,7 +116,7 @@ void main() {
   ) async {
     await _start(tester);
     await _openSettings(tester);
-    expect(find.text('البيانات'), findsNothing);
+    expect(find.text('بياناتي'), findsNothing);
 
     for (var i = 0; i < 6; i++) {
       await tester.dragFrom(
@@ -126,7 +126,7 @@ void main() {
       );
       await tester.pumpAndSettle();
     }
-    expect(find.text('البيانات'), findsOneWidget);
+    expect(find.text('بياناتي'), findsOneWidget);
   });
 
   testWidgets('switching the language changes the app and its direction', (
@@ -134,16 +134,16 @@ void main() {
   ) async {
     final prefs = await _start(tester);
     await _openSettings(tester);
-    await tester.tap(find.text('English'));
+    await _tapSetting(tester, 'English');
     await tester.pumpAndSettle();
     expect(find.text('Settings'), findsOneWidget);
 
     await tester.tap(find.byType(BackButton));
     await tester.pumpAndSettle();
-    expect(find.text('Mushaf'), findsOneWidget);
+    expect(find.text('Read'), findsOneWidget);
     expect(find.text('Al-Baqarah'), findsOneWidget);
     expect(
-      Directionality.of(tester.element(find.text('Mushaf'))),
+      Directionality.of(tester.element(find.text('Read'))),
       TextDirection.ltr,
     );
     expect(prefs.getString(settingsKey), contains('"language":"en"'));
@@ -164,13 +164,13 @@ void main() {
     expect(find.text('تسميع'), findsOneWidget);
     await _openSettings(tester);
 
-    await _tapSetting(tester, 'الوضع الليلي');
+    await _tapSetting(tester, 'السمة الداكنة');
     expect(
       Theme.of(tester.element(find.text('الإعدادات'))).brightness,
       Brightness.dark,
     );
-    await _tapSetting(tester, 'استخدام الأرقام (123 بدلا من ١٢٣)');
-    await _tapSetting(tester, 'إخفاء زر التسميع');
+    await _tapSetting(tester, 'إخفاء زر التسميع من أسفل الصفحة');
+    await _tapSetting(tester, 'عرض الأرقام بصيغة 123 بدل ١٢٣');
 
     await tester.tap(find.byType(BackButton));
     await tester.pumpAndSettle();
@@ -186,7 +186,7 @@ void main() {
     await _start(tester, screenWake: wake);
     expect(wake, [true]);
     await _openSettings(tester);
-    await _tapSetting(tester, 'عدم قفل الشاشة عند استخدام التطبيق');
+    await _tapSetting(tester, 'إبقاء الشاشة مضاءة أثناء القراءة');
     expect(wake, [true, false]);
   });
 

@@ -56,12 +56,12 @@ class AudioBar extends ConsumerWidget {
             children: [
               IconButton(
                 tooltip: t.closePlayer,
-                icon: Icon(Icons.cancel, color: colors.primary),
+                icon: Icon(Icons.cancel_rounded, color: colors.primary),
                 onPressed: controller.close,
               ),
               IconButton(
                 tooltip: t.nextAyah,
-                icon: Icon(Icons.fast_forward, color: colors.primary),
+                icon: Icon(Icons.fast_forward_rounded, color: colors.primary),
                 onPressed: controller.next,
               ),
               audio.loading && audio.playing
@@ -77,14 +77,16 @@ class AudioBar extends ConsumerWidget {
                       tooltip: audio.playing ? t.pause : t.play,
                       iconSize: 32,
                       icon: Icon(
-                        audio.playing ? Icons.pause : Icons.play_arrow,
+                        audio.playing
+                            ? Icons.pause_rounded
+                            : Icons.play_arrow_rounded,
                         color: colors.primary,
                       ),
                       onPressed: controller.togglePlay,
                     ),
               IconButton(
                 tooltip: t.previousAyah,
-                icon: Icon(Icons.fast_rewind, color: colors.primary),
+                icon: Icon(Icons.fast_rewind_rounded, color: colors.primary),
                 onPressed: controller.previous,
               ),
               IconButton(
@@ -92,8 +94,8 @@ class AudioBar extends ConsumerWidget {
                 isSelected: audio.loop != AudioLoop.none,
                 icon: Icon(
                   audio.loop == AudioLoop.ayah
-                      ? Icons.repeat_one
-                      : Icons.all_inclusive,
+                      ? Icons.repeat_one_rounded
+                      : Icons.all_inclusive_rounded,
                   color: audio.loop == AudioLoop.none
                       ? colors.onSurfaceVariant
                       : colors.primary,
@@ -114,7 +116,7 @@ class AudioBar extends ConsumerWidget {
               ),
               IconButton(
                 tooltip: t.audioOptions,
-                icon: Icon(Icons.more_horiz, color: colors.primary),
+                icon: Icon(Icons.more_horiz_rounded, color: colors.primary),
                 onPressed: () => showModalBottomSheet<void>(
                   context: context,
                   showDragHandle: true,
@@ -148,7 +150,7 @@ class _AudioOptions extends ConsumerWidget {
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: Icon(
-                Icons.playlist_play,
+                Icons.playlist_play_rounded,
                 color: audio.playlist == null
                     ? null
                     : theme.colorScheme.primary,
