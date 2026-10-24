@@ -18,6 +18,7 @@ import '../../data/reading_state.dart';
 import '../../l10n/strings.dart';
 import '../../settings/app_settings.dart';
 import '../audio/audio_bar.dart';
+import '../audio/repeat_sheet.dart';
 import '../notes/notes_screen.dart';
 import '../recitation/recitation_picker.dart';
 import '../settings/settings_screen.dart';
@@ -28,7 +29,8 @@ import 'mushaf_page_view.dart';
 /// Swipeable 604-page mushaf. Remembers the last page read.
 ///
 /// The top bar has a menu, night mode, a clock, a switch to plain text and
-/// ayah search. The audio player sits under the page while it is open, and
+/// ayah search. Listening and reciting have their own buttons beside the
+/// page number. The audio player sits under the page while it is open, and
 /// the page follows the ayah being recited.
 ///
 /// Follows the settings: two facing pages on a wide screen, vertical
@@ -320,6 +322,14 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
                         : t.n(_page),
                     onPrevious: _page > 1 ? _previousPage : null,
                     onNext: _page + _step <= mushafPageCount ? _nextPage : null,
+                    onListen: () => showRepeatSheet(
+                      context,
+                      from: mushaf.page(_page).firstAyah,
+                      to: mushaf.page(_page).words.last.ayah,
+                    ),
+                    onRecite: settings.hideRecitationButton
+                        ? null
+                        : () => showRecitationPicker(context, page: _page),
                   ),
                 ],
               ),
@@ -422,6 +432,14 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
                     onTap: () {
                       ref.read(audioProvider.notifier).playFrom(ayah);
                       done();
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.playlist_play),
+                    title: Text(t.repeatFromHere),
+                    onTap: () {
+                      done();
+                      showRepeatSheet(this.context, from: ayah, to: ayah);
                     },
                   ),
                   for (final kind in MarkerKind.values)
@@ -835,21 +853,41 @@ class _PageSlot extends ConsumerWidget {
 }
 
 /// Previous and next page buttons around the page number. The previous
-/// page is on the right, as in a printed mushaf.
+/// page is on the right, as in a printed mushaf. Listening is on the
+/// right side and reciting on the left, so both are always at hand.
 class _PageBar extends StatelessWidget {
-  const _PageBar({required this.label, this.onPrevious, this.onNext});
+  const _PageBar({
+    required this.label,
+    this.onPrevious,
+    this.onNext,
+    required this.onListen,
+    this.onRecite,
+  });
 
   /// The page number, or the two numbers of facing pages.
   final String label;
   final VoidCallback? onPrevious;
   final VoidCallback? onNext;
+  final VoidCallback onListen;
+
+  /// Null when the recitation button is hidden in the settings.
+  final VoidCallback? onRecite;
 
   @override
   Widget build(BuildContext context) {
     final t = S.of(context);
     return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
       children: [
+        Expanded(
+          child: Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton.icon(
+              icon: const Icon(Icons.headphones),
+              label: Text(t.listen),
+              onPressed: onListen,
+            ),
+          ),
+        ),
         IconButton(
           tooltip: t.previousPage,
           // Chevrons mirror in right-to-left layouts, so this one points
@@ -869,6 +907,18 @@ class _PageBar extends StatelessWidget {
           tooltip: t.nextPage,
           icon: const Icon(Icons.chevron_right),
           onPressed: onNext,
+        ),
+        Expanded(
+          child: Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: onRecite == null
+                ? null
+                : TextButton.icon(
+                    icon: const Icon(Icons.mic),
+                    label: Text(t.recite),
+                    onPressed: onRecite,
+                  ),
+          ),
         ),
       ],
     );
