@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/mushaf_models.dart';
 import '../../data/page_fonts.dart';
+import '../../data/quarters.dart';
 
 /// Width of one printed line in em of the QCF page fonts.
 const _lineWidthEm = 16.6;
@@ -10,6 +11,9 @@ const _lineWidthEm = 16.6;
 const _linePitchEm = 1.6;
 
 const _linesPerPage = 15;
+
+/// Ayat where a quarter of a hizb starts, except the very first one.
+final _quarterStarts = rubStarts.skip(1).toSet();
 
 /// Width of the printed text block when a page gets [width] by [height].
 /// A tall screen is limited by its width, a wide one by its height.
@@ -28,6 +32,7 @@ class MushafPageView extends StatelessWidget {
     required this.page,
     required this.surahName,
     this.selected,
+    this.showHizbMarks = false,
     this.onAyahTap,
     this.onAyahLongPress,
   });
@@ -35,6 +40,9 @@ class MushafPageView extends StatelessWidget {
   final MushafPage page;
   final String Function(int surah) surahName;
   final AyahRef? selected;
+
+  /// Put ۞ over the first word of each quarter of a hizb.
+  final bool showHizbMarks;
   final ValueChanged<AyahRef>? onAyahTap;
   final ValueChanged<AyahRef>? onAyahLongPress;
 
@@ -101,6 +109,10 @@ class MushafPageView extends StatelessWidget {
                   family: PageFonts.familyFor(page.number),
                   fontSize: fontSize,
                   selected: w.ayah == selected,
+                  hizbMark:
+                      showHizbMarks &&
+                      w.position == 1 &&
+                      _quarterStarts.contains(w.ayah),
                   onTap: onAyahTap,
                   onLongPress: onAyahLongPress,
                 ),
@@ -118,6 +130,7 @@ class _Word extends StatelessWidget {
     required this.family,
     required this.fontSize,
     required this.selected,
+    this.hizbMark = false,
     this.onTap,
     this.onLongPress,
   });
@@ -126,6 +139,7 @@ class _Word extends StatelessWidget {
   final String family;
   final double fontSize;
   final bool selected;
+  final bool hizbMark;
   final ValueChanged<AyahRef>? onTap;
   final ValueChanged<AyahRef>? onLongPress;
 
@@ -140,15 +154,34 @@ class _Word extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected ? colors.primaryContainer : null,
         ),
-        child: Text(
-          word.glyph,
-          textDirection: TextDirection.rtl,
-          style: TextStyle(
-            fontFamily: family,
-            fontSize: fontSize,
-            height: _linePitchEm,
-            color: word.isAyahEnd ? colors.primary : colors.onSurface,
-          ),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Text(
+              word.glyph,
+              textDirection: TextDirection.rtl,
+              style: TextStyle(
+                fontFamily: family,
+                fontSize: fontSize,
+                height: _linePitchEm,
+                color: word.isAyahEnd ? colors.primary : colors.onSurface,
+              ),
+            ),
+            if (hizbMark)
+              // Above the start of the word, in the space between lines.
+              PositionedDirectional(
+                top: -fontSize * 0.1,
+                start: 0,
+                child: Text(
+                  '۞',
+                  style: TextStyle(
+                    fontSize: fontSize * 0.5,
+                    height: 1,
+                    color: colors.primary,
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );

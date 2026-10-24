@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,10 +11,17 @@ import '../../data/page_fonts.dart';
 import '../../data/quran_models.dart';
 import '../../data/quran_repository.dart';
 import '../../data/reading_state.dart';
+import '../../l10n/strings.dart';
+import '../../settings/app_settings.dart';
 import '../recitation/recitation_picker.dart';
+import '../settings/settings_screen.dart';
 import 'mushaf_page_view.dart';
 
 /// Swipeable 604-page mushaf. Remembers the last page read.
+///
+/// Follows the settings: two facing pages on a wide screen, vertical
+/// scrolling, automatic page turning, the page color and the ayah menu on
+/// a single tap.
 class MushafScreen extends ConsumerStatefulWidget {
   const MushafScreen({super.key, required this.initialPage, this.highlight});
 
@@ -26,9 +35,18 @@ class MushafScreen extends ConsumerStatefulWidget {
 }
 
 class _MushafScreenState extends ConsumerState<MushafScreen> {
-  late final _controller = PageController(initialPage: widget.initialPage - 1);
+  /// Whether each slide shows two facing pages instead of one.
+  bool _spread = false;
+  late PageController _controller = PageController(
+    initialPage: _indexOf(widget.initialPage),
+  );
+
+  /// The page shown, or the right-hand page of the two facing pages.
   late int _page = widget.initialPage;
   late AyahRef? _selected = widget.highlight;
+
+  Timer? _autoTurn;
+  bool _autoTurnPaused = false;
 
   @override
   void initState() {
@@ -38,39 +56,95 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
 
   @override
   void dispose() {
+    _autoTurn?.cancel();
     _controller.dispose();
     super.dispose();
+  }
+
+  int get _step => _spread ? 2 : 1;
+
+  int get _slideCount => _spread ? (mushafPageCount + 1) ~/ 2 : mushafPageCount;
+
+  /// The slide that shows [page].
+  int _indexOf(int page) => _spread ? (page - 1) ~/ 2 : page - 1;
+
+  /// The first page on slide [index].
+  int _pageAt(int index) => _spread ? index * 2 + 1 : index + 1;
+
+  /// Switches between one and two pages per slide, staying on the same page.
+  void _useSpread(bool spread) {
+    if (spread == _spread) return;
+    final old = _controller;
+    _spread = spread;
+    _page = _pageAt(_indexOf(_page));
+    _controller = PageController(initialPage: _indexOf(_page));
+    WidgetsBinding.instance.addPostFrameCallback((_) => old.dispose());
   }
 
   void _onPageChanged(int page) {
     setState(() => _page = page);
     ref.read(lastPageProvider.notifier).set(page);
     final fonts = ref.read(pageFontsProvider);
-    for (final p in [page - 1, page + 1]) {
-      if (p >= 1 && p <= mushafPageCount) fonts.load(p);
+    for (var p = page - _step; p < page + 2 * _step; p++) {
+      if (p >= 1 && p <= mushafPageCount && p != page) fonts.load(p);
     }
+    _scheduleAutoTurn();
+  }
+
+  /// Turns the page after the chosen time, if automatic turning is on.
+  void _scheduleAutoTurn() {
+    _autoTurn?.cancel();
+    final settings = ref.read(settingsProvider);
+    if (!settings.autoPageTurn || _autoTurnPaused) return;
+    _autoTurn = Timer(Duration(seconds: settings.autoPageSeconds), _nextPage);
   }
 
   @override
   Widget build(BuildContext context) {
     final mushaf = ref.watch(mushafProvider).value;
     final surahs = ref.watch(surahsProvider).value;
+    final settings = ref.watch(settingsProvider);
+    ref.listen(
+      settingsProvider.select((s) => (s.autoPageTurn, s.autoPageSeconds)),
+      (_, _) => _scheduleAutoTurn(),
+    );
     if (mushaf == null || surahs == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
+    final t = S.of(context);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final background = dark ? null : settings.pageTheme.color;
+    final vertical = settings.verticalScroll;
     return Scaffold(
+      backgroundColor: background,
       appBar: AppBar(
+        backgroundColor: background,
         actions: [
+          if (settings.autoPageTurn)
+            IconButton(
+              tooltip: _autoTurnPaused ? t.resumeAutoTurn : t.pauseAutoTurn,
+              icon: Icon(_autoTurnPaused ? Icons.play_arrow : Icons.pause),
+              onPressed: () {
+                setState(() => _autoTurnPaused = !_autoTurnPaused);
+                _scheduleAutoTurn();
+              },
+            ),
           IconButton(
-            tooltip: 'انتقال إلى صفحة',
+            tooltip: t.goToPage,
             icon: const Icon(Icons.numbers),
             onPressed: () => _goToPage(context),
           ),
-          FilledButton.tonalIcon(
-            icon: const Icon(Icons.mic),
-            label: const Text('تسميع'),
-            onPressed: () => showRecitationPicker(context, page: _page),
+          IconButton(
+            tooltip: t.settings,
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () => openSettings(context),
           ),
+          if (!settings.hideRecitationButton)
+            FilledButton.tonalIcon(
+              icon: const Icon(Icons.mic),
+              label: Text(t.recite),
+              onPressed: () => showRecitationPicker(context, page: _page),
+            ),
           const SizedBox(width: 8),
         ],
       ),
@@ -79,40 +153,67 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
         bindings: {
           const SingleActivator(LogicalKeyboardKey.arrowLeft): _nextPage,
           const SingleActivator(LogicalKeyboardKey.arrowRight): _previousPage,
+          const SingleActivator(LogicalKeyboardKey.arrowDown): _nextPage,
+          const SingleActivator(LogicalKeyboardKey.arrowUp): _previousPage,
         },
         child: Focus(
           autofocus: true,
           child: SafeArea(
-            child: Column(
-              children: [
-                Expanded(
-                  child: PageView.builder(
-                    controller: _controller,
-                    // Let a mouse drag turn pages too, not only touch.
-                    scrollBehavior: ScrollConfiguration.of(
-                      context,
-                    ).copyWith(dragDevices: PointerDeviceKind.values.toSet()),
-                    itemCount: mushafPageCount,
-                    onPageChanged: (i) => _onPageChanged(i + 1),
-                    itemBuilder: (context, i) => _PageSlot(
-                      page: mushaf.page(i + 1),
-                      juz: mushaf.juzOfPage(i + 1),
-                      hizb: mushaf.hizbOfPage(i + 1),
-                      surahs: surahs,
-                      selected: _selected,
-                      onAyahTap: (a) =>
-                          setState(() => _selected = _selected == a ? null : a),
-                      onAyahLongPress: (a) =>
-                          _showAyahActions(context, a, surahs),
+            // The mushaf reads right to left in every app language.
+            child: Directionality(
+              textDirection: TextDirection.rtl,
+              child: Column(
+                children: [
+                  Expanded(
+                    child: LayoutBuilder(
+                      builder: (context, box) {
+                        _useSpread(
+                          settings.twoPagesInLandscape &&
+                              box.maxWidth > box.maxHeight,
+                        );
+                        return PageView.builder(
+                          key: ValueKey((_spread, vertical)),
+                          controller: _controller,
+                          scrollDirection: vertical
+                              ? Axis.vertical
+                              : Axis.horizontal,
+                          // Vertical pages scroll freely, like a long sheet.
+                          pageSnapping: !vertical,
+                          // Let a mouse drag turn pages too, not only touch.
+                          scrollBehavior: ScrollConfiguration.of(context)
+                              .copyWith(
+                                dragDevices: PointerDeviceKind.values.toSet(),
+                              ),
+                          itemCount: _slideCount,
+                          onPageChanged: (i) => _onPageChanged(_pageAt(i)),
+                          itemBuilder: (context, i) {
+                            final first = _pageAt(i);
+                            if (!_spread) return _slot(mushaf, surahs, first);
+                            return Row(
+                              children: [
+                                Expanded(child: _slot(mushaf, surahs, first)),
+                                const VerticalDivider(width: 1),
+                                Expanded(
+                                  child: first + 1 <= mushafPageCount
+                                      ? _slot(mushaf, surahs, first + 1)
+                                      : const SizedBox(),
+                                ),
+                              ],
+                            );
+                          },
+                        );
+                      },
                     ),
                   ),
-                ),
-                _PageBar(
-                  page: _page,
-                  onPrevious: _page > 1 ? _previousPage : null,
-                  onNext: _page < mushafPageCount ? _nextPage : null,
-                ),
-              ],
+                  _PageBar(
+                    label: _spread && _page + 1 <= mushafPageCount
+                        ? '${t.n(_page)} – ${t.n(_page + 1)}'
+                        : t.n(_page),
+                    onPrevious: _page > 1 ? _previousPage : null,
+                    onNext: _page + _step <= mushafPageCount ? _nextPage : null,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -120,14 +221,30 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
     );
   }
 
-  void _nextPage() => _turnTo(_page + 1);
+  Widget _slot(Mushaf mushaf, List<Surah> surahs, int page) {
+    final settings = ref.read(settingsProvider);
+    return _PageSlot(
+      page: mushaf.page(page),
+      juz: mushaf.juzOfPage(page),
+      hizb: mushaf.hizbOfPage(page),
+      surahs: surahs,
+      selected: _selected,
+      showHizbMarks: settings.showHizbMarks,
+      onAyahTap: settings.tapOpensAyahMenu
+          ? (a) => _showAyahActions(context, a, surahs)
+          : (a) => setState(() => _selected = _selected == a ? null : a),
+      onAyahLongPress: (a) => _showAyahActions(context, a, surahs),
+    );
+  }
 
-  void _previousPage() => _turnTo(_page - 1);
+  void _nextPage() => _turnTo(_page + _step);
+
+  void _previousPage() => _turnTo(_page - _step);
 
   void _turnTo(int page) {
-    if (page < 1 || page > mushafPageCount) return;
+    if (page < 1 || page > mushafPageCount || !_controller.hasClients) return;
     _controller.animateToPage(
-      page - 1,
+      _indexOf(page),
       duration: const Duration(milliseconds: 250),
       curve: Curves.easeOut,
     );
@@ -138,7 +255,7 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
       context: context,
       builder: (_) => const GoToPageDialog(),
     );
-    if (page != null) _controller.jumpToPage(page - 1);
+    if (page != null) _controller.jumpToPage(_indexOf(page));
   }
 
   void _showAyahActions(
@@ -153,20 +270,19 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
       builder: (context) => Consumer(
         builder: (context, ref, _) {
           final bookmarked = ref.watch(bookmarksProvider).contains(ayah);
+          final t = S.of(context);
           return SafeArea(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 ListTile(
-                  title: Text(
-                    'سورة ${surahs[ayah.surah - 1].name} · آية ${ayah.ayah}',
-                  ),
+                  title: Text(t.ayahLabel(surahs[ayah.surah - 1], ayah.ayah)),
                 ),
                 ListTile(
                   leading: Icon(
                     bookmarked ? Icons.bookmark_remove : Icons.bookmark_add,
                   ),
-                  title: Text(bookmarked ? 'إزالة العلامة' : 'إضافة علامة'),
+                  title: Text(bookmarked ? t.removeBookmark : t.addBookmark),
                   onTap: () {
                     ref.read(bookmarksProvider.notifier).toggle(ayah);
                     Navigator.pop(context);
@@ -174,7 +290,7 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
                 ),
                 ListTile(
                   leading: const Icon(Icons.copy),
-                  title: const Text('نسخ نص الآية'),
+                  title: Text(t.copyAyah),
                   onTap: () {
                     Clipboard.setData(ClipboardData(text: text));
                     Navigator.pop(context);
@@ -197,6 +313,7 @@ class _PageSlot extends ConsumerWidget {
     required this.hizb,
     required this.surahs,
     required this.selected,
+    required this.showHizbMarks,
     required this.onAyahTap,
     required this.onAyahLongPress,
   });
@@ -206,17 +323,23 @@ class _PageSlot extends ConsumerWidget {
   final int hizb;
   final List<Surah> surahs;
   final AyahRef? selected;
+  final bool showHizbMarks;
   final ValueChanged<AyahRef> onAyahTap;
   final ValueChanged<AyahRef> onAyahLongPress;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final fonts = ref.watch(pageFontsProvider);
+    final t = S.of(context);
+    // Header texts follow the app language, inside the right-to-left page.
+    final textDirection = ref.watch(
+      settingsProvider.select((s) => s.language.direction),
+    );
     return FutureBuilder(
       future: fonts.ready(page.number),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return Center(child: Text('تعذر تحميل الصفحة\n${snapshot.error}'));
+          return Center(child: Text(t.loadPageError(snapshot.error!)));
         }
         if (snapshot.connectionState != ConnectionState.done) {
           return const Center(child: CircularProgressIndicator());
@@ -240,7 +363,8 @@ class _PageSlot extends ConsumerWidget {
                       children: [
                         Flexible(
                           child: Text(
-                            'سورة ${surahs[page.firstAyah.surah - 1].name}',
+                            t.surah(surahs[page.firstAyah.surah - 1]),
+                            textDirection: textDirection,
                             style: style,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -249,7 +373,8 @@ class _PageSlot extends ConsumerWidget {
                         const SizedBox(width: 8),
                         Flexible(
                           child: Text(
-                            'الجزء $juz · الحزب $hizb',
+                            t.juzAndHizb(juz, hizb),
+                            textDirection: textDirection,
                             style: style,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -264,6 +389,7 @@ class _PageSlot extends ConsumerWidget {
                       page: page,
                       surahName: (s) => surahs[s - 1].name,
                       selected: selected,
+                      showHizbMarks: showHizbMarks,
                       onAyahTap: onAyahTap,
                       onAyahLongPress: onAyahLongPress,
                     ),
@@ -281,34 +407,36 @@ class _PageSlot extends ConsumerWidget {
 /// Previous and next page buttons around the page number. The previous
 /// page is on the right, as in a printed mushaf.
 class _PageBar extends StatelessWidget {
-  const _PageBar({required this.page, this.onPrevious, this.onNext});
+  const _PageBar({required this.label, this.onPrevious, this.onNext});
 
-  final int page;
+  /// The page number, or the two numbers of facing pages.
+  final String label;
   final VoidCallback? onPrevious;
   final VoidCallback? onNext;
 
   @override
   Widget build(BuildContext context) {
+    final t = S.of(context);
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         IconButton(
-          tooltip: 'الصفحة السابقة',
+          tooltip: t.previousPage,
           // Chevrons mirror in right-to-left layouts, so this one points
           // right, away from the page number.
           icon: const Icon(Icons.chevron_left),
           onPressed: onPrevious,
         ),
-        SizedBox(
-          width: 56,
+        ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 56),
           child: Text(
-            '$page',
+            label,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.titleMedium,
           ),
         ),
         IconButton(
-          tooltip: 'الصفحة التالية',
+          tooltip: t.nextPage,
           icon: const Icon(Icons.chevron_right),
           onPressed: onNext,
         ),
@@ -340,8 +468,9 @@ class _GoToPageDialogState extends State<GoToPageDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final t = S.of(context);
     return AlertDialog(
-      title: const Text('انتقال إلى صفحة'),
+      title: Text(t.goToPage),
       content: TextField(
         controller: _text,
         autofocus: true,
@@ -355,11 +484,11 @@ class _GoToPageDialogState extends State<GoToPageDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('إلغاء'),
+          child: Text(t.cancel),
         ),
         FilledButton(
           onPressed: _page == null ? null : () => Navigator.pop(context, _page),
-          child: const Text('انتقال'),
+          child: Text(t.go),
         ),
       ],
     );

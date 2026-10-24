@@ -5,6 +5,9 @@ import '../../data/mushaf_models.dart';
 import '../../data/mushaf_repository.dart';
 import '../../data/quran_repository.dart';
 import '../../data/reading_state.dart';
+import '../../l10n/strings.dart';
+import '../../settings/app_settings.dart';
+import '../settings/settings_screen.dart';
 import '../mushaf/mushaf_screen.dart';
 import '../recitation/recitation_picker.dart';
 import 'index_view.dart';
@@ -18,20 +21,25 @@ class HomeScreen extends ConsumerWidget {
     final mushaf = ref.watch(mushafProvider);
     final surahs = ref.watch(surahsProvider);
     final lastPage = ref.watch(lastPageProvider);
+    final hideRecite = ref.watch(
+      settingsProvider.select((s) => s.hideRecitationButton),
+    );
+    final s = S.of(context);
 
     return DefaultTabController(
-      length: indexTabs.length,
+      length: s.indexTabs.length,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('المصحف'),
+          title: Text(s.mushaf),
           actions: [
-            FilledButton.tonalIcon(
-              icon: const Icon(Icons.mic),
-              label: const Text('تسميع'),
-              onPressed: () => showRecitationPicker(context),
-            ),
+            if (!hideRecite)
+              FilledButton.tonalIcon(
+                icon: const Icon(Icons.mic),
+                label: Text(s.recite),
+                onPressed: () => showRecitationPicker(context),
+              ),
             IconButton(
-              tooltip: 'انتقال إلى صفحة',
+              tooltip: s.goToPage,
               icon: const Icon(Icons.numbers),
               onPressed: () async {
                 final page = await showDialog<int>(
@@ -41,11 +49,16 @@ class HomeScreen extends ConsumerWidget {
                 if (page != null && context.mounted) openMushaf(context, page);
               },
             ),
+            IconButton(
+              tooltip: s.settings,
+              icon: const Icon(Icons.settings_outlined),
+              onPressed: () => openSettings(context),
+            ),
           ],
           bottom: TabBar(
             isScrollable: true,
             tabAlignment: TabAlignment.start,
-            tabs: [for (final t in indexTabs) Tab(text: t)],
+            tabs: [for (final t in s.indexTabs) Tab(text: t)],
           ),
         ),
         floatingActionButton: lastPage == null
@@ -53,15 +66,15 @@ class HomeScreen extends ConsumerWidget {
             : FloatingActionButton.extended(
                 onPressed: () => openMushaf(context, lastPage),
                 icon: const Icon(Icons.menu_book),
-                label: Text('متابعة القراءة · صفحة $lastPage'),
+                label: Text(s.continueReading(lastPage)),
               ),
         body: switch ((mushaf, surahs)) {
-          (AsyncData(value: final m), AsyncData(value: final s)) => IndexView(
+          (AsyncData(value: final m), AsyncData(value: final all)) => IndexView(
             mushaf: m,
-            surahs: s,
+            surahs: all,
           ),
           (AsyncError(:final error), _) || (_, AsyncError(:final error)) =>
-            Center(child: Text('تعذر تحميل المصحف\n$error')),
+            Center(child: Text(s.loadMushafError(error))),
           _ => const Center(child: CircularProgressIndicator()),
         },
       ),
