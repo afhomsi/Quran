@@ -54,21 +54,37 @@ class NotesScreen extends ConsumerWidget {
   }
 }
 
-/// Lets the user write, change or delete their note on [ayah].
-Future<void> editNote(BuildContext context, AyahRef ayah) async {
+/// Lets the user write, change or delete their note on [ayah]. [word], the
+/// word pressed on the page, is shown after the ayah.
+Future<void> editNote(
+  BuildContext context,
+  AyahRef ayah, {
+  String? word,
+}) async {
   final container = ProviderScope.containerOf(context, listen: false);
   final old = container.read(notesProvider)[ayah] ?? '';
+  final surahs = container.read(surahsProvider).value;
+  final t = S.of(context);
+  final about = surahs == null
+      ? null
+      : [
+          t.ayahLabel(surahs[ayah.surah - 1], ayah.ayah),
+          if (word != null && word.isNotEmpty) '($word)',
+        ].join(' ');
   final text = await showDialog<String>(
     context: context,
-    builder: (_) => _NoteDialog(initial: old),
+    builder: (_) => _NoteDialog(initial: old, about: about),
   );
   if (text != null) container.read(notesProvider.notifier).set(ayah, text);
 }
 
 class _NoteDialog extends StatefulWidget {
-  const _NoteDialog({required this.initial});
+  const _NoteDialog({required this.initial, this.about});
 
   final String initial;
+
+  /// The ayah the note is on.
+  final String? about;
 
   @override
   State<_NoteDialog> createState() => _NoteDialogState();
@@ -87,7 +103,18 @@ class _NoteDialogState extends State<_NoteDialog> {
   Widget build(BuildContext context) {
     final t = S.of(context);
     return AlertDialog(
-      title: Text(t.noteOnAyah),
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(t.noteOnAyah),
+          if (widget.about != null)
+            Text(
+              widget.about!,
+              style: Theme.of(context).textTheme.bodyMedium
+                  ?.copyWith(color: Theme.of(context).colorScheme.primary),
+            ),
+        ],
+      ),
       content: TextField(
         controller: _text,
         autofocus: true,

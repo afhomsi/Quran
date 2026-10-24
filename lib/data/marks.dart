@@ -69,6 +69,11 @@ const highlightColors = [
   Color(0xFF90CAF9), // blue
   Color(0xFFF8BBD0), // pink
   Color(0xFFFFCC80), // orange
+  Color(0xFFD1C4E9), // purple
+  Color(0xFFFFB3B3), // red
+  Color(0xFFB2DFDB), // turquoise
+  Color(0xFFCFD8DC), // grey
+  Color(0xFFE0CFC2), // brown
 ];
 
 /// Highlighted ayat and the index of their color in [highlightColors], in

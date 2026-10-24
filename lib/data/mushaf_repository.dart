@@ -48,6 +48,10 @@ class Mushaf {
   /// The juz that the first ayah of [page] belongs to.
   int juzOfPage(int page) => _indexOf(juzStarts, page);
 
+  /// The juz that [ayah] belongs to.
+  int juzOfAyah(AyahRef ayah) =>
+      juzStarts.lastIndexWhere((s) => !(ayah < s)) + 1;
+
   /// The quarter (1 to 240) that the first ayah of [page] belongs to.
   int rubOfPage(int page) => _indexOf(rubStarts, page);
 

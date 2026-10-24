@@ -13,7 +13,13 @@ import 'package:hifz/data/mushaf_repository.dart';
 import 'package:hifz/data/page_fonts.dart';
 import 'package:hifz/data/quran_repository.dart';
 import 'package:hifz/data/reading_state.dart';
+import 'package:hifz/data/study.dart';
+import 'package:hifz/data/study_cache.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:hifz/features/mushaf/mushaf_page_view.dart';
+import 'package:hifz/features/study/study_panel.dart';
+import 'package:hifz/features/study/word_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fake_player.dart';
@@ -25,6 +31,15 @@ class _FakePageFonts extends PageFonts {
   @override
   Future<String> load(int page, MushafPalette palette) async =>
       PageFonts.familyFor(page, palette);
+}
+
+/// Keeps nothing, so no files are written in tests.
+class _NoCache extends StudyCache {
+  @override
+  Future<String?> read(String key) async => null;
+
+  @override
+  Future<void> write(String key, String text) async {}
 }
 
 Future<(ProviderContainer, FakePlayer)> _start(WidgetTester tester) async {
@@ -45,6 +60,13 @@ Future<(ProviderContainer, FakePlayer)> _start(WidgetTester tester) async {
         pageFontsProvider.overrideWithValue(_FakePageFonts()),
         ayahPlayerProvider.overrideWithValue(player),
         screenWakeProvider.overrideWithValue((on) async {}),
+        // The books say nothing, without going to the internet.
+        studyRepositoryProvider.overrideWithValue(
+          StudyRepository(
+            client: MockClient((_) async => http.Response('', 404)),
+            cache: _NoCache(),
+          ),
+        ),
       ],
       child: const HifzApp(),
     ),
@@ -63,6 +85,12 @@ Finder _word() => find
       matching: find.byType(GestureDetector),
     )
     .first;
+
+Finder _inCard(String text) =>
+    find.descendant(of: find.byType(WordCard), matching: find.text(text));
+
+Finder _inPanel(String text) =>
+    find.descendant(of: find.byType(StudyPanel), matching: find.text(text));
 
 Future<void> _tap(WidgetTester tester, Finder finder) async {
   await tester.ensureVisible(finder);
@@ -91,24 +119,40 @@ void main() {
     tester,
   ) async {
     final (container, _) = await _start(tester);
+    // A long press opens the word card; its bookmark saves the ayah.
     await tester.longPress(_word());
     await tester.pumpAndSettle();
-    await _tap(tester, find.text('ضع علامة الحفظ هنا'));
+    expect(find.byType(WordCard), findsOneWidget);
+    await _tap(tester, _inCard('فاصل'));
+    expect(container.read(bookmarksProvider), [const AyahRef(1, 1)]);
+    expect(find.text('تمت إضافة العلامة المرجعية'), findsOneWidget);
+
+    // "More" opens the study panel, with the place markers and colors.
+    await _tap(tester, _inCard('المزيد'));
+    expect(find.byType(StudyPanel), findsOneWidget);
+    await _tap(tester, _inPanel('فاصل'));
+    await _tap(tester, find.text('علامة الحفظ'));
     expect(container.read(markersProvider), {
       MarkerKind.hifz: const AyahRef(1, 1),
     });
-
-    await tester.longPress(_word());
-    await tester.pumpAndSettle();
+    await _tap(tester, _inPanel('تلوين'));
     await _tap(tester, find.byTooltip('أزرق'));
+    await _tap(tester, find.widgetWithText(FilledButton, 'تلوين'));
     expect(container.read(highlightsProvider), {const AyahRef(1, 1): 2});
+    await _tap(
+      tester,
+      find.descendant(
+        of: find.byType(StudyPanel),
+        matching: find.byTooltip('إغلاق'),
+      ),
+    );
 
     await _tap(tester, find.text('علاماتي'));
-    expect(find.text('الفاتحة : الآية 1'), findsOneWidget);
-    expect(find.text('الصفحة 1 - الآية 1'), findsOneWidget);
+    expect(find.text('الفاتحة : الآية 1'), findsWidgets);
+    expect(find.text('الصفحة 1 - الآية 1'), findsWidgets);
 
     // Opening it goes back to the mushaf.
-    await _tap(tester, find.text('الفاتحة : الآية 1'));
+    await _tap(tester, find.text('الفاتحة : الآية 1').first);
     expect(find.byType(MushafPageView), findsOneWidget);
   });
 
@@ -140,7 +184,7 @@ void main() {
     final (container, player) = await _start(tester);
     await tester.longPress(_word());
     await tester.pumpAndSettle();
-    await _tap(tester, find.text('استمع من هذه الآية'));
+    await _tap(tester, _inCard('استماع'));
     expect(player.played.single, endsWith('/001001.mp3'));
     expect(find.byTooltip('إيقاف مؤقت'), findsOneWidget);
 

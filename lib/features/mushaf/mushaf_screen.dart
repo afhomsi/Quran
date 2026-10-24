@@ -20,12 +20,14 @@ import '../../recitation/page_recitation.dart';
 import '../../settings/app_settings.dart';
 import '../audio/audio_bar.dart';
 import '../audio/repeat_sheet.dart';
-import '../notes/notes_screen.dart';
 import '../recitation/recitation_bar.dart';
 import '../recitation/recitation_picker.dart';
 import '../settings/settings_screen.dart';
 import '../home/index_icons.dart';
 import '../shell/navigation.dart';
+import '../study/study_content.dart';
+import '../study/study_panel.dart';
+import '../study/word_card.dart';
 import 'go_to_dialog.dart';
 import 'mushaf_page_view.dart';
 
@@ -69,6 +71,9 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
 
   /// Show the ayat of the page as plain text instead of the printed page.
   bool _textMode = false;
+
+  /// The word open in the word card, if any.
+  WordSelection? _word;
 
   /// Whether the page navigator (thumbnails and a slider) is open.
   bool _navigator = false;
@@ -205,125 +210,170 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
             // The mushaf reads right to left in every app language.
             child: Directionality(
               textDirection: TextDirection.rtl,
-              child: CustomMultiChildLayout(
-                delegate: _MushafLayout(
-                  bottomInset: MediaQuery.viewPaddingOf(context).bottom,
-                  chrome: chrome,
-                ),
-                children: [
-                  LayoutId(
-                    id: _Part.page,
-                    child: SafeArea(
-                      bottom: false,
-                      // A tap on the page shows or hides the bars.
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () =>
-                            ref.read(mushafChromeProvider.notifier).toggle(),
-                        child: LayoutBuilder(
-                          builder: (context, box) {
-                            _useSpread(
-                              settings.twoPagesInLandscape &&
-                                  box.maxWidth > box.maxHeight,
-                            );
-                            return PageView.builder(
-                              key: ValueKey((_spread, vertical)),
-                              controller: _controller,
-                              scrollDirection: vertical
-                                  ? Axis.vertical
-                                  : Axis.horizontal,
-                              // Vertical pages scroll freely, like a long
-                              // sheet.
-                              pageSnapping: !vertical,
-                              // Let a mouse drag turn pages too, not only
-                              // touch.
-                              scrollBehavior: ScrollConfiguration.of(context)
-                                  .copyWith(
-                                    dragDevices: PointerDeviceKind.values
-                                        .toSet(),
-                                  ),
-                              itemCount: _slideCount,
-                              onPageChanged: (i) => _onPageChanged(_pageAt(i)),
-                              itemBuilder: (context, i) {
-                                final first = _pageAt(i);
-                                if (!_spread) {
-                                  return _slot(mushaf, surahs, first);
-                                }
-                                return Row(
-                                  children: [
-                                    Expanded(
-                                      child: _slot(mushaf, surahs, first),
+              child: _withWordCard(
+                CustomMultiChildLayout(
+                  delegate: _MushafLayout(
+                    bottomInset: MediaQuery.viewPaddingOf(context).bottom,
+                    chrome: chrome,
+                  ),
+                  children: [
+                    LayoutId(
+                      id: _Part.page,
+                      child: SafeArea(
+                        bottom: false,
+                        // A tap on the page shows or hides the bars.
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () =>
+                              ref.read(mushafChromeProvider.notifier).toggle(),
+                          child: LayoutBuilder(
+                            builder: (context, box) {
+                              _useSpread(
+                                settings.twoPagesInLandscape &&
+                                    box.maxWidth > box.maxHeight,
+                              );
+                              return PageView.builder(
+                                key: ValueKey((_spread, vertical)),
+                                controller: _controller,
+                                scrollDirection: vertical
+                                    ? Axis.vertical
+                                    : Axis.horizontal,
+                                // Vertical pages scroll freely, like a long
+                                // sheet.
+                                pageSnapping: !vertical,
+                                // Let a mouse drag turn pages too, not only
+                                // touch.
+                                scrollBehavior: ScrollConfiguration.of(context)
+                                    .copyWith(
+                                      dragDevices: PointerDeviceKind.values
+                                          .toSet(),
                                     ),
-                                    const VerticalDivider(width: 1),
-                                    Expanded(
-                                      child: first + 1 <= mushafPageCount
-                                          ? _slot(mushaf, surahs, first + 1)
-                                          : const SizedBox(),
-                                    ),
-                                  ],
-                                );
-                              },
-                            );
-                          },
+                                itemCount: _slideCount,
+                                onPageChanged: (i) =>
+                                    _onPageChanged(_pageAt(i)),
+                                itemBuilder: (context, i) {
+                                  final first = _pageAt(i);
+                                  if (!_spread) {
+                                    return _slot(mushaf, surahs, first);
+                                  }
+                                  return Row(
+                                    children: [
+                                      Expanded(
+                                        child: _slot(mushaf, surahs, first),
+                                      ),
+                                      const VerticalDivider(width: 1),
+                                      Expanded(
+                                        child: first + 1 <= mushafPageCount
+                                            ? _slot(mushaf, surahs, first + 1)
+                                            : const SizedBox(),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+                            },
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  if (bars.isNotEmpty)
-                    LayoutId(
-                      id: _Part.bars,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: bars,
+                    if (bars.isNotEmpty)
+                      LayoutId(
+                        id: _Part.bars,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: bars,
+                        ),
                       ),
-                    ),
-                  if (chrome)
-                    LayoutId(
-                      id: _Part.bottomChrome,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _PageBar(
-                            label: _spread && _page + 1 <= mushafPageCount
-                                ? '${t.n(_page)} – ${t.n(_page + 1)}'
-                                : t.n(_page),
-                            onLabel: () => _showNavigator(true),
-                            onPrevious: _page > 1 ? _previousPage : null,
-                            onNext: _page + _step <= mushafPageCount
-                                ? _nextPage
-                                : null,
-                            onListen: () => showRepeatSheet(
-                              context,
-                              from: mushaf.page(_page).firstAyah,
-                              to: mushaf.page(_page).words.last.ayah,
+                    if (chrome)
+                      LayoutId(
+                        id: _Part.bottomChrome,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _PageBar(
+                              label: _spread && _page + 1 <= mushafPageCount
+                                  ? '${t.n(_page)} – ${t.n(_page + 1)}'
+                                  : t.n(_page),
+                              onLabel: () => _showNavigator(true),
+                              onPrevious: _page > 1 ? _previousPage : null,
+                              onNext: _page + _step <= mushafPageCount
+                                  ? _nextPage
+                                  : null,
+                              onListen: () => showRepeatSheet(
+                                context,
+                                from: mushaf.page(_page).firstAyah,
+                                to: mushaf.page(_page).words.last.ayah,
+                              ),
+                              onRecite: settings.hideRecitationButton
+                                  ? null
+                                  : () => ref
+                                        .read(pageRecitationProvider.notifier)
+                                        .start(_page),
                             ),
-                            onRecite: settings.hideRecitationButton
-                                ? null
-                                : () => ref
-                                      .read(pageRecitationProvider.notifier)
-                                      .start(_page),
-                          ),
-                          Directionality(
-                            textDirection: appDirection,
-                            child: const AppNavigationBar(),
-                          ),
-                        ],
+                            Directionality(
+                              textDirection: appDirection,
+                              child: const AppNavigationBar(),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  if (chrome)
-                    LayoutId(
-                      id: _Part.topChrome,
-                      child: Directionality(
-                        textDirection: appDirection,
-                        child: _topBar(context, mushaf, surahs, background),
+                    if (chrome)
+                      LayoutId(
+                        id: _Part.topChrome,
+                        child: Directionality(
+                          textDirection: appDirection,
+                          child: _topBar(context, mushaf, surahs, background),
+                        ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+
+  /// [page] with the word card over it while a word is open. A tap
+  /// outside the card closes it.
+  Widget _withWordCard(Widget page) {
+    final word = _word;
+    if (word == null) return page;
+    final size = MediaQuery.sizeOf(context);
+    final below = word.anchor.dy < size.height / 2;
+    return Stack(
+      children: [
+        page,
+        Positioned.fill(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => setState(() => _word = null),
+          ),
+        ),
+        Positioned(
+          left: 16,
+          right: 16,
+          top: below ? word.anchor.dy + 36 : null,
+          bottom: below ? null : size.height - word.anchor.dy + 36,
+          child: Directionality(
+            textDirection: ref.watch(
+              settingsProvider.select((s) => s.language.direction),
+            ),
+            child: WordCard(
+              key: ValueKey(word),
+              ayah: word.ayah,
+              position: word.position,
+              onClose: () => setState(() => _word = null),
+              onMore: () => _openStudy(
+                word.ayah,
+                word: word.position,
+                part: StudyPart.word,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -459,7 +509,7 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
         page: mushaf.page(page),
         surahs: surahs,
         selected: playing ?? _selected,
-        onAyahTap: (a) => _showAyahActions(context, a, surahs),
+        onAyahTap: (a) => _openStudy(a),
       );
     }
     final highlights = ref.read(highlightsProvider);
@@ -488,12 +538,14 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
       rub: mushaf.rubOfPage(page),
       surahs: surahs,
       selected: playing ?? _selected,
+      selectedWord: switch (_word) {
+        final w? => (w.ayah, w.position),
+        null => null,
+      },
       showHizbMarks: settings.showHizbMarks,
       // Otherwise a tap goes to the page, which shows or hides the bars.
-      onAyahTap: settings.tapOpensAyahMenu
-          ? (a) => _showAyahActions(context, a, surahs)
-          : null,
-      onAyahLongPress: (a) => _showAyahActions(context, a, surahs),
+      onAyahTap: settings.tapOpensAyahMenu ? _openWord : null,
+      onAyahLongPress: _openWord,
       onSurahTap: () => openIndex(context, 0),
       onPageTap: () => _showNavigator(!_navigator),
       onJuzTap: () => openIndex(context, 1),
@@ -520,133 +572,37 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
     _controller.jumpToPage(_indexOf(target.page));
   }
 
-  void _showAyahActions(
-    BuildContext context,
-    AyahRef ayah,
-    List<Surah> surahs,
-  ) {
-    setState(() => _selected = ayah);
-    final text = surahs[ayah.surah - 1].ayahs[ayah.ayah - 1];
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => Consumer(
-        builder: (context, ref, _) {
-          final bookmarked = ref.watch(bookmarksProvider).contains(ayah);
-          final markers = ref.watch(markersProvider);
-          final highlight = ref.watch(highlightsProvider)[ayah];
-          final hasNote = ref.watch(notesProvider).containsKey(ayah);
-          final t = S.of(context);
-          void done() => Navigator.pop(context);
-          return SafeArea(
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ListTile(
-                    title: Text(t.ayahLabel(surahs[ayah.surah - 1], ayah.ayah)),
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.play_circle_outline),
-                    title: Text(t.playFromHere),
-                    onTap: () {
-                      ref.read(audioProvider.notifier).playFrom(ayah);
-                      done();
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.playlist_play),
-                    title: Text(t.repeatFromHere),
-                    onTap: () {
-                      done();
-                      showRepeatSheet(this.context, from: ayah, to: ayah);
-                    },
-                  ),
-                  for (final kind in MarkerKind.values)
-                    ListTile(
-                      leading: Icon(Icons.bookmark, color: kind.color),
-                      title: Text(
-                        markers[kind] == ayah
-                            ? t.removeMarker(kind)
-                            : t.setMarker(kind),
-                      ),
-                      onTap: () {
-                        final notifier = ref.read(markersProvider.notifier);
-                        markers[kind] == ayah
-                            ? notifier.clear(kind)
-                            : notifier.set(kind, ayah);
-                        done();
-                      },
-                    ),
-                  ListTile(
-                    leading: const Icon(Icons.format_color_fill),
-                    title: Text(t.highlightAyah),
-                    subtitle: Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          for (var c = 0; c < highlightColors.length; c++)
-                            _ColorDot(
-                              color: highlightColors[c],
-                              tooltip: t.colorNames[c],
-                              selected: highlight == c,
-                              onTap: () {
-                                ref
-                                    .read(highlightsProvider.notifier)
-                                    .set(ayah, c);
-                                done();
-                              },
-                            ),
-                          if (highlight != null)
-                            IconButton(
-                              tooltip: t.removeHighlight,
-                              icon: const Icon(Icons.format_color_reset),
-                              onPressed: () {
-                                ref
-                                    .read(highlightsProvider.notifier)
-                                    .remove(ayah);
-                                done();
-                              },
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.chat_outlined),
-                    title: Text(hasNote ? t.editNote : t.addNote),
-                    onTap: () {
-                      done();
-                      editNote(this.context, ayah);
-                    },
-                  ),
-                  ListTile(
-                    leading: Icon(
-                      bookmarked ? Icons.bookmark_remove : Icons.bookmark_add,
-                    ),
-                    title: Text(bookmarked ? t.removeBookmark : t.addBookmark),
-                    onTap: () {
-                      ref.read(bookmarksProvider.notifier).toggle(ayah);
-                      done();
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.copy),
-                    title: Text(t.copyAyah),
-                    onTap: () {
-                      Clipboard.setData(ClipboardData(text: text));
-                      done();
-                    },
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
+  /// Opens the word card on [word], pressed at [position] on the screen.
+  void _openWord(MushafWord word, Offset position) {
+    if (word.isAyahEnd) {
+      _openStudy(word.ayah);
+      return;
+    }
+    setState(() {
+      _selected = null;
+      _word = (ayah: word.ayah, position: word.position, anchor: position);
+    });
+  }
+
+  /// Opens the study panel, then shows the page of the ayah it ended on.
+  Future<void> _openStudy(
+    AyahRef ayah, {
+    int word = 1,
+    StudyPart part = StudyPart.ayah,
+  }) async {
+    setState(() => _word = null);
+    final end = await showStudyPanel(
+      context,
+      ayah: ayah,
+      word: word,
+      part: part,
     );
+    final mushaf = ref.read(mushafProvider).value;
+    if (end == null || mushaf == null || !mounted) return;
+    final page = mushaf.pageOf(end);
+    if (page < _page || page >= _page + _step) {
+      _controller.jumpToPage(_indexOf(page));
+    }
   }
 
   Future<void> _search(
@@ -667,43 +623,6 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
 /// How ayat are colored while reciting the page.
 final _correctColor = Colors.green.withValues(alpha: 0.3);
 final _mistakeColor = Colors.red.withValues(alpha: 0.35);
-
-class _ColorDot extends StatelessWidget {
-  const _ColorDot({
-    required this.color,
-    required this.tooltip,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final Color color;
-  final String tooltip;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Tooltip(
-    message: tooltip,
-    child: InkWell(
-      customBorder: const CircleBorder(),
-      onTap: onTap,
-      child: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: selected
-                ? Theme.of(context).colorScheme.onSurface
-                : Colors.black12,
-            width: selected ? 3 : 1,
-          ),
-        ),
-      ),
-    ),
-  );
-}
 
 /// Searches the text of every ayah, ignoring diacritics.
 class _AyahSearch extends SearchDelegate<AyahRef?> {
@@ -871,6 +790,7 @@ class _PageSlot extends ConsumerWidget {
     required this.rub,
     required this.surahs,
     required this.selected,
+    required this.selectedWord,
     required this.highlights,
     required this.bookmarks,
     required this.showHizbMarks,
@@ -894,8 +814,9 @@ class _PageSlot extends ConsumerWidget {
   /// name, drawn as ribbons in the header.
   final List<(Color, String)> bookmarks;
   final bool showHizbMarks;
-  final ValueChanged<AyahRef>? onAyahTap;
-  final ValueChanged<AyahRef> onAyahLongPress;
+  final (AyahRef, int)? selectedWord;
+  final WordCallback? onAyahTap;
+  final WordCallback onAyahLongPress;
   final VoidCallback onSurahTap;
   final VoidCallback onPageTap;
   final VoidCallback onJuzTap;
@@ -998,6 +919,7 @@ class _PageSlot extends ConsumerWidget {
                       page: page,
                       surahName: (s) => surahs[s - 1].name,
                       selected: selected,
+                      selectedWord: selectedWord,
                       highlights: highlights,
                       showHizbMarks: showHizbMarks,
                       onAyahTap: onAyahTap,

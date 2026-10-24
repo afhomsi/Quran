@@ -43,6 +43,9 @@ dependencies:
   web: ^1.1.1
   just_audio: ^0.10.6
   wakelock_plus: ^1.8.2
+  http: ^1.6.0
+  path_provider: ^2.1.6
+  share_plus: ^13.3.1
 
 dev_dependencies:
   flutter_test:
