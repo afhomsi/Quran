@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../audio/ayah_audio.dart';
-import '../../data/arabic_search.dart';
 import '../../data/khatma.dart';
 import '../../data/marks.dart';
 import '../../data/mushaf_models.dart';
@@ -22,6 +21,7 @@ import '../audio/audio_bar.dart';
 import '../audio/repeat_sheet.dart';
 import '../recitation/recitation_bar.dart';
 import '../recitation/recitation_picker.dart';
+import '../search/search_screen.dart';
 import '../settings/settings_screen.dart';
 import '../home/index_icons.dart';
 import '../shell/navigation.dart';
@@ -613,9 +613,8 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
     Mushaf mushaf,
     List<Surah> surahs,
   ) async {
-    final ayah = await showSearch<AyahRef?>(
-      context: context,
-      delegate: _AyahSearch(surahs, S.of(context)),
+    final ayah = await Navigator.of(context).push<AyahRef>(
+      MaterialPageRoute(builder: (_) => const QuranSearchScreen()),
     );
     if (ayah == null) return;
     setState(() => _selected = ayah);
@@ -626,76 +625,6 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
 /// How ayat are colored while reciting the page.
 final _correctColor = Colors.green.withValues(alpha: 0.3);
 final _mistakeColor = Colors.red.withValues(alpha: 0.35);
-
-/// Searches the text of every ayah, ignoring diacritics.
-class _AyahSearch extends SearchDelegate<AyahRef?> {
-  _AyahSearch(this.surahs, this.t) : super(searchFieldLabel: t.searchQuranHint);
-
-  final List<Surah> surahs;
-  final S t;
-  static const _limit = 200;
-
-  /// Every ayah with its text ready for matching, made on first search.
-  late final _index = [
-    for (final s in surahs)
-      for (var a = 0; a < s.ayahCount; a++)
-        (AyahRef(s.number, a + 1), normalizeForSearch(s.ayahs[a])),
-  ];
-
-  @override
-  List<Widget> buildActions(BuildContext context) => [
-    if (query.isNotEmpty)
-      IconButton(
-        tooltip: t.clearSearch,
-        icon: const Icon(Icons.clear_rounded),
-        onPressed: () => query = '',
-      ),
-  ];
-
-  @override
-  Widget buildLeading(BuildContext context) => const BackButton();
-
-  @override
-  Widget buildResults(BuildContext context) => buildSuggestions(context);
-
-  @override
-  Widget buildSuggestions(BuildContext context) {
-    final q = normalizeForSearch(query);
-    if (q.length < 2) return const SizedBox();
-    final found = <AyahRef>[];
-    for (final (ayah, text) in _index) {
-      if (text.contains(q)) found.add(ayah);
-      if (found.length > _limit) break;
-    }
-    if (found.isEmpty) return Center(child: Text(t.noResults));
-    final more = found.length > _limit;
-    final shown = found.take(_limit).toList();
-    return ListView.separated(
-      itemCount: shown.length + 1,
-      separatorBuilder: (_, _) => const Divider(height: 1),
-      itemBuilder: (context, i) {
-        if (i == 0) {
-          return ListTile(
-            dense: true,
-            title: Text(t.searchResults(shown.length, more: more)),
-          );
-        }
-        final a = shown[i - 1];
-        final surah = surahs[a.surah - 1];
-        return ListTile(
-          title: Text(
-            surah.ayahs[a.ayah - 1],
-            textDirection: TextDirection.rtl,
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-          ),
-          subtitle: Text(t.surahAyah(surah, a.ayah)),
-          onTap: () => close(context, a),
-        );
-      },
-    );
-  }
-}
 
 /// The time, as in the top bar of the screenshots. Updates every minute.
 class _Clock extends StatefulWidget {

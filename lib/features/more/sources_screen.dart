@@ -28,13 +28,15 @@ final contentSources = <ContentSource>[
     detail:
         "Al-Jalalayn, as-Sa'di, Ibn Kathir, al-Baghawi, at-Tabari, an-Nashr "
         "of Ibn al-Jazari and ad-Durr al-Masun of as-Samin al-Halabi: "
-        'classical works in the public domain, via spa5k/tafsir_api (MIT).',
+        'classical works in the public domain, via spa5k/tafsir_api (MIT). '
+        'Al-Jalalayn is kept in the app for searching by meaning.',
   ),
   (
     title: (t) => t.sourceTranslation,
     detail:
         'The Meaning of the Glorious Koran, Marmaduke Pickthall (1930), in '
-        'the public domain, via fawazahmed0/quran-api (Unlicense).',
+        'the public domain, via fawazahmed0/quran-api (Unlicense). Kept in '
+        'the app for searching in English.',
   ),
   (title: (t) => t.sourceRecitations, detail: 'everyayah.com'),
 ];

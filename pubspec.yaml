@@ -74,6 +74,8 @@ flutter:
     - assets/quran/hafs_uthmani.json
     - assets/mushaf/layout.json
     - assets/sounds/mistake.mp3
+    - assets/search/jalalayn.json.gz
+    - assets/search/pickthall.json.gz
     - assets/fonts/LICENSE-madina.txt
 
   # To add assets to your application, add an assets section, like this:
