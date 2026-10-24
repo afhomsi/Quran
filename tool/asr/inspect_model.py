@@ -27,3 +27,8 @@ for path in sys.argv[1:]:
         for name in node.input:
             if name in big:
                 print(f"  {name} {big[name]} <- {node.op_type} {node.name}")
+                if node.op_type not in ("Gather", "MatMulInteger"):
+                    print(f"    inputs {list(node.input)} outputs {list(node.output)}")
+                    for other in graph.node:
+                        if set(other.input) & set(node.output) or set(other.output) & set(node.input):
+                            print(f"    near {other.op_type} {list(other.input)} -> {list(other.output)}")

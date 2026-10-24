@@ -18,10 +18,10 @@ const _model = 'quran-base';
 
 /// The model's files and their approximate sizes, for showing progress.
 const _files = {
-  '$_model-encoder.int8.onnx': 23000000,
-  '$_model-decoder.int8.onnx': 130000000,
-  '$_model-tokens.txt': 800000,
-  'silero_vad.onnx': 650000,
+  '$_model-encoder.int8.onnx': 29104812,
+  '$_model-decoder.int8.onnx': 130659024,
+  '$_model-tokens.txt': 816730,
+  'silero_vad.onnx': 643854,
 };
 
 /// Written last, so a download cut half way is not taken as installed.
