@@ -45,6 +45,8 @@ void main() {
     final dir = Directionality.of(tester.element(find.text('المصحف')));
     expect(dir, TextDirection.rtl);
 
+    await tester.tap(find.text('الفهرس'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('البقرة'));
     await tester.pumpAndSettle();
 
@@ -89,6 +91,8 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    await tester.tap(find.text('الفهرس'));
+    await tester.pumpAndSettle();
 
     // Without diacritics or hamza, as people type.
     await tester.enterText(find.byType(TextField), 'الكهف');
@@ -96,18 +100,31 @@ void main() {
     expect(find.widgetWithText(ListTile, 'الكهف'), findsOneWidget);
     expect(find.widgetWithText(ListTile, 'البقرة'), findsNothing);
 
-    await tester.tap(find.text('الأرباع'));
+    await tester.tap(find.text('الجزء'));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField), '٣٠');
+    await tester.enterText(find.byType(TextField), '٣');
     await tester.pumpAndSettle();
-    expect(find.text('الحزب 30'), findsOneWidget);
-    expect(find.text('ربع الحزب 30'), findsOneWidget);
+    expect(find.text('جزء 30'), findsOneWidget);
+    expect(find.text('جزء 3'), findsOneWidget);
+    expect(find.text('جزء 2'), findsNothing);
+    // Opens onto its pages: juz 30 runs from page 582 to the end.
+    await tester.tap(find.text('جزء 30'));
+    await tester.pumpAndSettle();
+    expect(find.text('582'), findsOneWidget);
+    expect(find.text('604'), findsOneWidget);
+    expect(find.text('581'), findsNothing);
 
-    await tester.tap(find.text('الصفحات'));
+    await tester.tap(find.text('الربع'));
+    await tester.pumpAndSettle();
+    expect(find.text('الفاتحة: 1 - الصفحة 1'), findsOneWidget);
+    expect(find.text('البقرة: 26 - الصفحة 5'), findsOneWidget);
+
+    await tester.tap(find.text('الصفحة'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), '293');
     await tester.pumpAndSettle();
-    await tester.tap(find.text('الصفحة 293'));
+    expect(find.text('29'), findsNothing);
+    await tester.tap(find.bySemanticsLabel('الصفحة 293'));
     await tester.pumpAndSettle();
     // Al-Kahf starts below the last ayah of al-Isra on this page.
     expect(find.text('سورة الإسراء'), findsOneWidget);

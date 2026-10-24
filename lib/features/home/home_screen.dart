@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../data/mushaf_models.dart';
 import '../../data/mushaf_repository.dart';
 import '../../data/quran_repository.dart';
 import '../../data/reading_state.dart';
@@ -9,11 +8,14 @@ import '../../l10n/strings.dart';
 import '../../settings/app_settings.dart';
 import '../settings/settings_screen.dart';
 import '../mushaf/go_to_dialog.dart';
-import '../mushaf/mushaf_screen.dart';
+import '../shell/navigation.dart';
 import '../recitation/recitation_picker.dart';
 import 'index_view.dart';
 
-/// Index of the mushaf (see [IndexView]), plus "continue reading".
+export '../shell/navigation.dart' show openMushaf;
+
+/// The index tab: the mushaf's index (see [IndexView]), plus "continue
+/// reading".
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -31,7 +33,8 @@ class HomeScreen extends ConsumerWidget {
       length: s.indexTabs.length,
       child: Scaffold(
         appBar: AppBar(
-          title: Text(s.mushaf),
+          title: Text(s.tabIndex),
+          centerTitle: true,
           actions: [
             if (!hideRecite)
               FilledButton.tonalIcon(
@@ -56,8 +59,9 @@ class HomeScreen extends ConsumerWidget {
             ),
           ],
           bottom: TabBar(
-            isScrollable: true,
-            tabAlignment: TabAlignment.start,
+            labelStyle: Theme.of(context).textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.bold),
+            unselectedLabelStyle: Theme.of(context).textTheme.titleMedium,
             tabs: [for (final t in s.indexTabs) Tab(text: t)],
           ),
         ),
@@ -72,6 +76,7 @@ class HomeScreen extends ConsumerWidget {
           (AsyncData(value: final m), AsyncData(value: final all)) => IndexView(
             mushaf: m,
             surahs: all,
+            currentPage: lastPage,
           ),
           (AsyncError(:final error), _) || (_, AsyncError(:final error)) =>
             Center(child: Text(s.loadMushafError(error))),
@@ -80,12 +85,4 @@ class HomeScreen extends ConsumerWidget {
       ),
     );
   }
-}
-
-void openMushaf(BuildContext context, int page, {AyahRef? highlight}) {
-  Navigator.of(context).push(
-    MaterialPageRoute(
-      builder: (_) => MushafScreen(initialPage: page, highlight: highlight),
-    ),
-  );
 }

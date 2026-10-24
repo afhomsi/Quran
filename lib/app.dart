@@ -4,7 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
-import 'features/home/home_screen.dart';
+import 'features/shell/app_shell.dart';
 import 'l10n/strings.dart';
 import 'settings/app_settings.dart';
 
@@ -63,7 +63,7 @@ class _HifzAppState extends ConsumerState<HifzApp> {
         }
         return app;
       },
-      home: const HomeScreen(),
+      home: const AppShell(),
     );
   }
 

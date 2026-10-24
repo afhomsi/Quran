@@ -45,6 +45,8 @@ Finder _inSheet(String text) =>
 void main() {
   testWidgets('any surah can be recited from the home screen', (tester) async {
     await _pump(tester, const HifzApp());
+    await tester.tap(find.text('الفهرس'));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('تسميع'));
     await tester.pumpAndSettle();
@@ -74,6 +76,8 @@ void main() {
       ),
     );
 
+    await tester.tap(find.byTooltip('القائمة'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('تسميع'));
     await tester.pumpAndSettle();
     expect(_inSheet('تسميع سورة البقرة كاملة'), findsOneWidget);

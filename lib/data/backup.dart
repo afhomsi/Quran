@@ -8,8 +8,18 @@ const _lastPageKey = 'last_page';
 const _bookmarksKey = 'bookmarks';
 const _app = 'hifz';
 
+/// Other data saved as one JSON string each: markers, highlights, notes,
+/// khatma plans and the audio player's choices.
+const _jsonKeys = [
+  'markers',
+  'highlights',
+  'notes',
+  'khatma_plans',
+  'audio_settings',
+];
+
 /// The user's data as text to keep somewhere safe: the settings, the
-/// bookmarks and the last page read.
+/// bookmarks, the last page read and everything in [_jsonKeys].
 String exportBackup(SharedPreferences prefs) {
   final settings = prefs.getString(settingsKey);
   return jsonEncode({
@@ -18,6 +28,8 @@ String exportBackup(SharedPreferences prefs) {
     'last_page': ?prefs.getInt(_lastPageKey),
     'bookmarks': prefs.getStringList(_bookmarksKey) ?? const <String>[],
     if (settings != null) 'settings': jsonDecode(settings),
+    for (final key in _jsonKeys)
+      if (prefs.getString(key) case final value?) key: jsonDecode(value),
   });
 }
 
@@ -49,6 +61,12 @@ Future<bool> importBackup(SharedPreferences prefs, String text) async {
       settingsKey,
       jsonEncode(AppSettings.fromJson(settings).toJson()),
     );
+  }
+  for (final key in _jsonKeys) {
+    final value = backup[key];
+    if (value is Map || value is List) {
+      await prefs.setString(key, jsonEncode(value));
+    }
   }
   return true;
 }
