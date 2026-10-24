@@ -40,13 +40,32 @@ def _big_float_tables(graph):
     }
 
 
+def _rewire(nodes, renames) -> None:
+    for node in nodes:
+        for k, name in enumerate(node.input):
+            if name in renames:
+                node.input[k] = renames[name]
+
+
 def _fold_transposes(model) -> None:
-    """Turns Transpose(table) into a constant transposed table."""
+    """Turns Transpose(table) into a constant transposed table.
+
+    The exporter reads the table for the output layer through an Identity,
+    so those are bypassed first.
+    """
     graph = model.graph
     tables = _big_float_tables(graph)
+    identities = {
+        node.output[0]: node.input[0]
+        for node in graph.node
+        if node.op_type == "Identity" and node.input[0] in tables
+    }
+    kept = [n for n in graph.node if n.output[0] not in identities]
+    _rewire(kept, identities)
     renames = {}
+    nodes = kept
     kept = []
-    for node in graph.node:
+    for node in nodes:
         if node.op_type == "Transpose" and node.input[0] in tables:
             perm = next((list(a.ints) for a in node.attribute if a.name == "perm"), None)
             w = numpy_helper.to_array(tables[node.input[0]])
@@ -58,10 +77,10 @@ def _fold_transposes(model) -> None:
             print(f"folded Transpose of {node.input[0]} into {name}")
         else:
             kept.append(node)
+    _rewire(kept, renames)
     for node in kept:
-        for k, name in enumerate(node.input):
-            if name in renames:
-                node.input[k] = renames[name]
+        if any(name in tables for name in node.input) and node.op_type != "Gather":
+            print(f"table still read by {node.op_type} {node.name}")
     del graph.node[:]
     graph.node.extend(kept)
 
