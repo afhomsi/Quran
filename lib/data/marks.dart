@@ -27,13 +27,16 @@ class MarkersNotifier extends Notifier<Map<MarkerKind, AyahRef>> {
   @override
   Map<MarkerKind, AyahRef> build() {
     final raw = ref.watch(sharedPreferencesProvider).getString(_markersKey);
-    if (raw == null) return const {};
-    return {
-      for (final e in (jsonDecode(raw) as Map).entries)
-        MarkerKind.values.byName(e.key as String): AyahRef.parse(
-          e.value as String,
-        ),
-    };
+    return readStored(
+      raw,
+      (json) => {
+        for (final e in (json as Map).entries)
+          MarkerKind.values.byName(e.key as String): AyahRef.parse(
+            e.value as String,
+          ),
+      },
+      const {},
+    );
   }
 
   void set(MarkerKind kind, AyahRef ayah) => _save({...state, kind: ayah});
@@ -74,11 +77,17 @@ class HighlightsNotifier extends Notifier<Map<AyahRef, int>> {
   @override
   Map<AyahRef, int> build() {
     final raw = ref.watch(sharedPreferencesProvider).getString(_highlightsKey);
-    if (raw == null) return const {};
-    return {
-      for (final e in (jsonDecode(raw) as Map).entries)
-        AyahRef.parse(e.key as String): e.value as int,
-    };
+    return readStored(
+      raw,
+      (json) => {
+        for (final e in (json as Map).entries)
+          AyahRef.parse(e.key as String): (e.value as int).clamp(
+            0,
+            highlightColors.length - 1,
+          ),
+      },
+      const {},
+    );
   }
 
   void set(AyahRef ayah, int color) => _save(
@@ -110,11 +119,14 @@ class NotesNotifier extends Notifier<Map<AyahRef, String>> {
   @override
   Map<AyahRef, String> build() {
     final raw = ref.watch(sharedPreferencesProvider).getString(_notesKey);
-    if (raw == null) return const {};
-    return {
-      for (final e in (jsonDecode(raw) as Map).entries)
-        AyahRef.parse(e.key as String): e.value as String,
-    };
+    return readStored(
+      raw,
+      (json) => {
+        for (final e in (json as Map).entries)
+          AyahRef.parse(e.key as String): e.value as String,
+      },
+      const {},
+    );
   }
 
   /// Saves [text] as the note on [ayah]; blank text deletes the note.

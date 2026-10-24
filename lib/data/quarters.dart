@@ -29,7 +29,7 @@ const rubStarts = [
   AyahRef(11, 84), AyahRef(11, 108), AyahRef(12, 7), AyahRef(12, 30), // hizb 24
   AyahRef(12, 53), AyahRef(12, 77), AyahRef(12, 101), AyahRef(13, 5), // hizb 25
   AyahRef(13, 19), AyahRef(13, 35), AyahRef(14, 10), AyahRef(14, 28), // hizb 26
-  AyahRef(15, 1), AyahRef(15, 50), AyahRef(16, 1), AyahRef(16, 30), // hizb 27
+  AyahRef(15, 1), AyahRef(15, 49), AyahRef(16, 1), AyahRef(16, 30), // hizb 27
   AyahRef(16, 51),
   AyahRef(16, 75),
   AyahRef(16, 90),

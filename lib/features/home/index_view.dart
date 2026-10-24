@@ -181,13 +181,16 @@ class _SurahTabState extends State<_SurahTab> with _Searchable {
 
 // --- Juz ----------------------------------------------------------------
 
-/// The pages of [juz]: from its first page up to the page before the next
-/// juz. In the Madinah mushaf every juz starts at the top of a page.
+/// The pages of [juz]: from its first page up to where the next juz
+/// starts. A few juz start in the middle of a page, such as the 7th in
+/// al-Ma'ida; that page then belongs to both.
 List<int> _pagesOfJuz(Mushaf m, int juz) {
   final first = m.juzStartPage(juz);
-  final last = juz == juzStarts.length
-      ? mushafPageCount
-      : m.juzStartPage(juz + 1) - 1;
+  var last = mushafPageCount;
+  if (juz < juzStarts.length) {
+    final next = m.juzStartPage(juz + 1);
+    last = m.page(next).firstAyah == juzStarts[juz] ? next - 1 : next;
+  }
   return [for (var p = first; p <= last; p++) p];
 }
 

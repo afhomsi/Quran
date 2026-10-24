@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -7,6 +9,18 @@ import 'mushaf_models.dart';
 final sharedPreferencesProvider = Provider<SharedPreferences>(
   (ref) => throw UnimplementedError('sharedPreferencesProvider'),
 );
+
+/// Reads data saved as JSON with [parse]. Gives [fallback] when nothing is
+/// saved, or when the saved data cannot be read, e.g. after restoring a
+/// damaged backup, so the app still opens.
+T readStored<T>(String? raw, T Function(Object? json) parse, T fallback) {
+  if (raw == null) return fallback;
+  try {
+    return parse(jsonDecode(raw));
+  } catch (_) {
+    return fallback;
+  }
+}
 
 const _lastPageKey = 'last_page';
 const _bookmarksKey = 'bookmarks';

@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../audio/ayah_audio.dart';
 import '../../data/backup.dart';
+import '../../data/khatma.dart';
+import '../../data/marks.dart';
+import '../../data/recitation_history.dart';
 import '../../data/reading_state.dart';
 import '../../l10n/strings.dart';
 import '../../settings/app_settings.dart';
@@ -390,10 +394,19 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
     );
     if (!mounted) return;
     if (!ok) return _say(t.invalidBackup);
+    // Stop any recitation: the player's choices are restored too.
+    await ref.read(audioProvider.notifier).close();
+    if (!mounted) return;
     ref
       ..invalidate(settingsProvider)
       ..invalidate(bookmarksProvider)
-      ..invalidate(lastPageProvider);
+      ..invalidate(lastPageProvider)
+      ..invalidate(markersProvider)
+      ..invalidate(highlightsProvider)
+      ..invalidate(notesProvider)
+      ..invalidate(khatmaPlansProvider)
+      ..invalidate(recitationHistoryProvider)
+      ..invalidate(audioProvider);
     _pasted.clear();
     // The language may have changed, so say it in the restored one.
     WidgetsBinding.instance.addPostFrameCallback((_) {

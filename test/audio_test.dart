@@ -48,6 +48,28 @@ void main() {
     await pumpEventQueue();
     expect(current(), const AyahRef(2, 1));
     expect(container.read(audioProvider).playing, isTrue);
+    // The basmala first, then the first ayah of al-Baqarah.
+    player.finish();
+    await pumpEventQueue();
+    expect(player.played.map((u) => u.substring(u.length - 10)), [
+      '001007.mp3',
+      '001001.mp3',
+      '002001.mp3',
+    ]);
+  });
+
+  test('plays the basmala before a surah, but not in at-Tawbah', () async {
+    await audio().playFrom(const AyahRef(67, 1));
+    player.finish();
+    await pumpEventQueue();
+    await audio().playFrom(const AyahRef(9, 1));
+    await audio().playFrom(const AyahRef(1, 1));
+    expect(player.played.map((u) => u.substring(u.length - 10)), [
+      '001001.mp3',
+      '067001.mp3',
+      '009001.mp3',
+      '001001.mp3',
+    ]);
   });
 
   test('repeats each ayah and loops the page', () async {

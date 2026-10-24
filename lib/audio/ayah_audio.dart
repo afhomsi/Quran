@@ -215,6 +215,9 @@ class AudioController extends Notifier<AudioState> {
   /// Whether playback stopped by reaching its end.
   var _finished = false;
 
+  /// Whether the basmala is playing before the current ayah.
+  var _basmala = false;
+
   @override
   AudioState build() {
     final player = ref.watch(ayahPlayerProvider);
@@ -225,15 +228,16 @@ class AudioController extends Notifier<AudioState> {
     final raw = ref
         .read(sharedPreferencesProvider)
         .getString(_audioSettingsKey);
-    if (raw == null) return const AudioState();
-    final saved = jsonDecode(raw) as Map<String, dynamic>;
-    return AudioState(
-      reciter: (saved['reciter'] as int).clamp(0, reciters.length - 1),
-      repeats: saved['repeats'] as int,
-      speed: (saved['speed'] as num).toDouble(),
-      loop: AudioLoop.values.byName(saved['loop'] as String),
-      listRepeats: saved['listRepeats'] as int? ?? 1,
-    );
+    return readStored(raw, (json) {
+      final saved = json as Map<String, dynamic>;
+      return AudioState(
+        reciter: (saved['reciter'] as int).clamp(0, reciters.length - 1),
+        repeats: (saved['repeats'] as int).clamp(1, 20),
+        speed: (saved['speed'] as num).toDouble().clamp(0.5, 1.5),
+        loop: AudioLoop.values.byName(saved['loop'] as String),
+        listRepeats: (saved['listRepeats'] as int? ?? 1).clamp(1, 20),
+      );
+    }, const AudioState());
   }
 
   AyahPlayer get _player => ref.read(ayahPlayerProvider);
@@ -293,13 +297,21 @@ class AudioController extends Notifier<AudioState> {
   /// Leaves the playlist and plays on through the mushaf.
   void leavePlaylist() => state = state.copyWith(clearPlaylist: true);
 
+  /// Starts [ayah] afresh. The first ayah of a surah comes after the
+  /// basmala, as recited, except in al-Fatiha, where the basmala is the
+  /// first ayah, and at-Tawbah, which has none.
   Future<void> _playAyah(AyahRef ayah) {
     _played = 0;
-    return _start(ayah);
+    return _start(
+      ayah,
+      basmala: ayah.ayah == 1 && ayah.surah != 1 && ayah.surah != 9,
+    );
   }
 
-  Future<void> _start(AyahRef ayah) async {
+  /// Plays [ayah], or the basmala before it when [basmala] is true.
+  Future<void> _start(AyahRef ayah, {bool basmala = false}) async {
     _finished = false;
+    _basmala = basmala;
     state = state.copyWith(
       current: ayah,
       visible: true,
@@ -308,7 +320,11 @@ class AudioController extends Notifier<AudioState> {
       failed: false,
     );
     try {
-      await _player.play(reciters[state.reciter].url(ayah), speed: state.speed);
+      final recording = basmala ? const AyahRef(1, 1) : ayah;
+      await _player.play(
+        reciters[state.reciter].url(recording),
+        speed: state.speed,
+      );
       if (state.current == ayah) state = state.copyWith(loading: false);
     } catch (e) {
       state = state.copyWith(playing: false, loading: false, failed: true);
@@ -404,6 +420,10 @@ class AudioController extends Notifier<AudioState> {
   void _onCompleted() {
     final current = state.current;
     if (current == null || !state.playing) return;
+    if (_basmala) {
+      _start(current);
+      return;
+    }
     _played++;
     final list = state.playlist;
     if (_played < state.repeats ||

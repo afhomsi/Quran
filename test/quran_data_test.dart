@@ -15,6 +15,16 @@ void main() {
       expect(surahs.fold<int>(0, (n, s) => n + s.ayahCount), 6236);
     });
 
+    test('has no hidden spaces that would split a word in two', () {
+      // A thin space inside فَٱدَّٰرَٰٔتُمۡ (2:72) once made the recitation
+      // check hear one word as two and report a mistake.
+      for (final s in surahs) {
+        for (final a in s.ayahs) {
+          expect(a, isNot(matches(RegExp('[\u00A0\u2000-\u200F\u202F]'))));
+        }
+      }
+    });
+
     test('surah metadata is parsed', () {
       expect(surahs.first.number, 1);
       expect(surahs.first.ayahCount, 7);
@@ -26,6 +36,7 @@ void main() {
 
   group('mushaf layout', () {
     final mushaf = parseMushaf(File(mushafLayoutAssetPath).readAsStringSync());
+    final surahs = parseSurahs(File(quranAssetPath).readAsStringSync());
 
     test('has 604 pages of at most 15 lines', () {
       expect(mushaf.pages, hasLength(604));
@@ -72,6 +83,16 @@ void main() {
       expect(mushaf.hizbOfPage(1), 1);
       expect(mushaf.hizbOfPage(22), 3);
       expect(mushaf.hizbOfPage(604), 60);
+    });
+
+    test('quarters start where the mushaf text puts the ۞ sign', () {
+      // The text marks every quarter that does not open a surah.
+      final marked = {
+        for (final s in surahs)
+          for (var a = 0; a < s.ayahCount; a++)
+            if (s.ayahs[a].contains('۞')) AyahRef(s.number, a + 1),
+      };
+      expect(rubStarts.where((r) => r.ayah != 1).toSet(), marked);
     });
 
     test('has a surah name line for every surah', () {

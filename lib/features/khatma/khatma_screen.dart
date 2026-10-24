@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/arabic_search.dart';
 import '../../data/khatma.dart';
 import '../../data/mushaf_repository.dart';
 import '../../data/quran_models.dart';
@@ -207,7 +208,8 @@ class _PlanFormState extends ConsumerState<_PlanForm> {
   }
 
   int? get _customDays {
-    final n = int.tryParse(_days.text);
+    // Arabic, Urdu and Bengali digits count too, as typed on their keyboards.
+    final n = int.tryParse(normalizeForSearch(_days.text));
     return n != null && n >= 1 && n <= mushafPageCount ? n : null;
   }
 
