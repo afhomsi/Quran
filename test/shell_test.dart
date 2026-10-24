@@ -99,8 +99,8 @@ void main() {
     // Opens on the mushaf, at the first page.
     expect(find.text('1 الفاتحة (7)'), findsWidgets);
     for (final (tab, title) in [
-      ('وِردي', 'خطط الختم'),
-      ('تصفّح', 'الربع'),
+      ('ختمة', 'خطط الختم'),
+      ('فهرس', 'الربع'),
       ('إشاراتي', 'آيات محفوظة'),
       ('أدواتي', 'اختبار ذاتي للحفظ'),
     ]) {
@@ -152,7 +152,7 @@ void main() {
 
   testWidgets('creates a khatma and opens its next portion', (tester) async {
     final (container, _) = await _start(tester);
-    await _tap(tester, find.text('وِردي'));
+    await _tap(tester, find.text('ختمة'));
     await _tap(tester, find.widgetWithText(FilledButton, 'خطة جديدة'));
     await _tap(tester, find.text('شهر واحد'));
     await _tap(tester, find.text('التالي'));

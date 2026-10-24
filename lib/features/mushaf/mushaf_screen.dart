@@ -1201,18 +1201,36 @@ class _PageBar extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
           child: Row(
             children: [
+              // Listening and reciting sit side by side, the page buttons
+              // at the other end.
+              // On a narrow phone the pair shrinks rather than overflow.
               Expanded(
-                child: Align(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
                   alignment: AlignmentDirectional.centerStart,
-                  child: FilledButton.tonalIcon(
-                    icon: const Icon(Icons.headphones_rounded),
-                    label: Text(t.listen),
-                    onPressed: onListen,
+                  child: Row(
+                    children: [
+                      _ActionButton(
+                        icon: Icons.headphones_rounded,
+                        label: t.listen,
+                        onPressed: onListen,
+                        filled: true,
+                      ),
+                      if (onRecite != null) ...[
+                        const SizedBox(width: 6),
+                        _ActionButton(
+                          icon: Icons.mic_rounded,
+                          label: t.recite,
+                          onPressed: onRecite!,
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               ),
               IconButton(
                 tooltip: t.previousPage,
+                visualDensity: VisualDensity.compact,
                 // Chevrons mirror in right-to-left layouts, so this one points
                 // right, away from the page number.
                 icon: const Icon(Icons.chevron_left_rounded),
@@ -1225,7 +1243,7 @@ class _PageBar extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(
-                      minWidth: 56,
+                      minWidth: 44,
                       minHeight: 40,
                     ),
                     child: Center(
@@ -1245,25 +1263,53 @@ class _PageBar extends StatelessWidget {
               ),
               IconButton(
                 tooltip: t.nextPage,
+                visualDensity: VisualDensity.compact,
                 icon: const Icon(Icons.chevron_right_rounded),
                 onPressed: onNext,
-              ),
-              Expanded(
-                child: Align(
-                  alignment: AlignmentDirectional.centerEnd,
-                  child: onRecite == null
-                      ? null
-                      : FilledButton.tonalIcon(
-                          icon: const Icon(Icons.mic_rounded),
-                          label: Text(t.recite),
-                          onPressed: onRecite,
-                        ),
-                ),
               ),
             ],
           ),
         ),
       ),
     );
+  }
+}
+
+/// One of the listen and recite buttons of the page bar: listening is
+/// filled, reciting tonal, so the pair reads as two related actions.
+class _ActionButton extends StatelessWidget {
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+    this.filled = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+  final bool filled;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = FilledButton.styleFrom(
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      visualDensity: VisualDensity.compact,
+      shape: const StadiumBorder(),
+    );
+    final iconWidget = Icon(icon, size: 20);
+    return filled
+        ? FilledButton.icon(
+            style: style,
+            icon: iconWidget,
+            label: Text(label),
+            onPressed: onPressed,
+          )
+        : FilledButton.tonalIcon(
+            style: style,
+            icon: iconWidget,
+            label: Text(label),
+            onPressed: onPressed,
+          );
   }
 }

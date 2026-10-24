@@ -318,8 +318,9 @@ class _JuzCard extends StatelessWidget {
               ),
               child: _BookGrid(
                 pages: pages,
-                columns: 4,
+                columns: 3,
                 background: colors.surfaceContainer,
+                iconWidth: 64,
               ),
             ),
         ],
