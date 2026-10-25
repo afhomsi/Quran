@@ -76,6 +76,7 @@ flutter:
     - assets/sounds/mistake.mp3
     - assets/search/jalalayn.json.gz
     - assets/search/pickthall.json.gz
+    - assets/tafsir/jami_wajiz.json.gz
     - assets/fonts/LICENSE-madina.txt
     - assets/fonts/LICENSE-plex.txt
 

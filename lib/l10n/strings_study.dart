@@ -24,6 +24,12 @@ extension StudyStrings on S {
   String get meaning => _('المعنى', 'Meaning', 'অর্থ', 'معنی');
 
   String bookName(StudyBook book) => switch (book) {
+    StudyBook.jamiWajiz => _(
+      'الجامع الوجيز',
+      "Al-Jami' al-Wajiz",
+      'আল-জামি‘ আল-ওয়াজীয',
+      'الجامع الوجیز',
+    ),
     StudyBook.jalalayn => _(
       'تفسير الجلالين',
       'Tafsir al-Jalalayn',
@@ -98,11 +104,24 @@ extension StudyStrings on S {
     '${bookName(book)}-এ এই আয়াত নিয়ে কিছু নেই।',
     '«${bookName(book)}» میں اس آیت پر کچھ نہیں۔',
   );
+
+  /// The book as its licence asks it to be named.
+  String bookCredit(StudyBook book) => switch (book) {
+    StudyBook.jamiWajiz => _(
+      'الجامع الوجيز في تفسير آي الكتاب العزيز، د. أيمن فاتح آل عامر '
+          '(CC BY-ND 4.0)',
+      "Al-Jami' al-Wajiz fi Tafsir Ay al-Kitab al-'Aziz, Dr. Ayman Fatih "
+          "Al 'Amer (CC BY-ND 4.0)",
+      "আল-জামি‘ আল-ওয়াজীয, ড. আয়মান ফাতিহ আল ‘আমের (CC BY-ND 4.0)",
+      'الجامع الوجیز، ڈاکٹر ایمن فاتح آل عامر (CC BY-ND 4.0)',
+    ),
+    _ => bookName(book),
+  };
   String source(StudyBook book) => _(
-    'المصدر: ${bookName(book)}',
-    'Source: ${bookName(book)}',
-    'উৎস: ${bookName(book)}',
-    'ماخذ: ${bookName(book)}',
+    'المصدر: ${bookCredit(book)}',
+    'Source: ${bookCredit(book)}',
+    'উৎস: ${bookCredit(book)}',
+    'ماخذ: ${bookCredit(book)}',
   );
   String get studyLoadError => _(
     'تعذر تحميل المحتوى. يحتاج اتصالًا بالإنترنت أول مرة، ثم يُحفظ على الجهاز.',

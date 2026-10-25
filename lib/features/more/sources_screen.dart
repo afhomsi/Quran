@@ -6,7 +6,8 @@ import '../../l10n/strings.dart';
 typedef ContentSource = ({String Function(S) title, String detail});
 
 /// Everything the app shows that it did not make itself. Each source is
-/// open or free of copyright; their licences ask to be named here.
+/// openly licensed or free of copyright; their licences ask to be named
+/// here.
 final contentSources = <ContentSource>[
   (
     title: (t) => t.sourceQuranText,
@@ -27,17 +28,22 @@ final contentSources = <ContentSource>[
   (
     title: (t) => t.sourceTafsir,
     detail:
+        "Al-Jami' al-Wajiz fi Tafsir Ay al-Kitab al-'Aziz, by Dr. Ayman "
+        "Fatih Al 'Amer, shared by its author under CC BY-ND 4.0 "
+        '(creativecommons.org/licenses/by-nd/4.0), from '
+        'github.com/yamanamr/quran-tafsir-jami-wajiz. Kept in the app word '
+        'for word, unchanged, and read without internet.\n'
         "Al-Jalalayn, as-Sa'di, Ibn Kathir, al-Baghawi, at-Tabari, an-Nashr "
         "of Ibn al-Jazari and ad-Durr al-Masun of as-Samin al-Halabi: "
         'classical works in the public domain, via spa5k/tafsir_api (MIT). '
-        'Al-Jalalayn is kept in the app for searching by meaning.',
+        'Al-Jalalayn is kept in the app and read without internet.',
   ),
   (
     title: (t) => t.sourceTranslation,
     detail:
         'The Meaning of the Glorious Koran, Marmaduke Pickthall (1930), in '
         'the public domain, via fawazahmed0/quran-api (Unlicense). Kept in '
-        'the app for searching in English.',
+        'the app and read without internet.',
   ),
   (
     title: (t) => t.sourceRecitations,

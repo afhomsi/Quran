@@ -313,6 +313,26 @@ void main() {
       }
     });
 
+    test('a book kept in the app is read without the internet', () async {
+      var calls = 0;
+      final r = StudyRepository(
+        client: MockClient((_) async {
+          calls++;
+          throw const SocketException('offline');
+        }),
+        cache: _MemoryCache(),
+        loadBook: (path) async => readBundledBook(File(path).readAsBytesSync()),
+      );
+      expect(
+        await r.text(StudyBook.jamiWajiz, const AyahRef(2, 255)),
+        contains('الحي'),
+      );
+      expect(await r.text(StudyBook.jalalayn, const AyahRef(1, 2)), isNotEmpty);
+      expect(await r.text(StudyBook.english, const AyahRef(1, 1)), isNotEmpty);
+      expect(await r.text(StudyBook.jamiWajiz, const AyahRef(1, 99)), '');
+      expect(calls, 0);
+    });
+
     test('a good answer is read and kept', () async {
       var calls = 0;
       final r = repo((_) {

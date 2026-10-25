@@ -5,6 +5,7 @@ import 'package:hifz/data/quran_repository.dart';
 import 'dart:io';
 
 import 'package:hifz/data/study.dart';
+import 'package:hifz/features/study/study_content.dart';
 import 'package:hifz/data/tajweed.dart';
 
 // Al-Ma'idah 18, as in the bundled mushaf text.
@@ -81,6 +82,22 @@ void main() {
       'https://raw.githubusercontent.com/fawazahmed0/quran-api/1/editions/'
       'eng-mohammedmarmadu/1/2.json',
     );
+  });
+
+  test('al-Jami\' al-Wajiz is in the app, on every ayah', () {
+    final book = readBundledBook(File(jamiWajizAssetPath).readAsBytesSync());
+    final surahs = parseSurahs(File(quranAssetPath).readAsStringSync());
+    expect(
+      [for (final s in book) s.length],
+      [for (final s in surahs) s.ayahCount],
+    );
+    expect(book.expand((s) => s).where((t) => t.trim().isEmpty), isEmpty);
+  });
+
+  test('an ayah opens on the tafsir, the book kept in the app first', () {
+    expect(StudyTab.of(StudyPart.ayah).first, StudyTab.tafsir);
+    expect(StudyTab.tafsir.books.first, StudyBook.jamiWajiz);
+    expect(StudyBook.jamiWajiz.asset, isNotNull);
   });
 
   group('tajweed', () {
