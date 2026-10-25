@@ -35,20 +35,44 @@ class RecitersScreen extends ConsumerWidget {
         separatorBuilder: (_, _) => const SizedBox(height: 8),
         itemBuilder: (context, i) {
           if (i == 0) {
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
-              child: Row(
-                children: [
-                  Icon(Icons.wifi_rounded, size: 18, color: colors.secondary),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      t.recitersNote,
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.wifi_rounded,
+                        size: 18,
+                        color: colors.secondary,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          t.recitersNote,
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (canDownload)
+                  SwitchListTile(
+                    key: const ValueKey('auto-save'),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                    secondary: Icon(
+                      Icons.offline_pin_rounded,
+                      color: colors.primary,
+                    ),
+                    title: Text(t.autoSaveAudio),
+                    subtitle: Text(
+                      t.autoSaveAudioNote,
                       style: theme.textTheme.bodySmall,
                     ),
+                    value: audio.autoSave,
+                    onChanged: controller.setAutoSave,
                   ),
-                ],
-              ),
+              ],
             );
           }
           final r = i - 1;
