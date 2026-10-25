@@ -9,6 +9,7 @@ import '../../data/recitation_history.dart';
 import '../../l10n/strings.dart';
 import '../audio/audio_bar.dart';
 import '../audio/repeat_sheet.dart';
+import '../../data/mushaf_text.dart';
 
 /// The reader's hifz profile: how much was recited, the ayat recited with
 /// mistakes (to listen to and repeat), and every recitation check.
@@ -194,11 +195,11 @@ class _MistakeAyahTile extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            surah.ayahs[ayah.ayah - 1],
+            mushafDisplayText(surah.ayahs[ayah.ayah - 1]),
             textDirection: TextDirection.rtl,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 18, height: 1.7),
+            style: quranTextStyle(const TextStyle(fontSize: 19, height: 1.8)),
           ),
           Text(
             t.mistakeTimes(count),

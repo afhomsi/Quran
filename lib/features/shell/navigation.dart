@@ -83,6 +83,33 @@ class AppNavigationBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tab = ref.watch(appTabProvider);
     final t = S.of(context);
+    final colors = Theme.of(context).colorScheme;
+    // A floating rounded card, a little above the screen's edge.
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: colors.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(26),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x240B2A30),
+              blurRadius: 18,
+              offset: Offset(0, 6),
+            ),
+          ],
+        ),
+        child: MediaQuery.removePadding(
+          context: context,
+          removeBottom: true,
+          child: _bar(context, ref, tab, t),
+        ),
+      ),
+    );
+  }
+
+  Widget _bar(BuildContext context, WidgetRef ref, AppTab tab, S t) {
     return NavigationBar(
       selectedIndex: tab.index,
       onDestinationSelected: (i) {

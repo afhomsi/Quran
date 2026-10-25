@@ -15,6 +15,7 @@ import '../../recitation/session_record.dart';
 import '../../recitation/speech_listener.dart';
 import '../audio/audio_bar.dart';
 import '../audio/repeat_sheet.dart';
+import '../../data/mushaf_text.dart';
 
 /// Recite a surah or a mushaf page from memory; the app listens and points
 /// out mistakes. The same ayat, or the ones recited wrongly, can be played
@@ -473,7 +474,7 @@ class _StatusBar extends StatelessWidget {
   }
 }
 
-const _wordStyle = TextStyle(fontSize: 26, height: 1.6);
+const _wordStyle = TextStyle(fontFamily: mushafFont, fontSize: 26, height: 1.6);
 
 class _Word extends StatelessWidget {
   const _Word({required this.word, required this.showText});
@@ -516,7 +517,10 @@ class _Word extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(word.text, style: _wordStyle.copyWith(color: foreground)),
+          Text(
+            mushafDisplayText(word.text),
+            style: _wordStyle.copyWith(color: foreground),
+          ),
           if (note != null)
             Text(note, style: TextStyle(fontSize: 12, color: foreground)),
         ],
@@ -566,10 +570,9 @@ class _AyahEnd extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const digits = '٠١٢٣٤٥٦٧٨٩';
-    final number = '$ayah'.split('').map((d) => digits[int.parse(d)]).join();
+    // The mushaf font draws the mark and its digits as one medallion.
     return Text(
-      '﴿$number﴾',
+      ayahEndMark(ayah),
       style: _wordStyle.copyWith(color: Theme.of(context).colorScheme.primary),
     );
   }

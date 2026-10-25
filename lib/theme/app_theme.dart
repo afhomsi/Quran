@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 
-/// The app's own look: deep teal with a warm gold accent, on cool, light
-/// grey surfaces (or a deep blue-green night), with soft rounded cards and
-/// filled rounded icons.
+/// The app's own look: deep teal with a warm gold accent, on clean white
+/// cards over a soft grey (or a deep blue-green night), set in IBM Plex Sans
+/// Arabic, with a floating tab bar and pill-shaped buttons.
+
+/// The interface font, IBM Plex Sans Arabic (SIL Open Font License,
+/// assets/fonts/plex). Quran text never uses it: it is drawn with the
+/// mushaf's own font (see quranTextStyle).
+const uiFont = 'Plex';
+
 class AppColors {
   static const teal = Color(0xFF0F5B66);
   static const tealLight = Color(0xFF7FD0DB);
@@ -33,7 +39,7 @@ ThemeData appTheme(Brightness brightness) {
         onSecondaryContainer: dark
             ? const Color(0xFFF6E7C8)
             : const Color(0xFF3D2A05),
-        surface: dark ? const Color(0xFF0E1517) : const Color(0xFFF4F7F7),
+        surface: dark ? const Color(0xFF0E1517) : const Color(0xFFF5F6F8),
         surfaceContainerLowest: dark
             ? const Color(0xFF0A1012)
             : const Color(0xFFFFFFFF),
@@ -45,20 +51,26 @@ ThemeData appTheme(Brightness brightness) {
             : const Color(0xFFFFFFFF),
         surfaceContainerHigh: dark
             ? const Color(0xFF1D282B)
-            : const Color(0xFFEAF0F0),
+            : const Color(0xFFEEF1F3),
         surfaceContainerHighest: dark
             ? const Color(0xFF243134)
-            : const Color(0xFFDDE6E7),
+            : const Color(0xFFE3E7EA),
+        onSurface: dark ? const Color(0xFFE6ECED) : const Color(0xFF1B2124),
+        onSurfaceVariant: dark
+            ? const Color(0xFFAAB8BA)
+            : const Color(0xFF5D686C),
         outlineVariant: dark
             ? const Color(0xFF2E3D40)
-            : const Color(0xFFD5DFE0),
+            : const Color(0xFFE3E7EA),
       );
   final rounded = RoundedRectangleBorder(
     borderRadius: BorderRadius.circular(18),
   );
+  final pill = WidgetStatePropertyAll<OutlinedBorder>(const StadiumBorder());
   return ThemeData(
     colorScheme: scheme,
     useMaterial3: true,
+    fontFamily: uiFont,
     scaffoldBackgroundColor: scheme.surface,
     appBarTheme: AppBarTheme(
       backgroundColor: scheme.surface,
@@ -67,61 +79,73 @@ ThemeData appTheme(Brightness brightness) {
       scrolledUnderElevation: 0,
       centerTitle: false,
       titleTextStyle: TextStyle(
-        fontSize: 22,
+        fontFamily: uiFont,
+        fontSize: 24,
         fontWeight: FontWeight.w700,
-        color: scheme.primary,
+        color: scheme.onSurface,
       ),
-      iconTheme: IconThemeData(color: scheme.primary),
+      iconTheme: IconThemeData(color: scheme.onSurface),
       actionsIconTheme: IconThemeData(color: scheme.primary),
     ),
     navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: scheme.surfaceContainerLowest,
+      // Drawn inside the floating card of AppNavigationBar.
+      backgroundColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
-      elevation: 8,
-      shadowColor: Colors.black26,
-      height: 68,
-      indicatorColor: scheme.secondaryContainer,
-      indicatorShape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      elevation: 0,
+      height: 66,
+      indicatorColor: scheme.primaryContainer,
+      indicatorShape: const StadiumBorder(),
       labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
       iconTheme: WidgetStateProperty.resolveWith(
         (states) => IconThemeData(
           size: 26,
           color: states.contains(WidgetState.selected)
-              ? scheme.onSecondaryContainer
+              ? scheme.primary
               : scheme.onSurfaceVariant,
         ),
       ),
-      labelTextStyle: WidgetStatePropertyAll(
-        TextStyle(
+      labelTextStyle: WidgetStateProperty.resolveWith(
+        (states) => TextStyle(
+          fontFamily: uiFont,
           fontSize: 12,
-          fontWeight: FontWeight.w700,
-          color: scheme.primary,
+          fontWeight: states.contains(WidgetState.selected)
+              ? FontWeight.w700
+              : FontWeight.w500,
+          color: states.contains(WidgetState.selected)
+              ? scheme.primary
+              : scheme.onSurfaceVariant,
         ),
       ),
     ),
     cardTheme: CardThemeData(
-      elevation: 0,
+      elevation: dark ? 0 : 1,
+      shadowColor: const Color(0x1F0B2A30),
       color: scheme.surfaceContainer,
       surfaceTintColor: Colors.transparent,
       shape: rounded,
     ),
     listTileTheme: ListTileThemeData(iconColor: scheme.primary),
     filledButtonTheme: FilledButtonThemeData(
-      style: FilledButton.styleFrom(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      style: ButtonStyle(
+        shape: pill,
+        minimumSize: const WidgetStatePropertyAll(Size(64, 46)),
+        textStyle: const WidgetStatePropertyAll(
+          TextStyle(fontFamily: uiFont, fontWeight: FontWeight.w600),
+        ),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
-      style: OutlinedButton.styleFrom(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      style: ButtonStyle(
+        shape: pill,
+        minimumSize: const WidgetStatePropertyAll(Size(64, 46)),
+        side: WidgetStatePropertyAll(BorderSide(color: scheme.outlineVariant)),
       ),
     ),
     floatingActionButtonTheme: FloatingActionButtonThemeData(
-      backgroundColor: scheme.secondary,
-      foregroundColor: scheme.onSecondary,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      backgroundColor: scheme.primary,
+      foregroundColor: scheme.onPrimary,
+      elevation: 3,
+      shape: const StadiumBorder(),
     ),
     bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: scheme.surfaceContainerLow,
@@ -167,7 +191,7 @@ ThemeData appTheme(Brightness brightness) {
       filled: true,
       fillColor: scheme.surfaceContainerHigh,
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide.none,
       ),
     ),

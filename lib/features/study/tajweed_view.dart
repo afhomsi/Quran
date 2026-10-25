@@ -7,6 +7,7 @@ import '../../data/study.dart';
 import '../../data/tajweed.dart';
 import '../../l10n/strings.dart';
 import '../../settings/app_settings.dart';
+import '../../data/mushaf_text.dart';
 
 /// The tajweed rules of an ayah, or of one word in it when [word] is given:
 /// each rule in its colour, what it means and the words it is on. The rules
@@ -103,11 +104,13 @@ class TajweedView extends ConsumerWidget {
                           Chip(
                             visualDensity: VisualDensity.compact,
                             label: Text(
-                              words[e.key - 1],
+                              mushafDisplayText(words[e.key - 1]),
                               textDirection: TextDirection.rtl,
-                              style: TextStyle(
-                                fontSize: 17,
-                                color: rule.color(dark),
+                              style: quranTextStyle(
+                                TextStyle(
+                                  fontSize: 19,
+                                  color: rule.color(dark),
+                                ),
                               ),
                             ),
                           ),

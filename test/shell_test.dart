@@ -211,7 +211,7 @@ void main() {
     await _start(tester);
     await _tap(tester, find.byTooltip('عرض النص'));
     expect(find.byType(MushafPageView), findsNothing);
-    expect(find.textContaining('﴿٧﴾'), findsOneWidget);
+    expect(find.textContaining('۝٧'), findsOneWidget);
 
     await _tap(tester, find.byTooltip('السمة الداكنة'));
     expect(
