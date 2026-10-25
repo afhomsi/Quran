@@ -557,6 +557,14 @@ extension FeatureStrings on S {
     'তিলাওয়াত ইন্টারনেটে চলে; ডাউনলোড বোতাম দিয়ে যেকোনো ক্বারী ডাউনলোড করে ইন্টারনেট ছাড়া শুনুন। প্রত্যেক ক্বারী যেকোনো আয়াত থেকে শুরু করে বাছাই করা আয়াত পুনরাবৃত্তি করতে পারেন।',
     'تلاوتیں انٹرنیٹ سے چلتی ہیں؛ ڈاؤن لوڈ کے بٹن سے کوئی بھی قاری ڈاؤن لوڈ کر کے بغیر انٹرنیٹ سنیں۔ ہر قاری کسی بھی آیت سے شروع کر کے منتخب آیات دہرا سکتا ہے۔',
   );
+
+  /// "Version number: 109", to check the newest build is installed.
+  String buildNumber(String build) => _(
+    'رقم النسخة: ${build.isEmpty ? 'تجريبية' : build}',
+    'Version number: ${build.isEmpty ? 'test' : build}',
+    'সংস্করণ নম্বর: ${build.isEmpty ? 'পরীক্ষা' : build}',
+    'ورژن نمبر: ${build.isEmpty ? 'آزمائشی' : build}',
+  );
   String get autoSaveAudio => _(
     'حفظ ما أستمع إليه على الهاتف',
     'Keep what I listen to on the phone',

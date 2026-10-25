@@ -45,7 +45,12 @@ jobs:
           path: build/app/outputs/flutter-apk/app-debug.apk
       # A faster, smaller build for trying the app on a phone. It is still
       # signed with the debug key, so it is not for the Play Store.
-      - run: flutter build apk --release
+      # The run number is the app's build number, shown in the Tools tab and
+      # on the download page, so the phone can be checked to have the newest.
+      - run: >-
+          flutter build apk --release
+          --build-number=${{ github.run_number }}
+          --dart-define=APP_BUILD=${{ github.run_number }}
       - uses: actions/upload-artifact@v4
         with:
           name: hifz-release-apk
@@ -76,9 +81,12 @@ jobs:
       - name: Build the download page
         run: |
           mkdir site
+          # Each build gets its own file name, so the phone never opens an
+          # older download by mistake; hifz.apk stays for old links.
+          cp apk/app-release.apk "site/hifz-$GITHUB_RUN_NUMBER.apk"
           mv apk/app-release.apk site/hifz.apk
           built="$(date -u '+%Y-%m-%d %H:%M') UTC · ${GITHUB_SHA::7}"
-          sed -e "s/BUILD_INFO/$built/" -e "s/BUILD_SHA/${GITHUB_SHA::7}/" tool/apk_page/index.html > site/index.html
+          sed -e "s/BUILD_INFO/$built/" -e "s/BUILD_NUMBER/$GITHUB_RUN_NUMBER/g" tool/apk_page/index.html > site/index.html
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

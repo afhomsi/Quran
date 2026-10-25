@@ -12,6 +12,7 @@
   a.btn { display: block; margin: 24px 0; padding: 18px; border-radius: 14px;
           background: #0f6b63; color: #fff; font-size: 1.3rem; text-decoration: none; }
   p { line-height: 1.8; }
+  .build { font-size: 1.4rem; font-weight: bold; }
   .info { color: #6b6b6b; font-size: 0.9rem; direction: ltr; }
 </style>
 </head>
@@ -19,8 +20,10 @@
 <main>
   <h1>تطبيق حفظ القرآن</h1>
   <p>هذه أحدث نسخة، وتتحدّث تلقائياً مع كل تغيير جديد.</p>
-  <a class="btn" href="hifz.apk?v=BUILD_SHA" download="hifz.apk">تحميل التطبيق</a>
-  <p>بعد التحميل افتح الملف واضغط "تثبيت". إذا ظهر تحذير جوجل اضغط "مزيد من التفاصيل" ثم "التثبيت على أي حال".</p>
+  <p class="build">رقم النسخة: BUILD_NUMBER</p>
+  <a class="btn" href="hifz-BUILD_NUMBER.apk" download="hifz-BUILD_NUMBER.apk">تحميل التطبيق</a>
+  <p>بعد التحميل افتح الملف الذي اسمه hifz-BUILD_NUMBER.apk واضغط "تثبيت". إذا ظهر تحذير جوجل اضغط "مزيد من التفاصيل" ثم "التثبيت على أي حال".</p>
+  <p>للتأكد أن النسخة الجديدة مثبّتة: افتح «أدواتي» في التطبيق، وانظر أسفل الشاشة. يجب أن يظهر نفس رقم النسخة.</p>
   <p class="info">BUILD_INFO</p>
 </main>
 </body>

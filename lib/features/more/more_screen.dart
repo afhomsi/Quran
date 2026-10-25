@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app_build.dart';
 import '../../audio/ayah_audio.dart';
 import '../../l10n/strings.dart';
 import '../../theme/app_theme.dart';
@@ -86,13 +87,30 @@ class MoreScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: Text(t.tabMore)),
-      body: GridView.count(
-        crossAxisCount: 3,
-        padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
-        mainAxisSpacing: 8,
-        crossAxisSpacing: 8,
-        childAspectRatio: 1.0,
-        children: tiles,
+      body: CustomScrollView(
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
+            sliver: SliverGrid.count(
+              crossAxisCount: 3,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              childAspectRatio: 1.0,
+              children: tiles,
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 24),
+              child: Text(
+                t.buildNumber(appBuild),
+                key: const ValueKey('build-number'),
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
