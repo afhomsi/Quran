@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:math';
+
 import 'package:flutter/foundation.dart';
 
 import 'recitation_matcher.dart';
@@ -17,7 +20,10 @@ class Mistake {
 ///
 /// Recognizers stop after a pause, so listening restarts by itself until the
 /// reciter presses stop. Each finished listening session is compared once,
-/// from where the previous one ended, so long surahs stay fast.
+/// from where the previous one ended, so long surahs stay fast. Within a
+/// long session, the words the recognizer has stopped changing are settled
+/// the same way, so each new result compares only the last few words and
+/// the page keeps up with the reciter.
 class RecitationSession extends ChangeNotifier {
   RecitationSession({
     required this.listener,
@@ -42,10 +48,24 @@ class RecitationSession extends ChangeNotifier {
 
   final _committed = <String>[];
   String _current = '';
+
+  /// How many words at the start of the current session are settled.
+  int _frozen = 0;
+
+  /// The words of the session's previous result.
+  List<String> _lastHeard = const [];
   int _sessionId = 0;
   bool _initialized = false;
   bool _wantListening = false;
   bool _restartPending = false;
+
+  /// Runs when the recognizer has sent nothing new for [quietDelay].
+  Timer? _quiet;
+
+  /// How long the last words may stay the same before a mistake in them
+  /// is reported. Until then the recognizer may still correct them; after
+  /// it, the reciter has likely stopped at the mistake.
+  static const quietDelay = Duration(milliseconds: 1200);
   final _alerted = <String>{};
   final _mistakes = <Mistake>[];
   late RecitationResult _result;
@@ -108,9 +128,17 @@ class RecitationSession extends ChangeNotifier {
       await listener.listen(
         onResult: (text, isFinal) {
           if (id != _sessionId) return;
-          _current = text;
+          if (!isFinal) _freezeStable(text);
+          final words = _wordsOf(text);
+          _current = words.skip(_frozen).join(' ');
           if (isFinal) _commit();
           _update();
+          _quiet?.cancel();
+          if (!isFinal) {
+            _quiet = Timer(quietDelay, () {
+              if (id == _sessionId) _update(settled: true);
+            });
+          }
           if (isFinal) _restart();
         },
       );
@@ -122,6 +150,8 @@ class RecitationSession extends ChangeNotifier {
   void _clear() {
     _committed.clear();
     _current = '';
+    _frozen = 0;
+    _lastHeard = const [];
     _base = [
       for (final w in expected) WordResult(word: w, status: WordStatus.pending),
     ];
@@ -130,11 +160,46 @@ class RecitationSession extends ChangeNotifier {
     _result = RecitationResult(words: _base);
   }
 
+  static List<String> _wordsOf(String text) => [
+    for (final w in text.trim().split(RegExp(r'\s+')))
+      if (w.isNotEmpty) w,
+  ];
+
+  /// Words this far from the end of a result may still change.
+  static const _liveWords = 8;
+
+  /// Settles the start of the session's text once enough words of it came
+  /// back unchanged in two results in a row, keeping the last
+  /// [_liveWords] open.
+  void _freezeStable(String text) {
+    final words = _wordsOf(text);
+    var same = 0;
+    while (same < words.length &&
+        same < _lastHeard.length &&
+        words[same] == _lastHeard[same]) {
+      same++;
+    }
+    _lastHeard = words;
+    final upTo = min(same, words.length - _liveWords);
+    if (upTo - _frozen < _liveWords) return;
+    _settle(words.sublist(_frozen, upTo).join(' '));
+    _frozen = upTo;
+  }
+
   /// Keeps the current session's text and ignores anything it still sends.
   void _commit() {
     _sessionId++;
-    final text = _current.trim();
+    _quiet?.cancel();
+    final text = _current;
     _current = '';
+    _frozen = 0;
+    _lastHeard = const [];
+    _settle(text);
+  }
+
+  /// Compares [text] from where the last settled words ended and moves on.
+  void _settle(String text) {
+    text = text.trim();
     if (text.isEmpty) return;
     _committed.add(text);
     final (from, sub) = _alignFromPos(text, settled: true);
@@ -142,22 +207,44 @@ class RecitationSession extends ChangeNotifier {
     if (from + sub.words.length == expected.length) {
       _extrasAtEnd.addAll(sub.extrasAtEnd);
     }
-    _pos = from + sub.progress;
+    _pos = from + sub.end;
+  }
+
+  /// Where a reciter going back may start again from: the start of the
+  /// ayah before the one being recited.
+  int _backLimit() {
+    var k = _pos;
+    for (var ayat = 0; ayat < 2 && k > 0; ayat++) {
+      final w = expected[k - 1];
+      while (k > 0 &&
+          expected[k - 1].surah == w.surah &&
+          expected[k - 1].ayah == w.ayah) {
+        k--;
+      }
+    }
+    return k;
   }
 
   /// Compares [text] with the words from [_pos] on, in a window long enough
-  /// for everything that was said.
+  /// for everything that was said and starting where the reciter may go
+  /// back to.
   (int, RecitationResult) _alignFromPos(String text, {required bool settled}) {
     final heard = text.split(RegExp(r'\s+'));
+    final from = _backLimit();
     final end = (_pos + 2 * heard.length + 30).clamp(0, expected.length);
-    final window = expected.sublist(_pos, end);
-    var sub = alignRecitation(window, heard, settled: settled);
+    final window = expected.sublist(from, end);
+    var sub = alignRecitation(
+      window,
+      heard,
+      settled: settled,
+      start: _pos - from,
+    );
     if (end < expected.length && sub.extrasAtEnd.isNotEmpty) {
       // Left over past a window that is not the end of the text. The window
       // is twice as long as what was heard, so this is only noise; drop it.
-      sub = RecitationResult(words: sub.words);
+      sub = RecitationResult(words: sub.words, endAt: sub.endAt);
     }
-    return (_pos, sub);
+    return (from, sub);
   }
 
   List<WordResult> _overlay(
@@ -167,17 +254,32 @@ class RecitationSession extends ChangeNotifier {
   ) => [
     ...base.take(from),
     for (var k = 0; k < sub.words.length; k++)
-      WordResult(
-        word: sub.words[k].word,
-        status: sub.words[k].status,
-        heard: sub.words[k].heard,
-        extrasBefore: [
-          ...base[from + k].extrasBefore,
-          ...sub.words[k].extrasBefore,
-        ],
-      ),
+      _merge(base[from + k], sub.words[k]),
     ...base.skip(from + sub.words.length),
   ];
+
+  /// A word not reached by [now] keeps what it was. One reached for the
+  /// first time adds to the extra words said before it; one recited again
+  /// takes only the new try, so an ayah recited again correctly is right.
+  static WordResult _merge(WordResult before, WordResult now) {
+    if (now.status == WordStatus.pending) {
+      if (now.extrasBefore.isEmpty) return before;
+      return WordResult(
+        word: before.word,
+        status: before.status,
+        heard: before.heard,
+        extrasBefore: [...before.extrasBefore, ...now.extrasBefore],
+      );
+    }
+    return WordResult(
+      word: now.word,
+      status: now.status,
+      heard: now.heard,
+      extrasBefore: before.status == WordStatus.pending
+          ? [...before.extrasBefore, ...now.extrasBefore]
+          : now.extrasBefore,
+    );
+  }
 
   void _onSessionDone() {
     _commit();
@@ -226,11 +328,13 @@ class RecitationSession extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _update() {
+  /// Compares the words heard so far. Mistakes in the last words, which
+  /// the recognizer may still change, are held back unless [settled].
+  void _update({bool settled = false}) {
     var words = _base;
     var extrasAtEnd = _extrasAtEnd;
     if (_current.trim().isNotEmpty) {
-      final (from, sub) = _alignFromPos(_current, settled: false);
+      final (from, sub) = _alignFromPos(_current, settled: settled);
       words = _overlay(_base, from, sub);
       if (from + sub.words.length == expected.length) {
         extrasAtEnd = [..._extrasAtEnd, ...sub.extrasAtEnd];
@@ -304,6 +408,7 @@ class RecitationSession extends ChangeNotifier {
 
   @override
   void dispose() {
+    _quiet?.cancel();
     _wantListening = false;
     _sessionId++;
     listener.stop();

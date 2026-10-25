@@ -60,12 +60,23 @@ class WordResult {
 /// The words to recite with their status after comparing them to what was
 /// heard.
 class RecitationResult {
-  const RecitationResult({required this.words, this.extrasAtEnd = const []});
+  const RecitationResult({
+    required this.words,
+    this.extrasAtEnd = const [],
+    this.endAt,
+  });
 
   final List<WordResult> words;
 
   /// Extra words said after the last word.
   final List<String> extrasAtEnd;
+
+  /// Where the alignment ended, when it was told; see [end].
+  final int? endAt;
+
+  /// Index of the word the reciter is about to say. Usually [progress],
+  /// but earlier after going back to recite some words again.
+  int get end => endAt ?? progress;
 
   /// Number of words recited so far, mistakes included.
   int get progress =>
@@ -135,7 +146,24 @@ List<ExpectedWord> wordsOfSurah(int surah, List<String> ayahs) => wordsToRecite(
 bool wordsMatch(String expected, String heard) {
   if (expected == heard) return true;
   if (min(expected.length, heard.length) < 5) return false;
-  return _editDistance(expected, heard) <= 1;
+  return _withinOneEdit(expected, heard);
+}
+
+/// Whether [a] becomes [b] by changing, adding or removing at most one
+/// letter. Checked letter by letter, as it runs for every pair of words
+/// on each result while reciting.
+bool _withinOneEdit(String a, String b) {
+  if (a.length < b.length) return _withinOneEdit(b, a);
+  if (a.length - b.length > 1) return false;
+  var i = 0;
+  while (i < b.length && a.codeUnitAt(i) == b.codeUnitAt(i)) {
+    i++;
+  }
+  if (i == b.length) return true;
+  // Past the first difference the rest must match, after skipping one
+  // letter of the longer word, or one of each when the lengths are equal.
+  final skipB = a.length == b.length ? 1 : 0;
+  return a.substring(i + 1) == b.substring(i + skipB);
 }
 
 /// Aligns [heard] (raw recognizer words) with [expected] and reports each
@@ -143,13 +171,23 @@ bool wordsMatch(String expected, String heard) {
 ///
 /// The alignment is a word-level edit distance where the unrecited end is
 /// free, so stopping half way is not a mistake, and so are optional words
-/// (isti'adha, basmala). While the reciter is still speaking ([settled]
-/// false) the recognizer's last words can still change, so mistakes after
-/// the last correctly recited word are held back.
+/// (isti'adha, basmala). Reciting starts at word [start]; the words before
+/// it are only reached by going back.
+///
+/// A reciter who notices a mistake usually goes back and recites again
+/// from an earlier word. Going back costs a little, so it is chosen only
+/// when the words said again match better than as extra words, and each
+/// word keeps the status of the last time it was recited: an ayah recited
+/// again correctly counts as right. Words not reached stay pending.
+///
+/// While the reciter is still speaking ([settled] false) the recognizer's
+/// last words can still change, so mistakes after the last correctly
+/// recited word are held back.
 RecitationResult alignRecitation(
   List<ExpectedWord> expected,
   List<String> heard, {
   bool settled = true,
+  int start = 0,
 }) {
   final h = <String>[];
   final hRaw = <String>[];
@@ -161,58 +199,112 @@ RecitationResult alignRecitation(
   }
   final n = expected.length, m = h.length;
   int skipCost(int i) => expected[i].optional ? 0 : 1;
+  const unreachable = 1 << 30;
+  const goBackCost = 2;
 
-  // cost[i][j]: best cost of aligning expected[0, i) with heard[0, j).
-  final cost = List.generate(n + 1, (_) => List.filled(m + 1, 0));
-  for (var i = 1; i <= n; i++) {
-    cost[i][0] = cost[i - 1][0] + skipCost(i - 1);
-  }
+  // cost[j][i]: best cost of having said heard[0, j) and being about to
+  // recite expected[i]. step[j][i] is how that state was reached, and
+  // from[j][i] where from, for going back.
+  final cost = List.generate(m + 1, (_) => List.filled(n + 1, unreachable));
+  final step = List.generate(m + 1, (_) => List.filled(n + 1, _Step.none));
+  final from = List.generate(m + 1, (_) => List.filled(n + 1, 0));
   for (var j = 0; j <= m; j++) {
-    cost[0][j] = j;
-  }
-  final same = List.generate(
-    n,
-    (i) => List.generate(m, (j) => wordsMatch(expected[i].key, h[j])),
-  );
-  for (var i = 1; i <= n; i++) {
-    for (var j = 1; j <= m; j++) {
-      cost[i][j] = min(
-        cost[i - 1][j - 1] + (same[i - 1][j - 1] ? 0 : 1),
-        min(cost[i - 1][j] + skipCost(i - 1), cost[i][j - 1] + 1),
-      );
+    final c = cost[j], s = step[j];
+    if (j == 0) {
+      c[start] = 0;
+    } else {
+      final prev = cost[j - 1];
+      for (var i = 0; i <= n; i++) {
+        if (prev[i] + 1 < c[i]) {
+          c[i] = prev[i] + 1;
+          s[i] = _Step.extra;
+        }
+        if (i > 0) {
+          final d =
+              prev[i - 1] + (wordsMatch(expected[i - 1].key, h[j - 1]) ? 0 : 1);
+          if (d <= c[i]) {
+            c[i] = d;
+            s[i] = _Step.word;
+          }
+        }
+      }
     }
+    void skipForward() {
+      for (var i = 1; i <= n; i++) {
+        final d = c[i - 1] + skipCost(i - 1);
+        if (d < c[i]) {
+          c[i] = d;
+          s[i] = _Step.skip;
+        }
+      }
+    }
+
+    skipForward();
+    // Going back to any earlier word, from the best state after it.
+    var best = unreachable, bestAt = n;
+    for (var k = n; k >= 0; k--) {
+      if (best + goBackCost < c[k]) {
+        c[k] = best + goBackCost;
+        s[k] = _Step.back;
+        from[j][k] = bestAt;
+      }
+      if (c[k] < best && s[k] != _Step.back) {
+        best = c[k];
+        bestAt = k;
+      }
+    }
+    skipForward();
   }
 
-  // Everything heard is used; the expected words after `end` are pending.
-  // On a tie the later end wins, so a wrong last word is reported as wrong
-  // rather than as extra.
+  // Everything heard is used; on a tie the later end wins, so a wrong last
+  // word is reported as wrong rather than as extra.
   var end = 0;
   for (var i = 1; i <= n; i++) {
-    if (cost[i][m] <= cost[end][m]) end = i;
+    if (cost[m][i] <= cost[m][end]) end = i;
   }
 
+  // Walking back from the end, the first time a word is met is the last
+  // time it was recited. Each going back starts an earlier attempt; extra
+  // words count only within the attempt that recited the word after them.
   final status = List.filled(n, WordStatus.pending);
   final said = List<String?>.filled(n, null);
   final extras = List.generate(n + 1, (_) => <String>[]);
+  final attemptOf = List.filled(n + 1, -1);
+  var attempt = 0;
   var i = end, j = m;
-  while (i > 0 || j > 0) {
-    if (i > 0 && j > 0) {
-      final match = same[i - 1][j - 1];
-      if (cost[i][j] == cost[i - 1][j - 1] + (match ? 0 : 1)) {
-        status[i - 1] = match ? WordStatus.correct : WordStatus.wrong;
-        if (!match) said[i - 1] = hRaw[j - 1];
+  while (true) {
+    switch (step[j][i]) {
+      case _Step.none:
+        break;
+      case _Step.word:
+        if (attemptOf[i - 1] < 0) {
+          attemptOf[i - 1] = attempt;
+          final match = wordsMatch(expected[i - 1].key, h[j - 1]);
+          status[i - 1] = match ? WordStatus.correct : WordStatus.wrong;
+          if (!match) said[i - 1] = hRaw[j - 1];
+        }
         i--;
         j--;
         continue;
-      }
+      case _Step.skip:
+        if (attemptOf[i - 1] < 0) {
+          attemptOf[i - 1] = attempt;
+          if (!expected[i - 1].optional) status[i - 1] = WordStatus.skipped;
+        }
+        i--;
+        continue;
+      case _Step.extra:
+        if (attemptOf[i] == attempt || (attempt == 0 && i == end)) {
+          extras[i].insert(0, hRaw[j - 1]);
+        }
+        j--;
+        continue;
+      case _Step.back:
+        i = from[j][i];
+        attempt++;
+        continue;
     }
-    if (i > 0 && cost[i][j] == cost[i - 1][j] + skipCost(i - 1)) {
-      if (!expected[i - 1].optional) status[i - 1] = WordStatus.skipped;
-      i--;
-    } else {
-      extras[i].insert(0, hRaw[j - 1]);
-      j--;
-    }
+    break;
   }
 
   // Optional words that were not said stay pending, also before the
@@ -250,20 +342,8 @@ RecitationResult alignRecitation(
         ),
     ],
     extrasAtEnd: extras[n],
+    endAt: end,
   );
 }
 
-int _editDistance(String a, String b) {
-  var prev = List.generate(b.length + 1, (j) => j);
-  for (var i = 1; i <= a.length; i++) {
-    final cur = List.filled(b.length + 1, i);
-    for (var j = 1; j <= b.length; j++) {
-      cur[j] = min(
-        prev[j - 1] + (a[i - 1] == b[j - 1] ? 0 : 1),
-        min(prev[j], cur[j - 1]) + 1,
-      );
-    }
-    prev = cur;
-  }
-  return prev[b.length];
-}
+enum _Step { none, word, skip, extra, back }

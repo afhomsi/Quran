@@ -1,19 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../audio/ayah_audio.dart';
 import '../../data/mushaf_models.dart';
 import '../../data/mushaf_repository.dart';
 import '../../data/quran_models.dart';
 import '../../data/quran_repository.dart';
+import '../../data/recitation_history.dart';
+import '../../l10n/strings.dart';
 import '../../recitation/alert_sound.dart';
-import '../../recitation/offline_model.dart';
-import '../../recitation/offline_speech.dart';
 import '../../recitation/recitation_matcher.dart';
 import '../../recitation/recitation_session.dart';
+import '../../recitation/session_record.dart';
 import '../../recitation/speech_listener.dart';
+import '../audio/audio_bar.dart';
+import '../audio/repeat_sheet.dart';
+import 'offline_model_tile.dart';
+import '../../data/mushaf_text.dart';
 
 /// Recite a surah or a mushaf page from memory; the app listens and points
-/// out mistakes.
+/// out mistakes. The same ayat, or the ones recited wrongly, can be played
+/// and repeated here too, and each recitation is kept in the history.
 class RecitationScreen extends ConsumerWidget {
   /// Recite a whole surah.
   const RecitationScreen.surah(int this.surah, {super.key}) : page = null;
@@ -30,20 +37,23 @@ class RecitationScreen extends ConsumerWidget {
     final mushaf = page == null ? null : ref.watch(mushafProvider);
     // Starts over with the offline model once it finishes downloading.
     final listener = ref.watch(speechListenerProvider);
+    final t = S.of(context);
     return switch ((surahs, mushaf)) {
       (AsyncData(value: final s), null || AsyncData()) => _RecitationView(
         key: ValueKey((surah, page, listener)),
         title: surah != null
-            ? 'تسميع سورة ${s[surah! - 1].name}'
-            : 'تسميع الصفحة $page',
+            ? t.reciteSurahTitle(s[surah! - 1])
+            : t.recitePageTitle(page!),
         words: wordsToRecite(_ayahs(s, mushaf?.value)),
+        surah: surah,
+        page: page,
         surahs: s,
         listener: listener,
       ),
       (AsyncError(:final error), _) ||
       (_, AsyncError(:final error)) => Scaffold(
         appBar: AppBar(),
-        body: Center(child: Text('تعذر تحميل النص\n$error')),
+        body: Center(child: Text(t.loadTextError(error))),
       ),
       _ => const Scaffold(body: Center(child: CircularProgressIndicator())),
     };
@@ -73,30 +83,34 @@ class RecitationScreen extends ConsumerWidget {
   }
 }
 
-class _RecitationView extends StatefulWidget {
+class _RecitationView extends ConsumerStatefulWidget {
   const _RecitationView({
     super.key,
     required this.title,
     required this.words,
+    required this.surah,
+    required this.page,
     required this.surahs,
     required this.listener,
   });
 
   final String title;
   final List<ExpectedWord> words;
+  final int? surah;
+  final int? page;
   final List<Surah> surahs;
   final SpeechListener listener;
 
   @override
-  State<_RecitationView> createState() => _RecitationViewState();
+  ConsumerState<_RecitationView> createState() => _RecitationViewState();
 }
 
-class _RecitationViewState extends State<_RecitationView> {
+class _RecitationViewState extends ConsumerState<_RecitationView> {
   late final RecitationSession _session = RecitationSession(
     listener: widget.listener,
     expected: widget.words,
     surahName: (s) => widget.surahs[s - 1].name,
-  )..onMistake = (_) => playMistakeAlert();
+  )..onMistake = (_) => ref.read(mistakeAlertProvider)();
 
   late final List<_Group> _groups = _groupWords(widget.words);
   final _scroll = ScrollController();
@@ -106,17 +120,63 @@ class _RecitationViewState extends State<_RecitationView> {
   /// Hifz is recited from memory, so the text is hidden until recited.
   bool _showText = false;
 
+  /// Whether this recitation is in the history already.
+  bool _saved = false;
+
+  /// Read now: the widget cannot use ref once it is being disposed.
+  late final _history = ref.read(recitationHistoryProvider.notifier);
+
+  /// Every ayah to recite, in order.
+  late final List<AyahRef> _ayat = {
+    for (final w in widget.words)
+      if (w.kind == WordKind.ayah) AyahRef(w.surah, w.ayah),
+  }.toList();
+
   @override
   void initState() {
     super.initState();
     _session.addListener(_follow);
+    _session.addListener(_saveWhenComplete);
   }
 
   @override
   void dispose() {
+    _save();
     _session.dispose();
     _scroll.dispose();
     super.dispose();
+  }
+
+  void _saveWhenComplete() {
+    if (_session.result.isComplete) _save();
+  }
+
+  /// Keeps what was recited and its mistakes in the history, once.
+  void _save() {
+    if (_saved) return;
+    final record = recordOf(_session, surah: widget.surah, page: widget.page);
+    if (record == null) return;
+    _saved = true;
+    _history.add(record);
+  }
+
+  /// The ayat recited wrongly so far, in order.
+  List<AyahRef> get _mistakeAyat => mistakeAyatOf(_session);
+
+  /// Starts or stops listening to the reciter. The recitation audio is
+  /// paused first, so the microphone does not hear it.
+  Future<void> _toggleListening() async {
+    if (_session.isListening) return _session.stop();
+    final audio = ref.read(audioProvider);
+    if (audio.playing) await ref.read(audioProvider.notifier).togglePlay();
+    await _session.start();
+  }
+
+  /// Plays [ayat] with repeats, after the reciter stops reciting.
+  Future<void> _listenTo(List<AyahRef> ayat, String title) async {
+    if (_session.isListening) await _session.stop();
+    if (!mounted) return;
+    await showRepeatSheet(context, ayat: ayat, title: title);
   }
 
   /// Keeps the ayah being recited in view.
@@ -138,30 +198,43 @@ class _RecitationViewState extends State<_RecitationView> {
   }
 
   Future<void> _reset() async {
+    _save();
     await _session.reset();
+    _saved = false;
     _followedGroup = 0;
     if (_scroll.hasClients) _scroll.jumpTo(0);
   }
 
   @override
   Widget build(BuildContext context) {
+    final audioVisible = ref.watch(audioProvider.select((a) => a.visible));
     return ListenableBuilder(
       listenable: _session,
       builder: (context, _) {
         final result = _session.result;
         final mistakes = _session.mistakes;
+        final t = S.of(context);
         return Scaffold(
           appBar: AppBar(
             title: Text(widget.title),
             actions: [
               IconButton(
-                tooltip: _showText ? 'إخفاء النص' : 'إظهار النص',
-                icon: Icon(_showText ? Icons.visibility_off : Icons.visibility),
+                tooltip: t.listenToRecited,
+                icon: const Icon(Icons.headphones_rounded),
+                onPressed: () => _listenTo(_ayat, t.listenToRecited),
+              ),
+              IconButton(
+                tooltip: _showText ? t.hideText : t.showText,
+                icon: Icon(
+                  _showText
+                      ? Icons.visibility_off_rounded
+                      : Icons.visibility_rounded,
+                ),
                 onPressed: () => setState(() => _showText = !_showText),
               ),
               IconButton(
-                tooltip: 'إعادة التسميع',
-                icon: const Icon(Icons.restart_alt),
+                tooltip: t.restartRecitation,
+                icon: const Icon(Icons.restart_alt_rounded),
                 onPressed: _reset,
               ),
             ],
@@ -169,11 +242,11 @@ class _RecitationViewState extends State<_RecitationView> {
           body: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const _OfflineModelBanner(),
+              const OfflineModelTile(),
               if (_session.error != null)
                 _Banner(
                   color: Theme.of(context).colorScheme.errorContainer,
-                  icon: Icons.mic_off,
+                  icon: Icons.mic_off_rounded,
                   text: _session.error!,
                 ),
               if (mistakes.isNotEmpty)
@@ -199,15 +272,32 @@ class _RecitationViewState extends State<_RecitationView> {
                   ),
                 ),
               ),
+              if (mistakes.isNotEmpty && !_session.isListening)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.replay_rounded),
+                    label: Text(t.listenToMistakes),
+                    onPressed: () =>
+                        _listenTo(_mistakeAyat, t.listenToMistakes),
+                  ),
+                ),
+              if (audioVisible)
+                const Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: AudioBar(),
+                ),
               _StatusBar(session: _session),
             ],
           ),
           floatingActionButtonLocation:
               FloatingActionButtonLocation.centerFloat,
           floatingActionButton: FloatingActionButton.extended(
-            onPressed: _session.isListening ? _session.stop : _session.start,
-            icon: Icon(_session.isListening ? Icons.stop : Icons.mic),
-            label: Text(_session.isListening ? 'إيقاف' : 'ابدأ التسميع'),
+            onPressed: _toggleListening,
+            icon: Icon(
+              _session.isListening ? Icons.stop_rounded : Icons.mic_rounded,
+            ),
+            label: Text(_session.isListening ? t.stop : t.startRecitation),
           ),
         );
       },
@@ -310,87 +400,6 @@ class _GroupView extends StatelessWidget {
   }
 }
 
-/// Offers the offline model, shows its download, or says it is in use.
-class _OfflineModelBanner extends ConsumerWidget {
-  const _OfflineModelBanner();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final model = ref.watch(offlineModelProvider);
-    final scheme = Theme.of(context).colorScheme;
-    final text = Theme.of(context).textTheme;
-    switch (model.status) {
-      case OfflineModelStatus.unsupported || OfflineModelStatus.checking:
-        return const SizedBox.shrink();
-      case OfflineModelStatus.ready:
-        return Container(
-          color: scheme.secondaryContainer,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-          child: Row(
-            children: [
-              const Icon(Icons.offline_bolt, size: 18),
-              const SizedBox(width: 8),
-              Text('التسميع يعمل بدون إنترنت', style: text.bodyMedium),
-            ],
-          ),
-        );
-      case OfflineModelStatus.downloading:
-        final progress = model.progress;
-        return Container(
-          color: scheme.secondaryContainer,
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                progress == null
-                    ? 'جارٍ تحميل نموذج التلاوة…'
-                    : 'جارٍ تحميل نموذج التلاوة… ${(progress * 100).floor()}٪',
-                style: text.titleSmall,
-              ),
-              const SizedBox(height: 8),
-              LinearProgressIndicator(value: progress),
-            ],
-          ),
-        );
-      case OfflineModelStatus.missing:
-        return Container(
-          color: scheme.secondaryContainer,
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-          child: Row(
-            children: [
-              const Icon(Icons.download_for_offline),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'التسميع الآن يحتاج إلى إنترنت. حمّل نموذج التلاوة '
-                      '(حوالي $offlineModelSizeMb ميغابايت، مرة واحدة) '
-                      'ليعمل بدون إنترنت.',
-                      style: text.bodyMedium,
-                    ),
-                    if (model.error != null)
-                      Text(
-                        model.error!,
-                        style: text.bodySmall?.copyWith(color: scheme.error),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              FilledButton(
-                onPressed: ref.read(offlineModelProvider.notifier).download,
-                child: const Text('تحميل'),
-              ),
-            ],
-          ),
-        );
-    }
-  }
-}
-
 class _Banner extends StatelessWidget {
   const _Banner({
     super.key,
@@ -434,15 +443,16 @@ class _StatusBar extends StatelessWidget {
         .take(result.progress)
         .where((w) => !w.word.optional)
         .length;
+    final t = S.of(context);
     final String status;
     if (result.isComplete) {
       status = result.mistakeCount == 0
-          ? 'أحسنت! أتممت التسميع بلا أخطاء.'
-          : 'أتممت التسميع. عدد الأخطاء: ${result.mistakeCount}';
+          ? t.perfectRecitation
+          : t.finishedWithMistakes(result.mistakeCount);
     } else if (session.isListening) {
-      status = 'أستمع إليك… $done من $total كلمة';
+      status = t.listening(done, total);
     } else {
-      status = 'اضغط «ابدأ التسميع» ثم اقرأ من حفظك.';
+      status = t.pressStart;
     }
     final heard = session.heardText;
     return Container(
@@ -455,7 +465,7 @@ class _StatusBar extends StatelessWidget {
           if (heard.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(
-              'سمعت: $heard',
+              t.heard(heard),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               textDirection: TextDirection.rtl,
@@ -468,7 +478,7 @@ class _StatusBar extends StatelessWidget {
   }
 }
 
-const _wordStyle = TextStyle(fontSize: 26, height: 1.6);
+const _wordStyle = TextStyle(fontFamily: mushafFont, fontSize: 26, height: 1.6);
 
 class _Word extends StatelessWidget {
   const _Word({required this.word, required this.showText});
@@ -488,12 +498,12 @@ class _Word extends StatelessWidget {
       WordStatus.wrong => (
         scheme.errorContainer,
         scheme.onErrorContainer,
-        'سمعت: ${word.heard}',
+        S.of(context).heard(word.heard ?? ''),
       ),
       WordStatus.skipped => (
         Colors.orange.shade100,
         Colors.orange.shade900,
-        'نسيتها',
+        S.of(context).forgotten,
       ),
       WordStatus.pending when showText => (null, scheme.onSurface, null),
       WordStatus.pending => (
@@ -511,7 +521,10 @@ class _Word extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(word.text, style: _wordStyle.copyWith(color: foreground)),
+          Text(
+            mushafDisplayText(word.text),
+            style: _wordStyle.copyWith(color: foreground),
+          ),
           if (note != null)
             Text(note, style: TextStyle(fontSize: 12, color: foreground)),
         ],
@@ -544,7 +557,10 @@ class _ExtraWord extends StatelessWidget {
               decoration: TextDecoration.lineThrough,
             ),
           ),
-          Text('زائدة', style: TextStyle(fontSize: 12, color: scheme.error)),
+          Text(
+            S.of(context).extraWord,
+            style: TextStyle(fontSize: 12, color: scheme.error),
+          ),
         ],
       ),
     );
@@ -558,10 +574,9 @@ class _AyahEnd extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const digits = '٠١٢٣٤٥٦٧٨٩';
-    final number = '$ayah'.split('').map((d) => digits[int.parse(d)]).join();
+    // The mushaf font draws the mark and its digits as one medallion.
     return Text(
-      '﴿$number﴾',
+      ayahEndMark(ayah),
       style: _wordStyle.copyWith(color: Theme.of(context).colorScheme.primary),
     );
   }

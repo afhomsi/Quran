@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:isolate';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:path_provider/path_provider.dart';
@@ -30,8 +31,7 @@ const _doneMarker = '.complete';
 const _sampleRate = 16000;
 
 /// The download size, for telling the user before they start.
-int get offlineModelSizeMb =>
-    (_files.values.fold(0, (a, b) => a + b) / 1000000).round();
+int get offlineModelBytes => _files.values.fold(0, (a, b) => a + b);
 
 bool get offlineSpeechSupported => Platform.isAndroid || Platform.isIOS;
 
@@ -262,7 +262,9 @@ Float32List _toSamples(Uint8List bytes) {
   return samples;
 }
 
-/// Seconds of new speech between two partial transcriptions.
+/// Seconds of new speech between two partial transcriptions, at least.
+/// On a slow phone the gap grows with the time a transcription takes, so
+/// the model keeps up with the reciter.
 const _partialEvery = 2.5;
 
 /// Audio kept from just before the detector notices speech, so the first
@@ -284,7 +286,9 @@ void _worker((SendPort, String) args) {
         sileroVad: sherpa.SileroVadModelConfig(
           model: '$dir/silero_vad.onnx',
           minSilenceDuration: 0.5,
-          maxSpeechDuration: 15,
+          // Whisper hears up to 30 s at a time; a longer piece without a
+          // pause is cut here, which may split a word.
+          maxSpeechDuration: 20,
         ),
         sampleRate: _sampleRate,
         debug: false,
@@ -320,6 +324,7 @@ void _worker((SendPort, String) args) {
   final speech = <Float32List>[];
   var speechLength = 0;
   var lastPartial = 0;
+  var partialEvery = (_partialEvery * _sampleRate).round();
   final recent = <Float32List>[];
   final leadWindows = (_lead * _sampleRate / window).ceil();
 
@@ -370,16 +375,24 @@ void _worker((SendPort, String) args) {
     }
     leftover = Float32List.fromList(all.sublist(start));
 
-    if (speechLength - lastPartial >= _partialEvery * _sampleRate) {
+    if (speechLength - lastPartial >= partialEvery) {
       lastPartial = speechLength;
+      final clock = Stopwatch()..start();
       final joined = Float32List(speechLength);
       var at = 0;
       for (final s in speech) {
         joined.setAll(at, s);
         at += s.length;
       }
-      final text = transcribe(joined);
+      // The last word may be cut off in the middle; it comes with the next
+      // result.
+      final words = transcribe(joined).split(' ');
+      final text = words.take(words.length - 1).join(' ');
       if (text.isNotEmpty) out.send([text, false]);
+      // Twice the time it took, in samples, so at most half the time goes
+      // to partial results.
+      final took = clock.elapsedMilliseconds * _sampleRate ~/ 500;
+      partialEvery = max((_partialEvery * _sampleRate).round(), took);
     }
   }
 

@@ -16,15 +16,15 @@ class OfflineModelState {
     this.status, {
     this.received = 0,
     this.total = 0,
-    this.error,
+    this.failed = false,
   });
 
   final OfflineModelStatus status;
   final int received;
   final int total;
 
-  /// Why the last download failed.
-  final String? error;
+  /// Whether the last download failed.
+  final bool failed;
 
   double? get progress => total > 0 ? received / total : null;
 }
@@ -59,11 +59,8 @@ class OfflineModelNotifier extends Notifier<OfflineModelState> {
         );
       });
       state = const OfflineModelState(OfflineModelStatus.ready);
-    } catch (e) {
-      state = OfflineModelState(
-        OfflineModelStatus.missing,
-        error: 'تعذر تحميل نموذج التلاوة. تأكد من الاتصال بالإنترنت ثم حاول مرة أخرى.',
-      );
+    } catch (_) {
+      state = const OfflineModelState(OfflineModelStatus.missing, failed: true);
     }
   }
 

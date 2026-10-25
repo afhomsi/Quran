@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -48,6 +49,10 @@ class Mushaf {
   /// The juz that the first ayah of [page] belongs to.
   int juzOfPage(int page) => _indexOf(juzStarts, page);
 
+  /// The juz that [ayah] belongs to.
+  int juzOfAyah(AyahRef ayah) =>
+      juzStarts.lastIndexWhere((s) => !(ayah < s)) + 1;
+
   /// The quarter (1 to 240) that the first ayah of [page] belongs to.
   int rubOfPage(int page) => _indexOf(rubStarts, page);
 
@@ -86,8 +91,7 @@ MushafLine _parseLine(Map l) => switch (l['t']) {
         MushafWord(
           ayah: AyahRef(w[0] as int, w[1] as int),
           position: w[2] as int,
-          glyph: w[3] as String,
-          isAyahEnd: w[4] == 1,
+          text: w[3] as String,
         ),
     ],
   ),
@@ -95,5 +99,7 @@ MushafLine _parseLine(Map l) => switch (l['t']) {
 
 final mushafProvider = FutureProvider<Mushaf>((ref) async {
   final raw = await rootBundle.loadString(mushafLayoutAssetPath);
-  return parseMushaf(raw);
+  // Reading the 2.5 MB layout takes a moment on a phone, so it is done in
+  // the background and the app keeps drawing meanwhile.
+  return compute(parseMushaf, raw);
 });

@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+# The workflow only reads the code; it cannot change the repository.
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -39,6 +43,47 @@ jobs:
         with:
           name: hifz-debug-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
+      # A faster, smaller build for trying the app on a phone. It is still
+      # signed with the debug key, so it is not for the Play Store.
+      - run: flutter build apk --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hifz-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+  # Puts the newest release APK behind one fixed link on GitHub Pages
+  # (https://afhomsi.github.io/Quran/), refreshed on every push to main.
+  # Needs Settings > Pages > Source set to "GitHub Actions" once.
+  publish-apk:
+    needs: build-android
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: hifz-release-apk
+          path: apk
+      - name: Build the download page
+        run: |
+          mkdir site
+          mv apk/app-release.apk site/hifz.apk
+          built="$(date -u '+%Y-%m-%d %H:%M') UTC · ${GITHUB_SHA::7}"
+          sed -e "s/BUILD_INFO/$built/" -e "s/BUILD_SHA/${GITHUB_SHA::7}/" tool/apk_page/index.html > site/index.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4
 
   build-ios:
     needs: test

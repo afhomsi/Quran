@@ -5,6 +5,7 @@ import 'package:hifz/data/mushaf_models.dart';
 import 'package:hifz/data/mushaf_repository.dart';
 import 'package:hifz/data/quarters.dart';
 import 'package:hifz/data/quran_repository.dart';
+import 'package:hifz/data/study.dart';
 
 void main() {
   group('bundled text', () {
@@ -13,6 +14,26 @@ void main() {
     test('has 114 surahs and 6236 ayahs', () {
       expect(surahs, hasLength(114));
       expect(surahs.fold<int>(0, (n, s) => n + s.ayahCount), 6236);
+    });
+
+    test('has no hidden spaces that would split a word in two', () {
+      // A thin space inside فَٱدَّٰرَٰٔتُمۡ (2:72) once made the recitation
+      // check hear one word as two and report a mistake.
+      for (final s in surahs) {
+        for (final a in s.ayahs) {
+          expect(a, isNot(matches(RegExp('[\u00A0\u2000-\u200F\u202F]'))));
+        }
+      }
+    });
+
+    test('matches the Quran.com (QPC Hafs) spelling', () {
+      // Ayat once spelled differently from Quran.com.
+      String ayah(int s, int a) => surahs[s - 1].ayahs[a - 1];
+      expect(ayah(2, 72), contains('\u0670\u0621\u06E1\u062A')); // ٰءۡت
+      expect(ayah(11, 41), contains('\u0631\u06EA\u0649')); // ر۪ى
+      // Words joined in the old text, such as لَّوۡ مَا (15:7), are checked
+      // against the mushaf below.
+      expect(ayahWords(ayah(37, 130)), hasLength(3));
     });
 
     test('surah metadata is parsed', () {
@@ -26,6 +47,7 @@ void main() {
 
   group('mushaf layout', () {
     final mushaf = parseMushaf(File(mushafLayoutAssetPath).readAsStringSync());
+    final surahs = parseSurahs(File(quranAssetPath).readAsStringSync());
 
     test('has 604 pages of at most 15 lines', () {
       expect(mushaf.pages, hasLength(604));
@@ -72,6 +94,33 @@ void main() {
       expect(mushaf.hizbOfPage(1), 1);
       expect(mushaf.hizbOfPage(22), 3);
       expect(mushaf.hizbOfPage(604), 60);
+    });
+
+    test('quarters start where the mushaf text puts the ۞ sign', () {
+      // The text marks every quarter that does not open a surah.
+      final marked = {
+        for (final s in surahs)
+          for (var a = 0; a < s.ayahCount; a++)
+            if (s.ayahs[a].contains('۞')) AyahRef(s.number, a + 1),
+      };
+      expect(rubStarts.where((r) => r.ayah != 1).toSet(), marked);
+    });
+
+    test('every ayah has as many words as the mushaf prints', () {
+      // The word card finds a pressed word by its place on the page.
+      final printed = <AyahRef, int>{};
+      for (final w in mushaf.pages.expand((p) => p.words)) {
+        if (!w.isAyahEnd) printed[w.ayah] = (printed[w.ayah] ?? 0) + 1;
+      }
+      for (final s in surahs) {
+        for (var a = 0; a < s.ayahCount; a++) {
+          final ref = AyahRef(s.number, a + 1);
+          final words = ayahWords(s.ayahs[a])
+              .where((w) => w != '۞' && w != '۩')
+              .length;
+          expect(words, printed[ref], reason: '$ref');
+        }
+      }
     });
 
     test('has a surah name line for every surah', () {

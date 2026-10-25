@@ -3,7 +3,7 @@ import 'speech_listener.dart';
 /// Browsers recognize speech themselves; the offline model is for phones.
 bool get offlineSpeechSupported => false;
 
-int get offlineModelSizeMb => 0;
+int get offlineModelBytes => 0;
 
 Future<bool> isOfflineModelInstalled() async => false;
 

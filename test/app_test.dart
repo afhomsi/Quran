@@ -6,18 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hifz/app.dart';
 import 'package:hifz/data/mushaf_repository.dart';
-import 'package:hifz/data/page_fonts.dart';
 import 'package:hifz/data/quran_repository.dart';
 import 'package:hifz/data/reading_state.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-/// Skips real font loading, which needs the asset bundle.
-class _FakePageFonts extends PageFonts {
-  _FakePageFonts() : super(rootBundle);
-
-  @override
-  Future<String> load(int page) async => PageFonts.familyFor(page);
-}
 
 void main() {
   testWidgets('opens a surah, turns pages and remembers the page', (
@@ -34,40 +25,43 @@ void main() {
           sharedPreferencesProvider.overrideWithValue(prefs),
           mushafProvider.overrideWith((ref) async => mushaf),
           surahsProvider.overrideWith((ref) async => surahs),
-          pageFontsProvider.overrideWithValue(_FakePageFonts()),
         ],
         child: const HifzApp(),
       ),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('المصحف'), findsOneWidget);
-    final dir = Directionality.of(tester.element(find.text('المصحف')));
+    expect(find.text('اقرأ'), findsOneWidget);
+    final dir = Directionality.of(tester.element(find.text('اقرأ')));
     expect(dir, TextDirection.rtl);
 
+    await tester.tap(find.text('الفهرس'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('البقرة'));
     await tester.pumpAndSettle();
 
-    // Running header plus the surah name line at the top of the page.
-    expect(find.text('سورة البقرة'), findsNWidgets(2));
-    expect(find.text('الجزء 1 · الحزب 1'), findsOneWidget);
-    expect(find.text('2'), findsOneWidget);
+    // Running header as text, surah header as calligraphy.
+    expect(find.text('2 البقرة (286)'), findsOneWidget);
+    expect(find.text('سُورَةُ البقرة'), findsOneWidget);
+    expect(find.text('الجزء 1 (1/8)'), findsOneWidget);
+    // In the header and between the page buttons.
+    expect(find.widgetWithText(InkWell, '2'), findsNWidgets(2));
     expect(prefs.getInt('last_page'), 2);
 
     await tester.tap(find.byTooltip('الصفحة التالية'));
     await tester.pumpAndSettle();
-    expect(find.text('3'), findsOneWidget);
+    expect(find.widgetWithText(InkWell, '3'), findsNWidgets(2));
     expect(prefs.getInt('last_page'), 3);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
     await tester.pumpAndSettle();
-    expect(find.text('4'), findsOneWidget);
+    expect(find.widgetWithText(InkWell, '4'), findsNWidgets(2));
 
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('الصفحة السابقة'));
     await tester.pumpAndSettle();
-    expect(find.text('2'), findsOneWidget);
+    expect(find.widgetWithText(InkWell, '2'), findsNWidgets(2));
     expect(prefs.getInt('last_page'), 2);
   });
 
@@ -83,11 +77,12 @@ void main() {
           sharedPreferencesProvider.overrideWithValue(prefs),
           mushafProvider.overrideWith((ref) async => mushaf),
           surahsProvider.overrideWith((ref) async => surahs),
-          pageFontsProvider.overrideWithValue(_FakePageFonts()),
         ],
         child: const HifzApp(),
       ),
     );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('الفهرس'));
     await tester.pumpAndSettle();
 
     // Without diacritics or hamza, as people type.
@@ -96,22 +91,35 @@ void main() {
     expect(find.widgetWithText(ListTile, 'الكهف'), findsOneWidget);
     expect(find.widgetWithText(ListTile, 'البقرة'), findsNothing);
 
-    await tester.tap(find.text('الأرباع'));
+    await tester.tap(find.text('الجزء'));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField), '٣٠');
+    await tester.enterText(find.byType(TextField), '٣');
     await tester.pumpAndSettle();
-    expect(find.text('الحزب 30'), findsOneWidget);
-    expect(find.text('ربع الحزب 30'), findsOneWidget);
+    expect(find.text('جزء 30'), findsOneWidget);
+    expect(find.text('جزء 3'), findsOneWidget);
+    expect(find.text('جزء 2'), findsNothing);
+    // Opens onto its pages: juz 30 runs from page 582 to the end.
+    await tester.tap(find.text('جزء 30'));
+    await tester.pumpAndSettle();
+    expect(find.text('582'), findsOneWidget);
+    expect(find.text('604'), findsOneWidget);
+    expect(find.text('581'), findsNothing);
 
-    await tester.tap(find.text('الصفحات'));
+    await tester.tap(find.text('الربع'));
+    await tester.pumpAndSettle();
+    expect(find.text('الفاتحة: 1 - الصفحة 1'), findsOneWidget);
+    expect(find.text('البقرة: 26 - الصفحة 5'), findsOneWidget);
+
+    await tester.tap(find.text('الصفحة'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), '293');
     await tester.pumpAndSettle();
-    await tester.tap(find.text('الصفحة 293'));
+    expect(find.text('29'), findsNothing);
+    await tester.tap(find.bySemanticsLabel('الصفحة 293'));
     await tester.pumpAndSettle();
     // Al-Kahf starts below the last ayah of al-Isra on this page.
-    expect(find.text('سورة الإسراء'), findsOneWidget);
-    expect(find.text('سورة الكهف'), findsOneWidget);
+    expect(find.text('17 الإسراء (111)'), findsOneWidget);
+    expect(find.text('سُورَةُ الكهف'), findsOneWidget);
     expect(prefs.getInt('last_page'), 293);
   });
 }
