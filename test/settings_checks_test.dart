@@ -84,7 +84,7 @@ final _switches =
         (t) => t.hideRecitationButton,
       ),
       (
-        'hideWhileListening',
+        'hideListening',
         (s) => s.hideWhileListening,
         (s, v) => s.copyWith(hideWhileListening: v),
         (t) => t.hideWhileListening,
@@ -121,7 +121,7 @@ void main() {
     expect(d.language, AppLanguage.ar);
     expect(d.nightMode, isFalse);
     expect(d.keepScreenOn, isTrue);
-    expect(d.hideWhileListening, isTrue);
+    expect(d.hideWhileListening, isFalse);
     expect(d.showHizbMarks, isTrue);
     expect(d.hideRecitationButton, isFalse);
     expect(d.autoPageSeconds, 60);
@@ -182,7 +182,7 @@ void main() {
           (s) => s.copyWith(
             language: AppLanguage.bn,
             pageTheme: PageTheme.mint,
-            hideWhileListening: false,
+            hideWhileListening: true,
             autoPageSeconds: 120,
           ),
         );
@@ -191,7 +191,7 @@ void main() {
     final s = c.read(settingsProvider);
     expect(s.language, AppLanguage.bn);
     expect(s.pageTheme, PageTheme.mint);
-    expect(s.hideWhileListening, isFalse);
+    expect(s.hideWhileListening, isTrue);
     expect(s.autoPageSeconds, 120);
   });
 

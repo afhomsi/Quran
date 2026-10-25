@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hifz/data/quran_repository.dart';
 import 'package:hifz/data/mushaf_models.dart';
+import 'package:hifz/data/mushaf_repository.dart';
 import 'package:hifz/recitation/page_recitation.dart';
 import 'package:hifz/recitation/recitation_matcher.dart';
 import 'package:hifz/recitation/recitation_session.dart';
@@ -192,5 +193,51 @@ void main() {
       expect(session.isListening, isTrue);
       expect(page.ayahStates[const AyahRef(2, 2)], AyahRecitation.mistake);
     });
+  });
+
+  testWidgets('each page of Juz Amma is recited on from surah to surah', (
+    tester,
+  ) async {
+    final mushaf = parseMushaf(File(mushafLayoutAssetPath).readAsStringSync());
+    final surahs = parseSurahs(File(quranAssetPath).readAsStringSync());
+    for (var page = 582; page <= mushafPageCount; page++) {
+      final last = mushaf.page(page).words.last.ayah.surah;
+      final lastPage = mushaf.pageOf(
+        AyahRef(last, surahs[last - 1].ayahs.length),
+      );
+      final listener = _FakeListener();
+      final session = RecitationSession(
+        listener: listener,
+        expected: wordsOfPages([
+          for (var p = page; p <= lastPage; p++) mushaf.page(p),
+        ], surahs),
+        surahName: (s) => surahs[s - 1].name,
+      );
+      await session.start();
+      final ayat = {
+        for (final w in session.expected)
+          if (w.kind == WordKind.ayah) AyahRef(w.surah, w.ayah),
+      };
+      // An ayah or two per listening session, each surah with its basmala.
+      for (final a in ayat) {
+        final text = surahs[a.surah - 1].ayahs[a.ayah - 1];
+        final words = [
+          if (a.ayah == 1) ...'بسم الله الرحمن الرحيم'.split(' '),
+          ...text.split(' '),
+        ];
+        for (var k = 1; k <= words.length; k++) {
+          listener.say(words.take(k).join(' '), isFinal: k == words.length);
+        }
+        await tester.pump(const Duration(milliseconds: 350));
+      }
+      expect(
+        session.mistakes.map((m) => m.message),
+        isEmpty,
+        reason: 'page $page',
+      );
+      expect(session.result.isComplete, isTrue, reason: 'page $page');
+      session.dispose();
+    }
+    await tester.pump(const Duration(seconds: 2));
   });
 }

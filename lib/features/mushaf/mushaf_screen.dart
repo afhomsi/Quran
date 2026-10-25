@@ -399,9 +399,7 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
                               ),
                               onRecite: settings.hideRecitationButton
                                   ? null
-                                  : () => ref
-                                        .read(pageRecitationProvider.notifier)
-                                        .start(_page),
+                                  : _recite,
                             ),
                             Directionality(
                               textDirection: appDirection,
@@ -469,6 +467,52 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
         ),
       ],
     );
+  }
+
+  /// Recites the open page from its top. When a surah starts part way
+  /// down the page, first asks whether to start there instead, so a new
+  /// surah can be recited without the end of the one before it.
+  Future<void> _recite() async {
+    final controller = ref.read(pageRecitationProvider.notifier);
+    final current = ref.read(pageRecitationProvider);
+    final mushaf = ref.read(mushafProvider).value;
+    final surahs = ref.read(surahsProvider).value;
+    if (mushaf == null || surahs == null) return;
+    final page = mushaf.page(_page);
+    final starts = [
+      for (final line in page.lines.whereType<SurahNameLine>())
+        if (AyahRef(line.surah, 1) != page.firstAyah) AyahRef(line.surah, 1),
+    ];
+    final listening =
+        current?.covers(_page) == true && current!.session.isListening;
+    if (starts.isEmpty || listening) return controller.start(_page);
+    final t = S.of(context);
+    final from = await showModalBottomSheet<AyahRef>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(t.reciteFromWhere, style: TextTheme.of(context).titleMedium),
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Icon(Icons.vertical_align_top_rounded),
+              title: Text(t.reciteFromPageStart),
+              onTap: () => Navigator.pop(context, page.firstAyah),
+            ),
+            for (final a in starts)
+              ListTile(
+                leading: const Icon(Icons.menu_book_rounded),
+                title: Text(t.reciteFromSurah(surahs[a.surah - 1])),
+                onTap: () => Navigator.pop(context, a),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (from == null || !mounted) return;
+    await controller.start(_page, from: from == page.firstAyah ? null : from);
   }
 
   /// Opens or closes the page navigator. It opens with the bars hidden, as

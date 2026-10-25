@@ -155,8 +155,8 @@ void main() {
     final states = container.read(pageRecitationProvider)!.ayahStates;
     expect(states.values, [AyahRecitation.correct, AyahRecitation.mistake]);
 
-    // Listening after reciting shows the ayat as the reciter reaches them,
-    // even with the recitation hiding the rest.
+    // Listening after reciting shows the whole text, even with the
+    // recitation hiding it.
     await tester.tap(find.text('إخفاء الآيات'));
     await tester.pump();
     await container.read(audioProvider.notifier).playFrom(const AyahRef(1, 3));
@@ -164,7 +164,7 @@ void main() {
     expect(listener.listening, isFalse);
     expect(
       tester.widget<MushafPageView>(find.byType(MushafPageView)).recitedWords,
-      {const AyahRef(1, 3): PageRecitation.allWords},
+      isNull,
     );
     await container.read(audioProvider.notifier).close();
     await tester.pump();
@@ -256,6 +256,136 @@ void main() {
       const AyahRef(67, 1): PageRecitation.allWords,
       const AyahRef(67, 2): PageRecitation.allWords,
     });
+    await tester.tap(find.byTooltip('إغلاق التسميع'));
+    await tester.pumpAndSettle();
+  });
+
+  group('a page where a surah starts part way down', () {
+    // Page 583 starts in the middle of An-Naba and An-Nazi'at starts on it.
+    const page = 583;
+    final surahs = parseSurahs(File(quranAssetPath).readAsStringSync());
+
+    Future<ProviderContainer> open(
+      WidgetTester tester,
+      FakeListener listener,
+    ) async {
+      await _pump(
+        tester,
+        const MaterialApp(
+          home: Directionality(
+            textDirection: TextDirection.rtl,
+            child: MushafScreen(initialPage: page),
+          ),
+        ),
+        listener: listener,
+      );
+      await tester.tap(find.widgetWithText(FilledButton, 'تسميع'));
+      await tester.pumpAndSettle();
+      expect(find.text('من أين تبدأ التسميع؟'), findsOneWidget);
+      expect(_inSheet('من أول الصفحة'), findsOneWidget);
+      return ProviderScope.containerOf(
+        tester.element(find.byType(MushafScreen)),
+      );
+    }
+
+    testWidgets('asks where to start, and starts at the surah chosen', (
+      tester,
+    ) async {
+      final listener = FakeListener();
+      final container = await open(tester, listener);
+      await tester.tap(_inSheet('من أول سورة النازعات'));
+      await tester.pumpAndSettle();
+      final recitation = container.read(pageRecitationProvider)!;
+      expect(recitation.from, const AyahRef(79, 1));
+      expect(listener.listening, isTrue);
+
+      listener.say(
+        ['بسم الله الرحمن الرحيم', ...surahs[78].ayahs.take(5)].join(' '),
+      );
+      await tester.pumpAndSettle();
+      expect(recitation.session.mistakes, isEmpty);
+      // The end of An-Naba before it shows.
+      final shown = tester.widget<MushafPageView>(find.byType(MushafPageView));
+      expect(
+        shown.recitedWords![const AyahRef(78, 40)],
+        PageRecitation.allWords,
+      );
+      await tester.tap(find.byTooltip('إغلاق التسميع'));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('or at the top of the page, on into the next surah', (
+      tester,
+    ) async {
+      final listener = FakeListener();
+      final container = await open(tester, listener);
+      await tester.tap(_inSheet('من أول الصفحة'));
+      await tester.pumpAndSettle();
+      final recitation = container.read(pageRecitationProvider)!;
+      expect(recitation.from, isNull);
+
+      listener.say(
+        [
+          ...surahs[77].ayahs.skip(30),
+          'بسم الله الرحمن الرحيم',
+          ...surahs[78].ayahs.take(5),
+        ].join(' '),
+      );
+      await tester.pumpAndSettle();
+      expect(recitation.session.mistakes, isEmpty);
+      expect(recitation.ayahStates.values.toSet(), {AyahRecitation.correct});
+      await tester.tap(find.byTooltip('إغلاق التسميع'));
+      await tester.pumpAndSettle();
+    });
+  });
+
+  testWidgets('reciting a page again starts anew', (tester) async {
+    final listener = FakeListener();
+    final surahs = parseSurahs(File(quranAssetPath).readAsStringSync());
+    // Page 604 holds the last three surahs, each with its basmala, so it
+    // also asks where to start.
+    await _pump(
+      tester,
+      const MaterialApp(
+        home: Directionality(
+          textDirection: TextDirection.rtl,
+          child: MushafScreen(initialPage: 604),
+        ),
+      ),
+      listener: listener,
+    );
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(MushafScreen)),
+    );
+    final all = [
+      for (final s in [112, 113, 114]) ...[
+        'بسم الله الرحمن الرحيم',
+        ...surahs[s - 1].ayahs,
+      ],
+    ].join(' ');
+    await tester.tap(find.widgetWithText(FilledButton, 'تسميع'));
+    await tester.pumpAndSettle();
+    expect(_inSheet('من أول سورة الفلق'), findsOneWidget);
+    expect(_inSheet('من أول سورة الناس'), findsOneWidget);
+    await tester.tap(_inSheet('من أول الصفحة'));
+    await tester.pumpAndSettle();
+    listener.say(all);
+    await tester.pumpAndSettle();
+    var recitation = container.read(pageRecitationProvider)!;
+    expect(recitation.session.result.isComplete, isTrue);
+    expect(recitation.session.mistakes, isEmpty);
+    expect(listener.listening, isFalse);
+
+    // Pressing it again recites the page anew, not as words after its end.
+    await tester.tap(find.widgetWithText(FilledButton, 'تسميع'));
+    await tester.pumpAndSettle();
+    await tester.tap(_inSheet('من أول الصفحة'));
+    await tester.pumpAndSettle();
+    recitation = container.read(pageRecitationProvider)!;
+    expect(recitation.session.result.progress, 0);
+    listener.say(all);
+    await tester.pumpAndSettle();
+    expect(recitation.session.mistakes, isEmpty);
     await tester.tap(find.byTooltip('إغلاق التسميع'));
     await tester.pumpAndSettle();
   });
