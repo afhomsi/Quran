@@ -45,6 +45,42 @@ final lastPageProvider = NotifierProvider<LastPageNotifier, int?>(
   LastPageNotifier.new,
 );
 
+const _lastRecitationKey = 'last_recitation';
+
+/// The ayah to go on reciting from: where the reciter last stopped in the
+/// mushaf, so the app can resume there like it resumes reading.
+class LastRecitationNotifier extends Notifier<AyahRef?> {
+  @override
+  AyahRef? build() => readStored(
+    ref.watch(sharedPreferencesProvider).getString(_lastRecitationKey),
+    (json) {
+      final map = json! as Map<String, dynamic>;
+      final ayah = AyahRef(map['surah'] as int, map['ayah'] as int);
+      return ayah.isValid ? ayah : null;
+    },
+    null,
+  );
+
+  void set(AyahRef? ayah) {
+    if (ayah == state) return;
+    state = ayah;
+    final prefs = ref.read(sharedPreferencesProvider);
+    if (ayah == null) {
+      prefs.remove(_lastRecitationKey);
+    } else {
+      prefs.setString(
+        _lastRecitationKey,
+        jsonEncode({'surah': ayah.surah, 'ayah': ayah.ayah}),
+      );
+    }
+  }
+}
+
+final lastRecitationProvider =
+    NotifierProvider<LastRecitationNotifier, AyahRef?>(
+      LastRecitationNotifier.new,
+    );
+
 /// Bookmarked ayat, in the order they were added.
 class BookmarksNotifier extends Notifier<List<AyahRef>> {
   @override

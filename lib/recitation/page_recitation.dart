@@ -5,6 +5,7 @@ import '../data/mushaf_models.dart';
 import '../data/mushaf_repository.dart';
 import '../data/quran_models.dart';
 import '../data/quran_repository.dart';
+import '../data/reading_state.dart';
 import '../data/recitation_history.dart';
 import 'alert_sound.dart';
 import 'recitation_matcher.dart';
@@ -24,11 +25,16 @@ class PageRecitation {
     this.session,
     this.version, {
     int? lastPage,
+    this.from,
     this.hideText = true,
   }) : lastPage = lastPage ?? page;
 
   /// The page the recitation started on.
   final int page;
+
+  /// The ayah it started from when going on from where reciting last
+  /// stopped; the ayat before it on [page] are not recited and show.
+  final AyahRef? from;
 
   /// The page where the recited surah ends.
   final int lastPage;
@@ -71,6 +77,7 @@ class PageRecitation {
     session,
     version ?? this.version,
     lastPage: lastPage,
+    from: from,
     hideText: hideText ?? this.hideText,
   );
 
@@ -130,15 +137,17 @@ class PageRecitation {
 List<ExpectedWord> wordsOfPage(MushafPage page, List<Surah> surahs) =>
     wordsOfPages([page], surahs);
 
-/// The words to recite for the ayat on [pages], in order.
+/// The words to recite for the ayat on [pages], in order, starting from
+/// the ayah [from] when given.
 List<ExpectedWord> wordsOfPages(
   Iterable<MushafPage> pages,
-  List<Surah> surahs,
-) {
+  List<Surah> surahs, {
+  AyahRef? from,
+}) {
   final seen = <AyahRef>{};
   return wordsToRecite([
     for (final w in pages.expand((p) => p.words))
-      if (seen.add(w.ayah))
+      if ((from == null || !(w.ayah < from)) && seen.add(w.ayah))
         (
           w.ayah.surah,
           w.ayah.ayah,
@@ -175,11 +184,21 @@ class PageRecitationController extends Notifier<PageRecitation?> {
   /// Opens the bar for [page] and starts listening, on to the end of the
   /// surah the page ends in. On a page already being recited, only starts
   /// or stops listening.
-  Future<void> start(int page) async {
+  Future<void> start(int page) => _start(page);
+
+  /// Goes on reciting from where reciting last stopped.
+  Future<void> resume() async {
+    final mushaf = ref.read(mushafProvider).value;
+    final from = ref.read(lastRecitationProvider);
+    if (mushaf == null || from == null) return;
+    await _start(mushaf.pageOf(from), from: from);
+  }
+
+  Future<void> _start(int page, {AyahRef? from}) async {
     final mushaf = ref.read(mushafProvider).value;
     final surahs = ref.read(surahsProvider).value;
     if (mushaf == null || surahs == null) return;
-    if (state?.covers(page) != true) {
+    if (from != null || state?.covers(page) != true) {
       close();
       final surah = mushaf.page(page).words.last.ayah.surah;
       final lastPage = mushaf.pageOf(
@@ -187,15 +206,17 @@ class PageRecitationController extends Notifier<PageRecitation?> {
       );
       final session = RecitationSession(
         listener: ref.read(speechListenerProvider),
-        expected: wordsOfPages([
-          for (var p = page; p <= lastPage; p++) mushaf.page(p),
-        ], surahs),
+        expected: wordsOfPages(
+          [for (var p = page; p <= lastPage; p++) mushaf.page(p)],
+          surahs,
+          from: from,
+        ),
         surahName: (s) => surahs[s - 1].name,
       )..onMistake = (_) => ref.read(mistakeAlertProvider)();
       session.addListener(() => _changed(session));
       _saved = false;
       _session = session;
-      state = PageRecitation(page, session, 0, lastPage: lastPage);
+      state = PageRecitation(page, session, 0, lastPage: lastPage, from: from);
     }
     await toggleListening();
   }
@@ -243,7 +264,23 @@ class PageRecitationController extends Notifier<PageRecitation?> {
     final current = state;
     if (current == null || current.session != session) return;
     if (session.result.isComplete) _save();
+    _keepPlace(current);
     state = current.copyWith(version: current.version + 1);
+  }
+
+  /// Remembers where to go on reciting from: the next ayah, or the next
+  /// surah once this one is recited to its end.
+  void _keepPlace(PageRecitation current) {
+    final result = current.session.result;
+    if (result.progress == 0) return;
+    final AyahRef? next;
+    if (result.isComplete) {
+      final surah = current.currentWord.$1.surah;
+      next = surah < 114 ? AyahRef(surah + 1, 1) : null;
+    } else {
+      next = current.currentWord.$1;
+    }
+    ref.read(lastRecitationProvider.notifier).set(next);
   }
 
   void _save() {
