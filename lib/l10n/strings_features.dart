@@ -18,6 +18,20 @@ extension FeatureStrings on S {
       _('عرض النص', 'Text view', 'লেখা দেখুন', 'متن کا منظر');
   String get pageView =>
       _('عرض الصفحة', 'Page view', 'পৃষ্ঠা দেখুন', 'صفحے کا منظر');
+  String get textSize =>
+      _('حجم الخط', 'Text size', 'লেখার আকার', 'متن کا سائز');
+  String get textSizeHint => _(
+    'أو باعد بين إصبعين على الصفحة للتكبير وقرّبهما للتصغير',
+    'Or spread two fingers on the page to enlarge, pinch to shrink',
+    'অথবা বড় করতে পৃষ্ঠায় দুই আঙুল ছড়িয়ে দিন, ছোট করতে কাছে আনুন',
+    'یا بڑا کرنے کے لیے صفحے پر دو انگلیاں پھیلائیں، چھوٹا کرنے کے لیے سکیڑیں',
+  );
+  String get smallerText =>
+      _('تصغير الخط', 'Smaller text', 'ছোট লেখা', 'چھوٹا متن');
+  String get largerText =>
+      _('تكبير الخط', 'Larger text', 'বড় লেখা', 'بڑا متن');
+  String get defaultTextSize =>
+      _('الحجم الأصلي', 'Original size', 'মূল আকার', 'اصل سائز');
   String get pageNavigator => _(
     'التنقل بين الصفحات',
     'Go through the pages',

@@ -11,6 +11,11 @@ const settingsKey = 'settings';
 const minAutoPageSeconds = 15;
 const maxAutoPageSeconds = 300;
 
+/// How much the mushaf text can be shrunk or enlarged, 1 being the size
+/// that fits the printed page on the screen.
+const minMushafTextScale = 0.8;
+const maxMushafTextScale = 2.0;
+
 enum AppLanguage {
   ar('العربية', TextDirection.rtl),
   en('English', TextDirection.ltr),
@@ -57,6 +62,7 @@ class AppSettings {
     this.hideWhileListening = true,
     this.showHizbMarks = true,
     this.tajweedColors = false,
+    this.mushafTextScale = 1.0,
   });
 
   final AppLanguage language;
@@ -92,6 +98,10 @@ class AppSettings {
   /// Color the letters of the mushaf by the rules of tajweed.
   final bool tajweedColors;
 
+  /// The size of the mushaf text. Above 1 the words of the page flow on
+  /// as many lines as they need, and the page scrolls.
+  final double mushafTextScale;
+
   AppSettings copyWith({
     AppLanguage? language,
     bool? nightMode,
@@ -108,6 +118,7 @@ class AppSettings {
     bool? hideWhileListening,
     bool? showHizbMarks,
     bool? tajweedColors,
+    double? mushafTextScale,
   }) => AppSettings(
     language: language ?? this.language,
     nightMode: nightMode ?? this.nightMode,
@@ -124,6 +135,7 @@ class AppSettings {
     hideWhileListening: hideWhileListening ?? this.hideWhileListening,
     showHizbMarks: showHizbMarks ?? this.showHizbMarks,
     tajweedColors: tajweedColors ?? this.tajweedColors,
+    mushafTextScale: mushafTextScale ?? this.mushafTextScale,
   );
 
   Map<String, Object> toJson() => {
@@ -142,6 +154,7 @@ class AppSettings {
     'hideWhileListening': hideWhileListening,
     'showHizbMarks': showHizbMarks,
     'tajweedColors': tajweedColors,
+    'mushafTextScale': mushafTextScale,
   };
 
   /// Reads what [toJson] wrote. Missing or unknown values keep their
@@ -177,6 +190,13 @@ class AppSettings {
       hideWhileListening: pick('hideWhileListening', d.hideWhileListening),
       showHizbMarks: pick('showHizbMarks', d.showHizbMarks),
       tajweedColors: pick('tajweedColors', d.tajweedColors),
+      mushafTextScale: switch (json['mushafTextScale']) {
+        final num v when v.isFinite => v.toDouble().clamp(
+          minMushafTextScale,
+          maxMushafTextScale,
+        ),
+        _ => d.mushafTextScale,
+      },
     );
   }
 }
