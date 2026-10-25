@@ -12,6 +12,7 @@ import '../../data/reading_state.dart';
 import '../../l10n/strings.dart';
 import '../../settings/app_settings.dart';
 import '../mushaf/text_size_sheet.dart';
+import '../recitation/offline_model_tile.dart';
 import '../../theme/app_theme.dart';
 
 void openSettings(BuildContext context) {
@@ -149,6 +150,7 @@ class SettingsScreen extends ConsumerWidget {
                 onChanged: (v) =>
                     update((s) => s.copyWith(hideWhileListening: v)),
               ),
+              const OfflineModelTile(),
             ],
           ),
           _SectionTitle(t.languageTitle, Icons.translate_rounded),

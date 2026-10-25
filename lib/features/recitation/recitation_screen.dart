@@ -15,6 +15,7 @@ import '../../recitation/session_record.dart';
 import '../../recitation/speech_listener.dart';
 import '../audio/audio_bar.dart';
 import '../audio/repeat_sheet.dart';
+import 'offline_model_tile.dart';
 import '../../data/mushaf_text.dart';
 
 /// Recite a surah or a mushaf page from memory; the app listens and points
@@ -34,10 +35,12 @@ class RecitationScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final surahs = ref.watch(surahsProvider);
     final mushaf = page == null ? null : ref.watch(mushafProvider);
+    // Starts over with the offline model once it finishes downloading.
+    final listener = ref.watch(speechListenerProvider);
     final t = S.of(context);
     return switch ((surahs, mushaf)) {
       (AsyncData(value: final s), null || AsyncData()) => _RecitationView(
-        key: ValueKey((surah, page)),
+        key: ValueKey((surah, page, listener)),
         title: surah != null
             ? t.reciteSurahTitle(s[surah! - 1])
             : t.recitePageTitle(page!),
@@ -45,7 +48,7 @@ class RecitationScreen extends ConsumerWidget {
         surah: surah,
         page: page,
         surahs: s,
-        listener: ref.read(speechListenerProvider),
+        listener: listener,
       ),
       (AsyncError(:final error), _) ||
       (_, AsyncError(:final error)) => Scaffold(
@@ -239,6 +242,7 @@ class _RecitationViewState extends ConsumerState<_RecitationView> {
           body: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              const OfflineModelTile(),
               if (_session.error != null)
                 _Banner(
                   color: Theme.of(context).colorScheme.errorContainer,
