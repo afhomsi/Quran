@@ -190,7 +190,10 @@ class AyahTimings {
 
   /// The ayah times at [url], as mp3quran.net gives them.
   Future<String> fetchText(Uri url) async {
-    final response = await _client.get(url);
+    final response = await _client.get(
+      url,
+      headers: {'User-Agent': audioUserAgent},
+    );
     if (response.statusCode != 200) {
       throw http.ClientException('Ayah times: ${response.statusCode}');
     }
