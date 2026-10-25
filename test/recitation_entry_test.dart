@@ -129,10 +129,20 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     listener.say('رب الناس', isFinal: true);
     await tester.pump();
-    // An ayah recited wrongly stays hidden.
+    // Only the word recited wrongly stays hidden; the rest of its ayah
+    // shows and the microphone keeps listening.
     expect(container.read(pageRecitationProvider)!.recitedWords, {
       const AyahRef(1, 1): PageRecitation.allWords,
+      const AyahRef(1, 2): PageRecitation.allWords,
     });
+    expect(container.read(pageRecitationProvider)!.wrongWords, {
+      (const AyahRef(1, 2), 4),
+    });
+    expect(
+      tester.widget<MushafPageView>(find.byType(MushafPageView)).wrongWords,
+      {(const AyahRef(1, 2), 4)},
+    );
+    expect(listener.listening, isTrue);
 
     // A labelled button shows the whole page.
     await tester.tap(find.text('إظهار الآيات'));

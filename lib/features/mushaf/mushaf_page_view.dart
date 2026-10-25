@@ -40,6 +40,7 @@ class MushafPageView extends StatelessWidget {
     this.selectedWord,
     this.highlights = const {},
     this.recitedWords,
+    this.wrongWords = const {},
     this.showHizbMarks = false,
     this.tajweed,
     this.onAyahTap,
@@ -61,6 +62,11 @@ class MushafPageView extends StatelessWidget {
   /// only once that many words of its ayah were recited, and the others
   /// are grey blocks. The ayah numbers always show.
   final Map<AyahRef, int>? recitedWords;
+
+  /// Words, as their ayah and position, that stay grey blocks while the
+  /// page is recited from memory, though words after them show: those
+  /// recited wrong.
+  final Set<(AyahRef, int)> wrongWords;
 
   /// Put ۞ over the first word of each quarter of a hizb.
   final bool showHizbMarks;
@@ -145,7 +151,8 @@ class MushafPageView extends StatelessWidget {
                     hidden:
                         recitedWords != null &&
                         !w.isAyahEnd &&
-                        (recitedWords![w.ayah] ?? 0) < w.position,
+                        ((recitedWords![w.ayah] ?? 0) < w.position ||
+                            wrongWords.contains((w.ayah, w.position))),
                     hizbMark:
                         showHizbMarks &&
                         w.position == 1 &&

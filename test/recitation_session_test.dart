@@ -159,6 +159,7 @@ void main() {
       final page = PageRecitation(2, session, 0);
       expect(page.recitedWords[const AyahRef(2, 2)], PageRecitation.allWords);
       expect(page.recitedWords[const AyahRef(2, 3)], PageRecitation.allWords);
+      expect(page.wrongWords, isEmpty);
     });
 
     testWidgets('also after a pause, in the next listening session', (
@@ -177,7 +178,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 350));
     });
 
-    test('keeps the ayah hidden while it is not recited again', () {
+    test('keeps only the wrong word hidden while it is not recited again', () {
       final said = [
         ...withMistake(),
         ...ayahs[1].split(' ').skip(3),
@@ -185,8 +186,10 @@ void main() {
       ];
       listener.say(said.join(' '));
       final page = PageRecitation(2, session, 0);
-      expect(page.recitedWords.containsKey(const AyahRef(2, 2)), isFalse);
+      expect(page.recitedWords[const AyahRef(2, 2)], PageRecitation.allWords);
+      expect(page.wrongWords, {(const AyahRef(2, 2), 3)});
       expect(page.recitedWords[const AyahRef(2, 3)], PageRecitation.allWords);
+      expect(session.isListening, isTrue);
       expect(page.ayahStates[const AyahRef(2, 2)], AyahRecitation.mistake);
     });
   });

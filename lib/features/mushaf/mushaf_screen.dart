@@ -561,6 +561,9 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
               ...recitation.recitedWords,
             }
           : null,
+      wrongWords: !audio.visible && recitation?.covers(page) == true
+          ? recitation!.wrongWords
+          : const {},
       bookmarks: [
         for (final kind in MarkerKind.values)
           if (markers[kind] case final a? when mushaf.pageOf(a) == page)
@@ -760,6 +763,7 @@ class _PageSlot extends ConsumerWidget {
     required this.selectedWord,
     required this.highlights,
     this.recitedWords,
+    this.wrongWords = const {},
     required this.bookmarks,
     required this.showHizbMarks,
     required this.onAyahTap,
@@ -778,6 +782,7 @@ class _PageSlot extends ConsumerWidget {
   final AyahRef? selected;
   final Map<AyahRef, Color> highlights;
   final Map<AyahRef, int>? recitedWords;
+  final Set<(AyahRef, int)> wrongWords;
 
   /// Markers and khatma plans that stand on this page: their color and
   /// name, drawn as ribbons in the header.
@@ -884,6 +889,7 @@ class _PageSlot extends ConsumerWidget {
                   selectedWord: selectedWord,
                   highlights: highlights,
                   recitedWords: recitedWords,
+                  wrongWords: wrongWords,
                   showHizbMarks: showHizbMarks,
                   tajweed: tajweed,
                   onAyahTap: onAyahTap,
