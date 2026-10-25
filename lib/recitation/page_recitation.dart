@@ -198,6 +198,13 @@ class PageRecitationController extends Notifier<PageRecitation?> {
       final session = _session;
       if (playing && session != null && session.isListening) session.stop();
     });
+    // Once the offline model is downloaded, a page waiting to be recited
+    // is opened again to recite with it.
+    ref.listen(speechListenerProvider, (_, _) {
+      final current = state;
+      if (current == null || current.session.isListening) return;
+      _start(current.page, from: current.from, listen: false, restart: true);
+    });
     return null;
   }
 
@@ -209,7 +216,7 @@ class PageRecitationController extends Notifier<PageRecitation?> {
   Future<void> start(int page, {AyahRef? from}) async {
     final session = state?.covers(page) == true ? state!.session : null;
     if (session != null && session.isListening) return session.stop();
-    await _start(page, from: from);
+    await _start(page, from: from, restart: true);
   }
 
   /// Goes on reciting from where reciting last stopped.
@@ -220,29 +227,36 @@ class PageRecitationController extends Notifier<PageRecitation?> {
     await _start(mushaf.pageOf(from), from: from);
   }
 
-  Future<void> _start(int page, {AyahRef? from}) async {
+  Future<void> _start(
+    int page, {
+    AyahRef? from,
+    bool listen = true,
+    bool restart = false,
+  }) async {
     final mushaf = ref.read(mushafProvider).value;
     final surahs = ref.read(surahsProvider).value;
     if (mushaf == null || surahs == null) return;
-    close();
-    final surah = mushaf.page(page).words.last.ayah.surah;
-    final lastPage = mushaf.pageOf(
-      AyahRef(surah, surahs[surah - 1].ayahs.length),
-    );
-    final session = RecitationSession(
-      listener: ref.read(speechListenerProvider),
-      expected: wordsOfPages(
-        [for (var p = page; p <= lastPage; p++) mushaf.page(p)],
-        surahs,
-        from: from,
-      ),
-      surahName: (s) => surahs[s - 1].name,
-    )..onMistake = (_) => ref.read(mistakeAlertProvider)();
-    session.addListener(() => _changed(session));
-    _saved = false;
-    _session = session;
-    state = PageRecitation(page, session, 0, lastPage: lastPage, from: from);
-    await toggleListening();
+    if (restart || from != null || state?.covers(page) != true) {
+      close();
+      final surah = mushaf.page(page).words.last.ayah.surah;
+      final lastPage = mushaf.pageOf(
+        AyahRef(surah, surahs[surah - 1].ayahs.length),
+      );
+      final session = RecitationSession(
+        listener: ref.read(speechListenerProvider),
+        expected: wordsOfPages(
+          [for (var p = page; p <= lastPage; p++) mushaf.page(p)],
+          surahs,
+          from: from,
+        ),
+        surahName: (s) => surahs[s - 1].name,
+      )..onMistake = (_) => ref.read(mistakeAlertProvider)();
+      session.addListener(() => _changed(session));
+      _saved = false;
+      _session = session;
+      state = PageRecitation(page, session, 0, lastPage: lastPage, from: from);
+    }
+    if (listen) await toggleListening();
   }
 
   /// Hides the words not recited yet, or shows the whole page.

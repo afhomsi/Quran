@@ -74,11 +74,23 @@ jobs:
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      # Runs can finish out of order. Publish only when this commit is still
+      # the newest on main, so an older build never replaces a newer one.
+      - id: newest
+        run: |
+          git fetch -q origin main
+          if [ "$(git rev-parse origin/main)" = "$GITHUB_SHA" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "main has moved on; the newer run publishes instead."
+          fi
+      - if: steps.newest.outputs.publish == 'true'
+        uses: actions/download-artifact@v4
         with:
           name: hifz-release-apk
           path: apk
       - name: Build the download page
+        if: steps.newest.outputs.publish == 'true'
         run: |
           mkdir site
           # Each build gets its own file name, so the phone never opens an
@@ -87,10 +99,13 @@ jobs:
           mv apk/app-release.apk site/hifz.apk
           built="$(date -u '+%Y-%m-%d %H:%M') UTC · ${GITHUB_SHA::7}"
           sed -e "s/BUILD_INFO/$built/" -e "s/BUILD_NUMBER/$GITHUB_RUN_NUMBER/g" tool/apk_page/index.html > site/index.html
-      - uses: actions/upload-pages-artifact@v3
+          printf '{"build":"%s"}\n' "$GITHUB_RUN_NUMBER" > site/version.json
+      - if: steps.newest.outputs.publish == 'true'
+        uses: actions/upload-pages-artifact@v3
         with:
           path: site
       - id: deploy
+        if: steps.newest.outputs.publish == 'true'
         uses: actions/deploy-pages@v4
 
   build-ios:

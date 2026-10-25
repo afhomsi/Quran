@@ -9,7 +9,11 @@ import '../../theme/app_theme.dart';
 /// Offers the offline recitation model, shows its download, or says it is
 /// in use. Shows nothing where the model cannot run (the web).
 class OfflineModelTile extends ConsumerWidget {
-  const OfflineModelTile({super.key});
+  const OfflineModelTile({super.key, this.onlyToDownload = false});
+
+  /// Shows only the offer and the download, not the model in use, for
+  /// places with little room such as the reciting bar.
+  final bool onlyToDownload;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -19,6 +23,8 @@ class OfflineModelTile extends ConsumerWidget {
     final t = S.of(context);
     switch (model.status) {
       case OfflineModelStatus.unsupported || OfflineModelStatus.checking:
+        return const SizedBox.shrink();
+      case OfflineModelStatus.ready when onlyToDownload:
         return const SizedBox.shrink();
       case OfflineModelStatus.ready:
         return ListTile(
@@ -52,6 +58,7 @@ class OfflineModelTile extends ConsumerWidget {
       case OfflineModelStatus.downloading:
         final progress = model.progress;
         return ListTile(
+          dense: onlyToDownload,
           leading: IconBadge(Icons.downloading_rounded),
           title: Text(t.offlineRecitation),
           subtitle: Column(
@@ -67,6 +74,8 @@ class OfflineModelTile extends ConsumerWidget {
         );
       case OfflineModelStatus.missing:
         return ListTile(
+          dense: onlyToDownload,
+          contentPadding: onlyToDownload ? EdgeInsets.zero : null,
           leading: IconBadge(Icons.download_for_offline_rounded),
           title: Text(t.offlineRecitation),
           subtitle: Text(
