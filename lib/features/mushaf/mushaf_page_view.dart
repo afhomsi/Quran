@@ -185,7 +185,8 @@ class _Word extends StatelessWidget {
   final bool wordSelected;
   final Color? highlight;
 
-  /// Not recited yet, so drawn as a grey block of the word's size.
+  /// Not recited yet, or recited wrongly, so drawn as a block of the
+  /// word's size: grey, or in the ayah's highlight colour.
   final bool hidden;
   final bool hizbMark;
   final WordCallback? onTap;
@@ -203,7 +204,10 @@ class _Word extends StatelessWidget {
               padding: EdgeInsets.symmetric(vertical: fontSize * 0.3),
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: colors.onSurface.withValues(alpha: dark ? 0.16 : 0.1),
+                  // An ayah recited wrongly shows its colour, red.
+                  color:
+                      highlight?.withValues(alpha: dark ? 0.35 : 0.5) ??
+                      colors.onSurface.withValues(alpha: dark ? 0.16 : 0.1),
                   borderRadius: BorderRadius.circular(fontSize * 0.25),
                 ),
               ),
