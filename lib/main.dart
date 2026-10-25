@@ -9,11 +9,16 @@ import 'data/reading_state.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // The mushaf font's licence asks to travel with it.
+  // The fonts' licences ask to travel with them.
   LicenseRegistry.addLicense(() async* {
     yield LicenseEntryWithLineBreaks(const [
       'DigitalKhatt New Madina',
     ], await rootBundle.loadString('assets/fonts/LICENSE-madina.txt'));
+  });
+  LicenseRegistry.addLicense(() async* {
+    yield LicenseEntryWithLineBreaks(const [
+      'IBM Plex Sans Arabic',
+    ], await rootBundle.loadString('assets/fonts/LICENSE-plex.txt'));
   });
   final prefs = await SharedPreferences.getInstance();
   runApp(

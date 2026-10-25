@@ -31,6 +31,7 @@ import '../study/study_panel.dart';
 import '../study/word_card.dart';
 import 'go_to_dialog.dart';
 import 'mushaf_page_view.dart';
+import '../../data/mushaf_text.dart';
 
 /// Swipeable 604-page mushaf. Remembers the last page read.
 ///
@@ -715,10 +716,12 @@ class _TextPage extends StatelessWidget {
               color: a == selected ? theme.colorScheme.primaryContainer : null,
               padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
               child: Text(
-                '${surahs[a.surah - 1].ayahs[a.ayah - 1]} '
-                '﴿${S(AppLanguage.ar, westernDigits: false).n(a.ayah)}﴾',
+                '${mushafDisplayText(surahs[a.surah - 1].ayahs[a.ayah - 1])} '
+                '${ayahEndMark(a.ayah)}',
                 textDirection: TextDirection.rtl,
-                style: theme.textTheme.headlineSmall?.copyWith(height: 1.9),
+                style: quranTextStyle(
+                  theme.textTheme.headlineSmall?.copyWith(height: 1.9),
+                ),
               ),
             ),
           ),

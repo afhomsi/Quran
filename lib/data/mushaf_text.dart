@@ -1,6 +1,14 @@
+import 'package:flutter/painting.dart';
+
 /// The font that draws the mushaf: DigitalKhatt New Madina, by Amine Anane
 /// and Tarteel, under the SIL Open Font License (assets/fonts/madina.otf).
 const mushafFont = 'Madina';
+
+/// [base] in the mushaf's font. Every ayah shown outside the mushaf pages
+/// uses it, with its text passed through [mushafDisplayText], so the
+/// interface font never draws the Quran.
+TextStyle quranTextStyle([TextStyle? base]) =>
+    (base ?? const TextStyle()).copyWith(fontFamily: mushafFont);
 
 /// Marks of the KFGQPC Uthmani text that the font has at other code
 /// points: the open tanween, the small high madda and the small low seen.

@@ -15,6 +15,8 @@ import 'ayah_tools.dart';
 import 'tajweed_view.dart';
 import 'study_content.dart';
 import 'word_card.dart';
+import '../../data/mushaf_text.dart';
+import '../../theme/app_theme.dart';
 
 /// Opens the study panel on [ayah] (and the word at [word], if given) at
 /// [part]. Gives the ayah the reader ended on, so the mushaf can follow.
@@ -167,10 +169,12 @@ class _StudyPanelState extends ConsumerState<StudyPanel> {
     final words = ayahWords(surah.ayahs[_ayah.ayah - 1]);
     final quranColor = studyQuranColor(context);
     final colors = Theme.of(context).colorScheme;
-    final style = TextStyle(
-      fontSize: 20,
-      height: 1.9,
-      color: _part == StudyPart.word ? colors.onSurface : quranColor,
+    final style = quranTextStyle(
+      TextStyle(
+        fontSize: 22,
+        height: 1.9,
+        color: _part == StudyPart.word ? colors.onSurface : quranColor,
+      ),
     );
     final t = S.of(context);
     return [
@@ -181,7 +185,7 @@ class _StudyPanelState extends ConsumerState<StudyPanel> {
             const TextSpan(text: '﴿'),
             for (final (i, w) in words.indexed) ...[
               TextSpan(
-                text: w,
+                text: mushafDisplayText(w),
                 style: _part == StudyPart.word && i == _word - 1
                     ? TextStyle(color: quranColor)
                     : null,
@@ -191,7 +195,11 @@ class _StudyPanelState extends ConsumerState<StudyPanel> {
             const TextSpan(text: '﴾ '),
             TextSpan(
               text: '[${t.surahName(surah)} – ${t.n(_ayah.ayah)}]',
-              style: TextStyle(fontSize: 15, color: colors.tertiary),
+              style: TextStyle(
+                fontFamily: uiFont,
+                fontSize: 15,
+                color: colors.tertiary,
+              ),
             ),
           ],
         ),
@@ -202,10 +210,12 @@ class _StudyPanelState extends ConsumerState<StudyPanel> {
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 12),
           child: Text(
-            wordAt(surah.ayahs[_ayah.ayah - 1], _word),
+            mushafDisplayText(wordAt(surah.ayahs[_ayah.ayah - 1], _word)),
             textAlign: TextAlign.center,
             textDirection: TextDirection.rtl,
-            style: TextStyle(fontSize: 34, color: colors.primary),
+            style: quranTextStyle(
+              TextStyle(fontSize: 36, color: colors.primary),
+            ),
           ),
         )
       else

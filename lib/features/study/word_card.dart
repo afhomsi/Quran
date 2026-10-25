@@ -11,6 +11,7 @@ import '../notes/notes_screen.dart';
 import 'ayah_tools.dart';
 import 'study_content.dart';
 import 'tajweed_view.dart';
+import '../../data/mushaf_text.dart';
 
 /// The word the reader pressed on the page: its ayah, its position in the
 /// ayah, and where on the screen it is.
@@ -278,8 +279,8 @@ class StudyContentView extends ConsumerWidget {
                   children: [
                     if (i == 0 && lead != null && lead!.isNotEmpty)
                       TextSpan(
-                        text: '$lead: ',
-                        style: TextStyle(color: quranColor),
+                        text: '${mushafDisplayText(lead!)}: ',
+                        style: quranTextStyle(TextStyle(color: quranColor)),
                       ),
                     if (s.heading != null)
                       TextSpan(

@@ -11,6 +11,7 @@ import '../../data/quran_repository.dart';
 import '../../data/self_test.dart';
 import '../../l10n/strings.dart';
 import '../shell/navigation.dart';
+import '../../data/mushaf_text.dart';
 
 enum _ScopeKind { surah, juz, hifz }
 
@@ -184,7 +185,9 @@ class _SelfTestScreenState extends ConsumerState<SelfTestScreen> {
     final next = ayah.ayah < surahs[ayah.surah - 1].ayahCount
         ? AyahRef(ayah.surah, ayah.ayah + 1)
         : AyahRef(ayah.surah + 1, 1);
-    final quran = theme.textTheme.headlineSmall?.copyWith(height: 2);
+    final quran = quranTextStyle(
+      theme.textTheme.headlineSmall?.copyWith(height: 2),
+    );
 
     final String prompt;
     final String answer;
@@ -215,7 +218,11 @@ class _SelfTestScreenState extends ConsumerState<SelfTestScreen> {
         Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: Text(prompt, style: quran, textAlign: TextAlign.center),
+            child: Text(
+              mushafDisplayText(prompt),
+              style: quran,
+              textAlign: TextAlign.center,
+            ),
           ),
         ),
         const SizedBox(height: 16),
@@ -238,7 +245,11 @@ class _SelfTestScreenState extends ConsumerState<SelfTestScreen> {
             color: theme.colorScheme.secondaryContainer,
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Text(answer, style: quran, textAlign: TextAlign.center),
+              child: Text(
+                mushafDisplayText(answer),
+                style: quran,
+                textAlign: TextAlign.center,
+              ),
             ),
           ),
           const SizedBox(height: 16),
