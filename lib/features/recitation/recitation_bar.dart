@@ -6,6 +6,7 @@ import '../../l10n/strings.dart';
 import '../../recitation/page_recitation.dart';
 import '../../recitation/session_record.dart';
 import '../audio/repeat_sheet.dart';
+import 'offline_model_tile.dart';
 
 /// Reciting controls under the mushaf page, like the audio player: close,
 /// start over, the microphone and listening to the ayat recited wrongly.
@@ -81,6 +82,7 @@ class RecitationBar extends ConsumerWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
+          const OfflineModelTile(onlyToDownload: true),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
