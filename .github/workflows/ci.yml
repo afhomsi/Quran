@@ -43,6 +43,13 @@ jobs:
         with:
           name: hifz-debug-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
+      # A faster, smaller build for trying the app on a phone. It is still
+      # signed with the debug key, so it is not for the Play Store.
+      - run: flutter build apk --release --split-per-abi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hifz-release-apk
+          path: build/app/outputs/flutter-apk/app-*-release.apk
 
   build-ios:
     needs: test
