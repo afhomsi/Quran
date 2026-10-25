@@ -16,8 +16,9 @@ enum StudyPart { surah, page, ayah, word }
 enum StudyTab {
   stats(StudyPart.surah, []),
   translations(StudyPart.page, [StudyBook.english]),
-  mukhtasar(StudyPart.ayah, [StudyBook.jalalayn]),
+  // The tafsir comes first, so an ayah opens on it.
   tafsir(StudyPart.ayah, StudyBook.tafsirs),
+  mukhtasar(StudyPart.ayah, [StudyBook.jalalayn]),
   tajweed(StudyPart.ayah, []),
   qiraat(StudyPart.ayah, [StudyBook.nashr]),
   irab(StudyPart.ayah, [StudyBook.samin]),

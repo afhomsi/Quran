@@ -30,14 +30,15 @@ final wordCardTabProvider = NotifierProvider<WordCardTabNotifier, StudyTab>(
 );
 
 /// A card over the page about one word: its meaning, qira'at, morphology,
-/// i'rab or translation, with buttons to listen, bookmark, color, write a
-/// note or open the study panel.
+/// i'rab or translation, with buttons to listen, read the ayah's tafsir,
+/// bookmark, color, write a note or open the study panel.
 class WordCard extends ConsumerWidget {
   const WordCard({
     super.key,
     required this.ayah,
     required this.position,
     required this.onMore,
+    required this.onTafsir,
     required this.onClose,
   });
 
@@ -46,6 +47,9 @@ class WordCard extends ConsumerWidget {
 
   /// Opens the study panel on this word.
   final VoidCallback onMore;
+
+  /// Opens the study panel on the tafsir of this word's ayah.
+  final VoidCallback onTafsir;
 
   /// Closes the card, e.g. once listening starts, to reach the player.
   final VoidCallback onClose;
@@ -109,6 +113,11 @@ class WordCard extends ConsumerWidget {
                       ref.read(audioProvider.notifier).playFrom(ayah);
                       onClose();
                     },
+                  ),
+                  _Action(
+                    icon: Icons.menu_book_rounded,
+                    label: t.tafsir,
+                    onTap: onTafsir,
                   ),
                   _Action(
                     icon: ref.watch(bookmarksProvider).contains(ayah)
@@ -298,6 +307,14 @@ class StudyContentView extends ConsumerWidget {
                 textDirection: book == StudyBook.english
                     ? TextDirection.ltr
                     : TextDirection.rtl,
+              ),
+            ),
+          // The book is named under its text, as its licence asks.
+          if (!compact && book != null && request.book != null)
+            Text(
+              t.source(book),
+              style: theme.textTheme.bodySmall!.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
         ],

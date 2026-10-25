@@ -375,6 +375,7 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
                 word: word.position,
                 part: StudyPart.word,
               ),
+              onTafsir: () => _openStudy(word.ayah),
             ),
           ),
         ),

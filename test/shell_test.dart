@@ -59,6 +59,7 @@ Future<(ProviderContainer, FakePlayer)> _start(WidgetTester tester) async {
           StudyRepository(
             client: MockClient((_) async => http.Response('', 404)),
             cache: _NoCache(),
+            loadBook: (_) async => [],
           ),
         ),
       ],
@@ -107,6 +108,16 @@ void main() {
       await _tap(tester, find.text(tab));
       expect(find.text(title), findsOneWidget, reason: tab);
     }
+  });
+
+  testWidgets('the word card opens the tafsir of its ayah', (tester) async {
+    await _start(tester);
+    await tester.longPress(_word());
+    await tester.pumpAndSettle();
+    await _tap(tester, _inCard('التفسير'));
+    expect(find.byType(StudyPanel), findsOneWidget);
+    // The ayah opens on the tafsir, in the book kept in the app.
+    expect(_inPanel('الجامع الوجيز'), findsOneWidget);
   });
 
   testWidgets('marks and colors an ayah and lists it in my marks', (
