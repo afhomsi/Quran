@@ -164,4 +164,45 @@ void main() {
     expect(container.read(pageRecitationProvider), isNull);
     expect(container.read(recitationHistoryProvider).single.page, 1);
   });
+
+  testWidgets('a surah longer than a page is recited on, turning pages', (
+    tester,
+  ) async {
+    final listener = FakeListener();
+    final mushaf = parseMushaf(File(mushafLayoutAssetPath).readAsStringSync());
+    final surahs = parseSurahs(File(quranAssetPath).readAsStringSync());
+    // Al-Mulk starts on page 562 and ends on page 564.
+    const start = 562;
+    await _pump(
+      tester,
+      const MaterialApp(
+        home: Directionality(
+          textDirection: TextDirection.rtl,
+          child: MushafScreen(initialPage: start),
+        ),
+      ),
+      listener: listener,
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'تسميع'));
+    await tester.pumpAndSettle();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(MushafScreen)),
+    );
+    expect(container.read(pageRecitationProvider)!.lastPage, 564);
+
+    final ayat = {for (final w in mushaf.page(start).words) w.ayah};
+    final text = [
+      'بسم الله الرحمن الرحيم',
+      for (final a in ayat) surahs[a.surah - 1].ayahs[a.ayah - 1],
+    ].join(' ');
+    listener.say(text);
+    await tester.pumpAndSettle();
+
+    expect(listener.listening, isTrue);
+    expect(container.read(pageRecitationProvider)!.session.mistakes, isEmpty);
+    final shown = tester.widget<MushafPageView>(find.byType(MushafPageView));
+    expect(shown.page.number, start + 1);
+    // The next page is hidden too, until recited.
+    expect(shown.recitedWords, isNotNull);
+  });
 }

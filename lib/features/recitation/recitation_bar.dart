@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/quran_repository.dart';
 import '../../l10n/strings.dart';
 import '../../recitation/page_recitation.dart';
 import '../../recitation/session_record.dart';
@@ -39,6 +40,11 @@ class RecitationBar extends ConsumerWidget {
     } else {
       status = t.pressMicToRecite;
     }
+    // Over several pages, the surah being recited.
+    final surahs = ref.watch(surahsProvider).value;
+    final title = recitation.lastPage > recitation.page && surahs != null
+        ? t.reciteSurahTitle(surahs[recitation.currentWord.$1.surah - 1])
+        : t.recitePageTitle(recitation.page);
     final mistakeAyat = mistakeAyatOf(session);
     final message =
         session.error ??
@@ -57,7 +63,7 @@ class RecitationBar extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            '${t.recitePageTitle(recitation.page)} · $status',
+            '$title · $status',
             style: textTheme.labelMedium,
             textAlign: TextAlign.center,
             maxLines: 2,
