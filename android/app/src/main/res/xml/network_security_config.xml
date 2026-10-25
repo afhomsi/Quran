@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Only encrypted (HTTPS) connections, trusting the system's certificates
+     and not ones a user installed, so nobody on the network can read or
+     change the recordings and books the app downloads. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system"/>
+        </trust-anchors>
+    </base-config>
+</network-security-config>

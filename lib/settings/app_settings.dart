@@ -7,6 +7,10 @@ import '../data/reading_state.dart';
 
 const settingsKey = 'settings';
 
+/// The range of the auto page turn slider, in seconds.
+const minAutoPageSeconds = 15;
+const maxAutoPageSeconds = 300;
+
 enum AppLanguage {
   ar('العربية', TextDirection.rtl),
   en('English', TextDirection.ltr),
@@ -154,7 +158,10 @@ class AppSettings {
       pageTheme: pickEnum('pageTheme', PageTheme.values, d.pageTheme),
       twoPagesInLandscape: pick('twoPagesInLandscape', d.twoPagesInLandscape),
       autoPageTurn: pick('autoPageTurn', d.autoPageTurn),
-      autoPageSeconds: pick('autoPageSeconds', d.autoPageSeconds),
+      autoPageSeconds: pick(
+        'autoPageSeconds',
+        d.autoPageSeconds,
+      ).clamp(minAutoPageSeconds, maxAutoPageSeconds),
       verticalScroll: pick('verticalScroll', d.verticalScroll),
       tapOpensAyahMenu: pick('tapOpensAyahMenu', d.tapOpensAyahMenu),
       keepScreenOn: pick('keepScreenOn', d.keepScreenOn),
