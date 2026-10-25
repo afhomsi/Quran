@@ -9,6 +9,7 @@ import '../data/mushaf_models.dart';
 import '../data/mushaf_repository.dart';
 import '../data/quran_repository.dart';
 import '../data/reading_state.dart';
+import 'audio_store.dart';
 
 const _audioSettingsKey = 'audio_settings';
 
@@ -45,11 +46,27 @@ class Reciter {
   /// URL of the recording that holds [ayah]: its own file, e.g.
   /// `.../002255.mp3`, or the file of its whole surah, e.g. `.../002.mp3`.
   String url(AyahRef ayah) => timed
-      ? 'https://cdn.mp3quran.net/audio/$folder/'
-            '${'${ayah.surah}'.padLeft(3, '0')}.mp3'
-      : 'https://everyayah.com/data/$folder/'
-            '${'${ayah.surah}'.padLeft(3, '0')}${'${ayah.ayah}'.padLeft(3, '0')}.mp3';
+      ? 'https://cdn.mp3quran.net/audio/$folder/${fileName(ayah)}'
+      : 'https://everyayah.com/data/$folder/${fileName(ayah)}';
+
+  /// Name of the file that holds [ayah] once downloaded, the same as in
+  /// [url]: `002255.mp3`, or `002.mp3` for a whole-surah recording.
+  String fileName(AyahRef ayah) => timed
+      ? '${_three(ayah.surah)}.mp3'
+      : '${_three(ayah.surah)}${_three(ayah.ayah)}.mp3';
+
+  /// Name of the downloaded ayah times of [surah], e.g. `002.json`.
+  String timingsFile(int surah) => '${_three(surah)}.json';
+
+  /// Where mp3quran.net gives this reciter's ayah times of [surah].
+  Uri timingsUrl(int surah) => Uri.https(
+    'mp3quran.net',
+    '/api/v3/ayat_timing',
+    {'surah': '$surah', 'read': '$timingRead'},
+  );
 }
+
+String _three(int n) => '$n'.padLeft(3, '0');
 
 const reciters = [
   Reciter('مشاري العفاسي', 'Mishary Alafasy', 'Alafasy_128kbps'),
@@ -130,17 +147,22 @@ const reciters = [
 typedef AyahSpan = ({Duration start, Duration end});
 
 /// Fetches from mp3quran.net when each ayah starts and ends in a
-/// whole-surah recording, keeping what it has fetched.
+/// whole-surah recording, keeping what it has fetched. Times of a
+/// downloaded surah are read from the phone, so it plays without internet.
 class AyahTimings {
-  AyahTimings({http.Client? client}) : _client = client ?? http.Client();
+  AyahTimings({http.Client? client, this.store})
+    : _client = client ?? http.Client();
 
   final http.Client _client;
+
+  /// Where the ayah times of downloaded surahs are kept.
+  final AudioStore? store;
   final _surahs = <(int, int), Future<Map<int, AyahSpan>>>{};
 
   /// Where [ayah] is in the surah recording of [reciter].
   Future<AyahSpan> span(Reciter reciter, AyahRef ayah) async {
     final key = (reciter.timingRead!, ayah.surah);
-    final surah = _surahs[key] ??= _fetch(key.$1, key.$2);
+    final surah = _surahs[key] ??= _fetch(reciter, ayah.surah);
     try {
       final span = (await surah)[ayah.ayah];
       if (span == null) throw StateError('No time for $ayah');
@@ -152,17 +174,26 @@ class AyahTimings {
     }
   }
 
-  Future<Map<int, AyahSpan>> _fetch(int read, int surah) async {
-    final response = await _client.get(
-      Uri.https('mp3quran.net', '/api/v3/ayat_timing', {
-        'surah': '$surah',
-        'read': '$read',
-      }),
-    );
+  Future<Map<int, AyahSpan>> _fetch(Reciter reciter, int surah) async {
+    final kept = await store?.readText(reciter, reciter.timingsFile(surah));
+    if (kept != null) {
+      try {
+        final spans = parseAyahTimings(kept);
+        if (spans.isNotEmpty) return spans;
+      } catch (_) {
+        // Fetched again below.
+      }
+    }
+    return parseAyahTimings(await fetchText(reciter.timingsUrl(surah)));
+  }
+
+  /// The ayah times at [url], as mp3quran.net gives them.
+  Future<String> fetchText(Uri url) async {
+    final response = await _client.get(url);
     if (response.statusCode != 200) {
       throw http.ClientException('Ayah times: ${response.statusCode}');
     }
-    return parseAyahTimings(response.body);
+    return response.body;
   }
 
   void dispose() => _client.close();
@@ -187,8 +218,11 @@ Map<int, AyahSpan> parseAyahTimings(String body) {
   return spans;
 }
 
+/// Where downloaded recordings are kept.
+final audioStoreProvider = Provider<AudioStore>((ref) => AudioStore());
+
 final ayahTimingsProvider = Provider<AyahTimings>((ref) {
-  final timings = AyahTimings();
+  final timings = AyahTimings(store: ref.watch(audioStoreProvider));
   ref.onDispose(timings.dispose);
   return timings;
 });
@@ -477,10 +511,14 @@ class AudioController extends Notifier<AudioState> {
       final span = reciter.timed
           ? await ref.read(ayahTimingsProvider).span(reciter, recording)
           : null;
+      // A downloaded recording plays from the phone, without internet.
+      final kept = await ref
+          .read(audioStoreProvider)
+          .find(reciter, reciter.fileName(recording));
       // Something else was chosen while the ayah times were fetched.
       if (start != _starts || !state.playing) return;
       await _player.play(
-        reciter.url(recording),
+        kept != null ? Uri.file(kept).toString() : reciter.url(recording),
         speed: state.speed,
         start: span?.start,
         end: span?.end,

@@ -538,10 +538,74 @@ extension FeatureStrings on S {
     'پوری سورت، آیات میں تقسیم',
   );
   String get recitersNote => _(
-    'التلاوات عبر الإنترنت. كل قارئ يقرأ من الآية التي تختارها ويكرر المقطع الذي تحدده.',
-    'Recitations play over the internet. Every reciter can start at any ayah and repeat the ayat you choose.',
-    'তিলাওয়াত ইন্টারনেটে চলে। প্রত্যেক ক্বারী যেকোনো আয়াত থেকে শুরু করে বাছাই করা আয়াত পুনরাবৃত্তি করতে পারেন।',
-    'تلاوتیں انٹرنیٹ سے چلتی ہیں۔ ہر قاری کسی بھی آیت سے شروع کر کے منتخب آیات دہرا سکتا ہے۔',
+    'التلاوات تعمل عبر الإنترنت، ويمكنك تحميل أي قارئ بزر التحميل لتسمعه بدون إنترنت. كل قارئ يقرأ من الآية التي تختارها ويكرر المقطع الذي تحدده.',
+    'Recitations play over the internet; download any reciter with the download button to listen without internet. Every reciter can start at any ayah and repeat the ayat you choose.',
+    'তিলাওয়াত ইন্টারনেটে চলে; ডাউনলোড বোতাম দিয়ে যেকোনো ক্বারী ডাউনলোড করে ইন্টারনেট ছাড়া শুনুন। প্রত্যেক ক্বারী যেকোনো আয়াত থেকে শুরু করে বাছাই করা আয়াত পুনরাবৃত্তি করতে পারেন।',
+    'تلاوتیں انٹرنیٹ سے چلتی ہیں؛ ڈاؤن لوڈ کے بٹن سے کوئی بھی قاری ڈاؤن لوڈ کر کے بغیر انٹرنیٹ سنیں۔ ہر قاری کسی بھی آیت سے شروع کر کے منتخب آیات دہرا سکتا ہے۔',
+  );
+  String get offlineAudio => _(
+    'الاستماع بدون إنترنت',
+    'Listen without internet',
+    'ইন্টারনেট ছাড়া শুনুন',
+    'بغیر انٹرنیٹ سنیں',
+  );
+  String get offlineAudioNote => _(
+    'حمّل السور التي تريدها مرة واحدة، ثم تعمل التلاوة والتكرار بدون إنترنت. أبقِ التطبيق مفتوحاً أثناء التحميل.',
+    'Download the surahs you want once, then recitation and repeating work without internet. Keep the app open while downloading.',
+    'যে সূরাগুলো চান একবার ডাউনলোড করুন, তারপর ইন্টারনেট ছাড়াই তিলাওয়াত ও পুনরাবৃত্তি চলবে। ডাউনলোডের সময় অ্যাপ খোলা রাখুন।',
+    'جو سورتیں چاہیں ایک بار ڈاؤن لوڈ کریں، پھر تلاوت اور دہرانا بغیر انٹرنیٹ چلے گا۔ ڈاؤن لوڈ کے دوران ایپ کھلی رکھیں۔',
+  );
+  String megabytes(int bytes) {
+    final mb = bytes / (1024 * 1024);
+    final text = mb >= 10 ? n(mb.round()) : mb.toStringAsFixed(1);
+    return _('$text ميغابايت', '$text MB', '$text MB', '$text MB');
+  }
+
+  /// "12 of 114 surahs downloaded (85 MB)".
+  String downloadedSummary(int done, int total, int bytes) => _(
+    'محمّل ${n(done)} من ${n(total)} سورة (${megabytes(bytes)})',
+    '${n(done)} of ${n(total)} surahs downloaded (${megabytes(bytes)})',
+    '${n(total)}টির মধ্যে ${n(done)}টি সূরা ডাউনলোড হয়েছে (${megabytes(bytes)})',
+    '${n(total)} میں سے ${n(done)} سورتیں ڈاؤن لوڈ (${megabytes(bytes)})',
+  );
+  String get downloadWholeQuran => _(
+    'تحميل القرآن كاملاً',
+    'Download the whole Quran',
+    'পুরো কুরআন ডাউনলোড করুন',
+    'پورا قرآن ڈاؤن لوڈ کریں',
+  );
+  String get stopDownloads =>
+      _('إيقاف التحميل', 'Stop downloading', 'ডাউনলোড থামান', 'ڈاؤن لوڈ روکیں');
+  String get deleteDownloads =>
+      _('حذف التحميل', 'Delete download', 'ডাউনলোড মুছুন', 'ڈاؤن لوڈ حذف کریں');
+  String get deleteDownloadsAsk => _(
+    'حذف كل تلاوات هذا القارئ من الهاتف؟',
+    "Delete all of this reciter's recitations from the phone?",
+    'এই ক্বারীর সব তিলাওয়াত ফোন থেকে মুছবেন?',
+    'اس قاری کی سب تلاوتیں فون سے حذف کریں؟',
+  );
+  String get download => _('تحميل', 'Download', 'ডাউনলোড', 'ڈاؤن لوڈ');
+  String get downloaded =>
+      _('محمّلة', 'Downloaded', 'ডাউনলোড হয়েছে', 'ڈاؤن لوڈ شدہ');
+  String partlyDownloaded(int percent) => _(
+    'محمّل ${n(percent)}٪',
+    '${n(percent)}% downloaded',
+    '${n(percent)}% ডাউনলোড হয়েছে',
+    '${n(percent)}٪ ڈاؤن لوڈ',
+  );
+  String get downloadFailed => _(
+    'توقف التحميل. تأكد من الاتصال بالإنترنت ثم حاول مرة أخرى.',
+    'Downloading stopped. Check the internet connection and try again.',
+    'ডাউনলোড থেমে গেছে। ইন্টারনেট সংযোগ দেখে আবার চেষ্টা করুন।',
+    'ڈاؤن لوڈ رک گیا۔ انٹرنیٹ کنکشن دیکھ کر دوبارہ کوشش کریں۔',
+  );
+
+  /// "12 surahs downloaded" under a reciter's name.
+  String surahsDownloaded(int count) => _(
+    'محمّل ${n(count)} سورة',
+    '${n(count)} surahs downloaded',
+    '${n(count)}টি সূরা ডাউনলোড হয়েছে',
+    '${n(count)} سورتیں ڈاؤن لوڈ',
   );
   String get listenToReciter => _('استمع', 'Listen', 'শুনুন', 'سنیں');
   String repeatEachAyah(int times) => _(
