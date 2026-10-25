@@ -11,6 +11,7 @@ import '../../data/recitation_history.dart';
 import '../../data/reading_state.dart';
 import '../../l10n/strings.dart';
 import '../../settings/app_settings.dart';
+import '../mushaf/text_size_sheet.dart';
 import '../../theme/app_theme.dart';
 
 void openSettings(BuildContext context) {
@@ -70,6 +71,14 @@ class SettingsScreen extends ConsumerWidget {
                 title: t.showHizbMarks,
                 value: settings.showHizbMarks,
                 onChanged: (v) => update((s) => s.copyWith(showHizbMarks: v)),
+              ),
+              ListTile(
+                leading: const IconBadge(Icons.format_size_rounded),
+                title: Text(t.textSize),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8),
+                child: MushafTextSizeControl(),
               ),
             ],
           ),

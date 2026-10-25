@@ -179,6 +179,8 @@ void main() {
     );
     expect(find.text('مشاري العفاسي'), findsOneWidget);
     await tester.scrollUntilVisible(find.text('بندر بليلة'), 300);
+    await tester.ensureVisible(find.text('بندر بليلة'));
+    await tester.pump();
     final bandar = reciters.indexWhere((r) => r.timingRead == 217);
     await tester.tap(find.text('بندر بليلة'));
     await tester.pump();

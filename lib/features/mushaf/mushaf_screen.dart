@@ -31,6 +31,7 @@ import '../study/study_panel.dart';
 import '../study/word_card.dart';
 import 'go_to_dialog.dart';
 import 'mushaf_page_view.dart';
+import 'text_size_sheet.dart';
 import '../../data/mushaf_text.dart';
 
 /// Swipeable 604-page mushaf. Remembers the last page read.
@@ -77,6 +78,15 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
   /// The word open in the word card, if any.
   WordSelection? _word;
 
+  /// The text size while two fingers pinch the page, saved when they lift.
+  double? _pinchScale;
+  final _pointers = <int, Offset>{};
+  double? _pinchStartSpan;
+  double _pinchStartScale = 1;
+
+  /// When dragging past the end of an enlarged page last turned it.
+  DateTime _lastOverscrollTurn = DateTime(0);
+
   /// Takes the arrow keys, also after coming back from another tab.
   final _focus = FocusNode();
 
@@ -95,6 +105,68 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
   }
 
   int get _step => _spread ? 2 : 1;
+
+  double get _textScale =>
+      _pinchScale ?? ref.read(settingsProvider).mushafTextScale;
+
+  /// How far apart the two fingers on the page are.
+  double get _pointerSpan {
+    final [a, b] = _pointers.values.take(2).toList();
+    return (a - b).distance;
+  }
+
+  void _onPointerDown(PointerDownEvent e) {
+    _pointers[e.pointer] = e.position;
+    if (_pointers.length == 2) {
+      _pinchStartSpan = _pointerSpan;
+      _pinchStartScale = _textScale;
+    }
+  }
+
+  void _onPointerMove(PointerMoveEvent e) {
+    if (!_pointers.containsKey(e.pointer)) return;
+    _pointers[e.pointer] = e.position;
+    final start = _pinchStartSpan;
+    if (_pointers.length != 2 || start == null || start < 1) return;
+    final scale = (_pinchStartScale * _pointerSpan / start).clamp(
+      minMushafTextScale,
+      maxMushafTextScale,
+    );
+    // In tenths, as the size slider sets it, so the page redraws less.
+    final rounded = (scale * 10).round() / 10;
+    if (rounded != _textScale) setState(() => _pinchScale = rounded);
+  }
+
+  void _onPointerEnd(PointerEvent e) {
+    _pointers.remove(e.pointer);
+    if (_pointers.length >= 2) return;
+    _pinchStartSpan = null;
+    final scale = _pinchScale;
+    if (scale == null) return;
+    ref
+        .read(settingsProvider.notifier)
+        .update((s) => s.copyWith(mushafTextScale: scale));
+    setState(() => _pinchScale = null);
+  }
+
+  /// Pages scrolled up and down turn when an enlarged page, which scrolls
+  /// by itself, is dragged on past its end.
+  bool _onOverscroll(OverscrollNotification n) {
+    final now = DateTime.now();
+    if (n.depth == 0 ||
+        n.dragDetails == null ||
+        n.metrics.axis != Axis.vertical ||
+        now.difference(_lastOverscrollTurn) < const Duration(seconds: 1)) {
+      return false;
+    }
+    _lastOverscrollTurn = now;
+    if (n.overscroll > 0) {
+      _nextPage();
+    } else if (n.overscroll < 0) {
+      _previousPage();
+    }
+    return false;
+  }
 
   int get _slideCount => _spread ? (mushafPageCount + 1) ~/ 2 : mushafPageCount;
 
@@ -226,57 +298,73 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
                       id: _Part.page,
                       child: SafeArea(
                         bottom: false,
-                        // A tap on the page shows or hides the bars.
-                        child: GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: () =>
-                              ref.read(mushafChromeProvider.notifier).toggle(),
-                          child: LayoutBuilder(
-                            builder: (context, box) {
-                              _useSpread(
-                                settings.twoPagesInLandscape &&
-                                    box.maxWidth > box.maxHeight,
-                              );
-                              return PageView.builder(
-                                key: ValueKey((_spread, vertical)),
-                                controller: _controller,
-                                scrollDirection: vertical
-                                    ? Axis.vertical
-                                    : Axis.horizontal,
-                                // Vertical pages scroll freely, like a long
-                                // sheet.
-                                pageSnapping: !vertical,
-                                // Let a mouse drag turn pages too, not only
-                                // touch.
-                                scrollBehavior: ScrollConfiguration.of(context)
-                                    .copyWith(
-                                      dragDevices: PointerDeviceKind.values
-                                          .toSet(),
-                                    ),
-                                itemCount: _slideCount,
-                                onPageChanged: (i) =>
-                                    _onPageChanged(_pageAt(i)),
-                                itemBuilder: (context, i) {
-                                  final first = _pageAt(i);
-                                  if (!_spread) {
-                                    return _slot(mushaf, surahs, first);
-                                  }
-                                  return Row(
-                                    children: [
-                                      Expanded(
-                                        child: _slot(mushaf, surahs, first),
+                        // Two fingers spread or pinched size the text.
+                        child: Listener(
+                          onPointerDown: _onPointerDown,
+                          onPointerMove: _onPointerMove,
+                          onPointerUp: _onPointerEnd,
+                          onPointerCancel: _onPointerEnd,
+                          // A tap on the page shows or hides the bars.
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => ref
+                                .read(mushafChromeProvider.notifier)
+                                .toggle(),
+                            child: LayoutBuilder(
+                              builder: (context, box) {
+                                _useSpread(
+                                  settings.twoPagesInLandscape &&
+                                      box.maxWidth > box.maxHeight,
+                                );
+                                final pages = PageView.builder(
+                                  key: ValueKey((_spread, vertical)),
+                                  controller: _controller,
+                                  scrollDirection: vertical
+                                      ? Axis.vertical
+                                      : Axis.horizontal,
+                                  // Vertical pages scroll freely, like a long
+                                  // sheet.
+                                  pageSnapping: !vertical,
+                                  // Let a mouse drag turn pages too, not only
+                                  // touch.
+                                  scrollBehavior:
+                                      ScrollConfiguration.of(context).copyWith(
+                                        dragDevices: PointerDeviceKind.values
+                                            .toSet(),
                                       ),
-                                      const VerticalDivider(width: 1),
-                                      Expanded(
-                                        child: first + 1 <= mushafPageCount
-                                            ? _slot(mushaf, surahs, first + 1)
-                                            : const SizedBox(),
-                                      ),
-                                    ],
-                                  );
-                                },
-                              );
-                            },
+                                  itemCount: _slideCount,
+                                  onPageChanged: (i) =>
+                                      _onPageChanged(_pageAt(i)),
+                                  itemBuilder: (context, i) {
+                                    final first = _pageAt(i);
+                                    if (!_spread) {
+                                      return _slot(mushaf, surahs, first);
+                                    }
+                                    return Row(
+                                      children: [
+                                        Expanded(
+                                          child: _slot(mushaf, surahs, first),
+                                        ),
+                                        const VerticalDivider(width: 1),
+                                        Expanded(
+                                          child: first + 1 <= mushafPageCount
+                                              ? _slot(mushaf, surahs, first + 1)
+                                              : const SizedBox(),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                );
+                                return vertical
+                                    ? NotificationListener<
+                                        OverscrollNotification
+                                      >(
+                                        onNotification: _onOverscroll,
+                                        child: pages,
+                                      )
+                                    : pages;
+                              },
+                            ),
                           ),
                         ),
                       ),
@@ -473,6 +561,13 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
                           ),
                         ),
                       PopupMenuItem(
+                        value: () => showTextSizeSheet(context),
+                        child: ListTile(
+                          leading: const Icon(Icons.format_size_rounded),
+                          title: Text(t.textSize),
+                        ),
+                      ),
+                      PopupMenuItem(
                         value: () => openSettings(context),
                         child: ListTile(
                           leading: const Icon(Icons.settings_rounded),
@@ -526,6 +621,7 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
         page: mushaf.page(page),
         surahs: surahs,
         selected: playing ?? _selected,
+        textScale: _textScale,
         onAyahTap: (a) => _openStudy(a),
       );
     }
@@ -579,6 +675,7 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
         null => null,
       },
       showHizbMarks: settings.showHizbMarks,
+      textScale: _textScale,
       // Otherwise a tap goes to the page, which shows or hides the bars.
       onAyahTap: settings.tapOpensAyahMenu ? _openWord : null,
       onAyahLongPress: _openWord,
@@ -700,12 +797,14 @@ class _TextPage extends StatelessWidget {
     required this.page,
     required this.surahs,
     required this.selected,
+    required this.textScale,
     required this.onAyahTap,
   });
 
   final MushafPage page;
   final List<Surah> surahs;
   final AyahRef? selected;
+  final double textScale;
   final ValueChanged<AyahRef> onAyahTap;
 
   @override
@@ -738,7 +837,12 @@ class _TextPage extends StatelessWidget {
                 '${ayahEndMark(a.ayah)}',
                 textDirection: TextDirection.rtl,
                 style: quranTextStyle(
-                  theme.textTheme.headlineSmall?.copyWith(height: 1.9),
+                  theme.textTheme.headlineSmall?.copyWith(
+                    height: 1.9,
+                    fontSize:
+                        (theme.textTheme.headlineSmall?.fontSize ?? 24) *
+                        textScale,
+                  ),
                 ),
               ),
             ),
@@ -762,6 +866,7 @@ class _PageSlot extends ConsumerWidget {
     this.recitedWords,
     required this.bookmarks,
     required this.showHizbMarks,
+    required this.textScale,
     required this.onAyahTap,
     required this.onAyahLongPress,
     required this.onSurahTap,
@@ -783,6 +888,7 @@ class _PageSlot extends ConsumerWidget {
   /// name, drawn as ribbons in the header.
   final List<(Color, String)> bookmarks;
   final bool showHizbMarks;
+  final double textScale;
   final (AyahRef, int)? selectedWord;
   final WordCallback? onAyahTap;
   final WordCallback onAyahLongPress;
@@ -888,6 +994,7 @@ class _PageSlot extends ConsumerWidget {
                   highlights: highlights,
                   recitedWords: recitedWords,
                   showHizbMarks: showHizbMarks,
+                  textScale: textScale,
                   tajweed: tajweed,
                   jalala: jalala,
                   onAyahTap: onAyahTap,

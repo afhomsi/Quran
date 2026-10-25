@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hifz/app.dart';
+import 'package:hifz/audio/audio_store.dart';
 import 'package:hifz/audio/ayah_audio.dart';
 import 'package:hifz/data/khatma.dart';
 import 'package:hifz/data/marks.dart';
@@ -53,6 +54,7 @@ Future<(ProviderContainer, FakePlayer)> _start(WidgetTester tester) async {
         surahsProvider.overrideWith((ref) async => surahs),
         quranSearchProvider.overrideWith((ref) async => _searchIndex),
         ayahPlayerProvider.overrideWithValue(player),
+        audioStoreProvider.overrideWithValue(AudioStore.none()),
         screenWakeProvider.overrideWithValue((on) async {}),
         // The books say nothing, without going to the internet.
         studyRepositoryProvider.overrideWithValue(

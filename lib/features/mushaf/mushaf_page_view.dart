@@ -45,6 +45,7 @@ class MushafPageView extends StatelessWidget {
     this.showHizbMarks = false,
     this.tajweed,
     this.jalala,
+    this.textScale = 1,
     this.onAyahTap,
     this.onAyahLongPress,
   });
@@ -73,6 +74,11 @@ class MushafPageView extends StatelessWidget {
 
   /// The colour of the name of Allah, when it is shown apart.
   final JalalaColor? jalala;
+
+  /// The text size, 1 being the size that fits the printed page. Smaller
+  /// sizes keep the printed lines; larger ones let the words flow on as
+  /// many lines as they need, and the page scrolls.
+  final double textScale;
   final WordCallback? onAyahTap;
   final WordCallback? onAyahLongPress;
 
@@ -80,9 +86,11 @@ class MushafPageView extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, box) {
-        final lineHeight = box.maxHeight / _linesPerPage;
-        final fontSize =
+        final fitted =
             mushafTextWidth(box.maxWidth, box.maxHeight) / _lineWidthEm;
+        if (textScale > 1) return _flowing(context, fitted * textScale);
+        final lineHeight = box.maxHeight / _linesPerPage * textScale;
+        final fontSize = fitted * textScale;
         return Column(
           // Pages 1 and 2 have only a few lines, set in the middle.
           mainAxisAlignment: MainAxisAlignment.center,
@@ -99,6 +107,69 @@ class MushafPageView extends StatelessWidget {
     );
   }
 
+  /// The page in a font too large for its printed lines: the words of the
+  /// ayat run on from line to line, between the surah headers, and scroll.
+  Widget _flowing(BuildContext context, double fontSize) {
+    final blocks = <Widget>[];
+    var words = <MushafWord>[];
+    void endWords() {
+      if (words.isEmpty) return;
+      final run = words;
+      blocks.add(
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: fontSize * 0.25,
+          children: [for (final w in run) _word(w, fontSize)],
+        ),
+      );
+      words = [];
+    }
+
+    for (final line in page.lines) {
+      switch (line) {
+        case AyahLine(words: final lineWords):
+          words.addAll(lineWords);
+        case SurahNameLine() || BasmalaLine():
+          endWords();
+          blocks.add(
+            SizedBox(
+              height: fontSize * 2,
+              child: _line(context, line, fontSize, fontSize * 2),
+            ),
+          );
+      }
+    }
+    endWords();
+    return SingleChildScrollView(
+      padding: EdgeInsets.symmetric(
+        horizontal: fontSize * 0.3,
+        vertical: fontSize * 0.5,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: blocks,
+      ),
+    );
+  }
+
+  Widget _word(MushafWord w, double fontSize) => _Word(
+    word: w,
+    tajweed: w.isAyahEnd ? const [] : tajweed?.spansOf(w.ayah)[w.position - 1],
+    jalala: jalala,
+    fontSize: fontSize,
+    selected: w.ayah == selected,
+    wordSelected: selectedWord == (w.ayah, w.position),
+    highlight: highlights[w.ayah],
+    hidden:
+        recitedWords != null &&
+        !w.isAyahEnd &&
+        (recitedWords![w.ayah] ?? 0) < w.position,
+    hizbMark:
+        showHizbMarks && w.position == 1 && _quarterStarts.contains(w.ayah),
+    onTap: onAyahTap,
+    onLongPress: onAyahLongPress,
+  );
+
   Widget _line(
     BuildContext context,
     MushafLine line,
@@ -113,15 +184,19 @@ class MushafPageView extends StatelessWidget {
         name: surahName(surah),
         fontSize: fontSize,
       ),
+      // Shrunk to the width of the screen when the text is enlarged.
       BasmalaLine() => Center(
-        child: Text.rich(
-          TextSpan(children: _colouredSpans(basmalaText, null, jalala, dark)),
-          textDirection: TextDirection.rtl,
-          style: TextStyle(
-            fontFamily: mushafFont,
-            fontSize: fontSize,
-            height: 1,
-            color: colors.onSurface,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text.rich(
+            TextSpan(children: _colouredSpans(basmalaText, null, jalala, dark)),
+            textDirection: TextDirection.rtl,
+            style: TextStyle(
+              fontFamily: mushafFont,
+              fontSize: fontSize,
+              height: 1,
+              color: colors.onSurface,
+            ),
           ),
         ),
       ),
@@ -138,30 +213,7 @@ class MushafPageView extends StatelessWidget {
                   ? MainAxisAlignment.center
                   : MainAxisAlignment.spaceBetween,
               spacing: fontSize * 0.15,
-              children: [
-                for (final w in words)
-                  _Word(
-                    word: w,
-                    tajweed: w.isAyahEnd
-                        ? const []
-                        : tajweed?.spansOf(w.ayah)[w.position - 1],
-                    jalala: jalala,
-                    fontSize: fontSize,
-                    selected: w.ayah == selected,
-                    wordSelected: selectedWord == (w.ayah, w.position),
-                    highlight: highlights[w.ayah],
-                    hidden:
-                        recitedWords != null &&
-                        !w.isAyahEnd &&
-                        (recitedWords![w.ayah] ?? 0) < w.position,
-                    hizbMark:
-                        showHizbMarks &&
-                        w.position == 1 &&
-                        _quarterStarts.contains(w.ayah),
-                    onTap: onAyahTap,
-                    onLongPress: onAyahLongPress,
-                  ),
-              ],
+              children: [for (final w in words) _word(w, fontSize)],
             ),
           ),
         ),

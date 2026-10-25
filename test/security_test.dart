@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hifz/audio/audio_store.dart';
 import 'package:hifz/audio/ayah_audio.dart';
 import 'package:hifz/data/backup.dart';
 import 'package:hifz/data/khatma.dart';
@@ -33,6 +34,7 @@ void main() {
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
         ayahPlayerProvider.overrideWithValue(FakePlayer()),
+        audioStoreProvider.overrideWithValue(AudioStore.none()),
       ],
     );
     addTearDown(container.dispose);
