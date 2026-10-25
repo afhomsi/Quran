@@ -6,10 +6,13 @@ import '../../audio/ayah_audio.dart';
 import '../../data/backup.dart';
 import '../../data/khatma.dart';
 import '../../data/marks.dart';
+import '../../data/mushaf_text.dart';
 import '../../data/recitation_history.dart';
 import '../../data/reading_state.dart';
 import '../../l10n/strings.dart';
 import '../../settings/app_settings.dart';
+import '../mushaf/text_size_sheet.dart';
+import '../recitation/offline_model_tile.dart';
 import '../../theme/app_theme.dart';
 
 void openSettings(BuildContext context) {
@@ -54,10 +57,29 @@ class SettingsScreen extends ConsumerWidget {
                 onChanged: (v) => update((s) => s.copyWith(tajweedColors: v)),
               ),
               _Switch(
+                icon: Icons.auto_awesome_rounded,
+                title: t.jalala,
+                value: settings.jalalaColors,
+                onChanged: (v) => update((s) => s.copyWith(jalalaColors: v)),
+              ),
+              if (settings.jalalaColors)
+                _JalalaColorPicker(
+                  selected: settings.jalalaColor,
+                  onSelected: (c) => update((s) => s.copyWith(jalalaColor: c)),
+                ),
+              _Switch(
                 icon: Icons.brightness_7_rounded,
                 title: t.showHizbMarks,
                 value: settings.showHizbMarks,
                 onChanged: (v) => update((s) => s.copyWith(showHizbMarks: v)),
+              ),
+              ListTile(
+                leading: const IconBadge(Icons.format_size_rounded),
+                title: Text(t.textSize),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8),
+                child: MushafTextSizeControl(),
               ),
             ],
           ),
@@ -128,6 +150,7 @@ class SettingsScreen extends ConsumerWidget {
                 onChanged: (v) =>
                     update((s) => s.copyWith(hideWhileListening: v)),
               ),
+              const OfflineModelTile(),
             ],
           ),
           _SectionTitle(t.languageTitle, Icons.translate_rounded),
@@ -369,6 +392,66 @@ class _PageColorPicker extends StatelessWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// The colours for the name of Allah, each shown on the word itself.
+class _JalalaColorPicker extends StatelessWidget {
+  const _JalalaColorPicker({required this.selected, required this.onSelected});
+
+  final JalalaColor selected;
+  final ValueChanged<JalalaColor> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = S.of(context);
+    final colors = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(72, 0, 16, 12),
+      child: Wrap(
+        spacing: 10,
+        runSpacing: 8,
+        children: [
+          for (final c in JalalaColor.values)
+            Semantics(
+              button: true,
+              selected: c == selected,
+              label: t.jalalaColorName(c),
+              child: InkWell(
+                key: ValueKey('jalala-color-${c.name}'),
+                borderRadius: BorderRadius.circular(8),
+                onTap: () => onSelected(c),
+                child: Container(
+                  width: 56,
+                  height: 40,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: colors.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: c == selected
+                          ? colors.primary
+                          : colors.outlineVariant,
+                      width: c == selected ? 2 : 1,
+                    ),
+                  ),
+                  child: Text(
+                    mushafDisplayText('ٱللَّهُ'),
+                    textDirection: TextDirection.rtl,
+                    style: TextStyle(
+                      fontFamily: mushafFont,
+                      fontSize: 20,
+                      height: 1.2,
+                      color: c.color(dark),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hifz/app.dart';
+import 'package:hifz/audio/audio_store.dart';
 import 'package:hifz/audio/ayah_audio.dart';
 import 'package:hifz/data/khatma.dart';
 import 'package:hifz/data/marks.dart';
@@ -53,12 +54,14 @@ Future<(ProviderContainer, FakePlayer)> _start(WidgetTester tester) async {
         surahsProvider.overrideWith((ref) async => surahs),
         quranSearchProvider.overrideWith((ref) async => _searchIndex),
         ayahPlayerProvider.overrideWithValue(player),
+        audioStoreProvider.overrideWithValue(AudioStore.none()),
         screenWakeProvider.overrideWithValue((on) async {}),
         // The books say nothing, without going to the internet.
         studyRepositoryProvider.overrideWithValue(
           StudyRepository(
             client: MockClient((_) async => http.Response('', 404)),
             cache: _NoCache(),
+            loadBook: (_) async => [],
           ),
         ),
       ],
@@ -107,6 +110,16 @@ void main() {
       await _tap(tester, find.text(tab));
       expect(find.text(title), findsOneWidget, reason: tab);
     }
+  });
+
+  testWidgets('the word card opens the tafsir of its ayah', (tester) async {
+    await _start(tester);
+    await tester.longPress(_word());
+    await tester.pumpAndSettle();
+    await _tap(tester, _inCard('التفسير'));
+    expect(find.byType(StudyPanel), findsOneWidget);
+    // The ayah opens on the tafsir, in the book kept in the app.
+    expect(_inPanel('الجامع الوجيز'), findsOneWidget);
   });
 
   testWidgets('marks and colors an ayah and lists it in my marks', (

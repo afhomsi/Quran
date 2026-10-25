@@ -140,4 +140,41 @@ extension HifzStrings on S {
     'মাইক্রোফোন চাপুন, তারপর মুখস্থ থেকে পৃষ্ঠাটি পড়ুন।',
     'مائیکروفون دبائیں، پھر صفحہ زبانی پڑھیں۔',
   );
+  // Reciting without internet.
+  String get offlineRecitation => _(
+    'التسميع بدون إنترنت',
+    'Recite without internet',
+    'ইন্টারনেট ছাড়া তিলাওয়াত যাচাই',
+    'بغیر انٹرنیٹ تسمیع',
+  );
+  String offlineRecitationNote(int bytes) => _(
+    'حمّل نموذج التلاوة مرة واحدة (${megabytes(bytes)})، ثم يعمل التسميع على هاتفك بدون إنترنت.',
+    'Download the recitation model once (${megabytes(bytes)}), then reciting works on your phone without internet.',
+    'তিলাওয়াত মডেল একবার ডাউনলোড করুন (${megabytes(bytes)}), তারপর ইন্টারনেট ছাড়াই ফোনে তিলাওয়াত যাচাই চলবে।',
+    'تلاوت کا ماڈل ایک بار ڈاؤن لوڈ کریں (${megabytes(bytes)})، پھر تسمیع آپ کے فون پر بغیر انٹرنیٹ چلے گی۔',
+  );
+  String offlineRecitationDownloading(int percent) => _(
+    'جارٍ تحميل نموذج التلاوة… ${n(percent)}٪ أبقِ التطبيق مفتوحاً.',
+    'Downloading the recitation model… ${n(percent)}%. Keep the app open.',
+    'তিলাওয়াত মডেল ডাউনলোড হচ্ছে… ${n(percent)}%। অ্যাপ খোলা রাখুন।',
+    'تلاوت کا ماڈل ڈاؤن لوڈ ہو رہا ہے… ${n(percent)}٪۔ ایپ کھلی رکھیں۔',
+  );
+  String get offlineRecitationReady => _(
+    'النموذج محمّل: التسميع يعمل بدون إنترنت.',
+    'Model downloaded: reciting works without internet.',
+    'মডেল ডাউনলোড হয়েছে: ইন্টারনেট ছাড়াই তিলাওয়াত যাচাই চলে।',
+    'ماڈل ڈاؤن لوڈ ہو گیا: تسمیع بغیر انٹرنیٹ چلتی ہے۔',
+  );
+  String get offlineRecitationFailed => _(
+    'تعذر تحميل نموذج التلاوة. تأكد من الاتصال بالإنترنت ثم حاول مرة أخرى.',
+    'Could not download the recitation model. Check the internet connection and try again.',
+    'তিলাওয়াত মডেল ডাউনলোড করা যায়নি। ইন্টারনেট সংযোগ দেখে আবার চেষ্টা করুন।',
+    'تلاوت کا ماڈل ڈاؤن لوڈ نہیں ہو سکا۔ انٹرنیٹ کنکشن چیک کر کے دوبارہ کوشش کریں۔',
+  );
+  String get deleteOfflineModelAsk => _(
+    'حذف نموذج التلاوة من الهاتف؟ سيعود التسميع إلى العمل عبر الإنترنت.',
+    'Delete the recitation model from the phone? Reciting will use the internet again.',
+    'ফোন থেকে তিলাওয়াত মডেল মুছবেন? তিলাওয়াত যাচাই আবার ইন্টারনেটে চলবে।',
+    'فون سے تلاوت کا ماڈل حذف کریں؟ تسمیع پھر انٹرنیٹ سے چلے گی۔',
+  );
 }

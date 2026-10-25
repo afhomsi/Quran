@@ -47,6 +47,8 @@ dependencies:
   path_provider: ^2.1.6
   share_plus: ^13.3.1
   pdf: ^3.13.1
+  sherpa_onnx: ^2.0.0
+  record: ^7.1.2
 
 dev_dependencies:
   flutter_test:
@@ -76,6 +78,7 @@ flutter:
     - assets/sounds/mistake.mp3
     - assets/search/jalalayn.json.gz
     - assets/search/pickthall.json.gz
+    - assets/tafsir/jami_wajiz.json.gz
     - assets/fonts/LICENSE-madina.txt
     - assets/fonts/LICENSE-plex.txt
 

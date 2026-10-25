@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hifz/audio/audio_store.dart';
 import 'package:hifz/audio/ayah_audio.dart';
 import 'package:hifz/data/mushaf_models.dart';
 import 'package:hifz/data/quran_repository.dart';
@@ -31,6 +32,7 @@ void main() {
         speechListenerProvider.overrideWithValue(listener),
         sharedPreferencesProvider.overrideWithValue(prefs),
         ayahPlayerProvider.overrideWithValue(player),
+        audioStoreProvider.overrideWithValue(AudioStore.none()),
         mistakeAlertProvider.overrideWithValue(() => alerts++),
       ],
     );

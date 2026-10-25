@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hifz/audio/audio_store.dart';
 import 'package:hifz/audio/ayah_audio.dart';
 import 'package:hifz/data/mushaf_models.dart';
 import 'package:hifz/data/mushaf_repository.dart';
@@ -48,6 +49,7 @@ void main() {
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
         ayahPlayerProvider.overrideWithValue(player),
+        audioStoreProvider.overrideWithValue(AudioStore.none()),
         ayahTimingsProvider.overrideWithValue(AyahTimings(client: client)),
         mushafProvider.overrideWith((ref) async => mushaf),
         surahsProvider.overrideWith((ref) async => surahs),
@@ -179,6 +181,8 @@ void main() {
     );
     expect(find.text('مشاري العفاسي'), findsOneWidget);
     await tester.scrollUntilVisible(find.text('بندر بليلة'), 300);
+    await tester.ensureVisible(find.text('بندر بليلة'));
+    await tester.pump();
     final bandar = reciters.indexWhere((r) => r.timingRead == 217);
     await tester.tap(find.text('بندر بليلة'));
     await tester.pump();

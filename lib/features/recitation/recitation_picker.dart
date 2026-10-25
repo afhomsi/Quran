@@ -7,6 +7,7 @@ import '../../data/reading_state.dart';
 import '../../l10n/strings.dart';
 import '../../recitation/page_recitation.dart';
 import '../shell/navigation.dart';
+import 'offline_model_tile.dart';
 import 'recitation_screen.dart';
 
 /// Opens the mushaf where reciting last stopped and goes on reciting
@@ -62,6 +63,7 @@ class _RecitationPicker extends ConsumerWidget {
       height: MediaQuery.sizeOf(context).height * 0.75,
       child: ListView(
         children: [
+          const OfflineModelTile(),
           if (resumeFrom != null) ...[
             ListTile(
               leading: Icon(

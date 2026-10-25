@@ -36,6 +36,12 @@ final _switches =
         (t) => t.tajweed,
       ),
       (
+        'jalalaColors',
+        (s) => s.jalalaColors,
+        (s, v) => s.copyWith(jalalaColors: v),
+        (t) => t.jalala,
+      ),
+      (
         'showHizbMarks',
         (s) => s.showHizbMarks,
         (s, v) => s.copyWith(showHizbMarks: v),

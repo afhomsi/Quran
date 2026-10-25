@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hifz/app.dart';
+import 'package:hifz/audio/audio_store.dart';
 import 'package:hifz/audio/ayah_audio.dart';
 import 'package:hifz/features/mushaf/mushaf_page_view.dart';
 import 'package:hifz/data/mushaf_models.dart';
@@ -38,6 +39,7 @@ Future<void> _pump(
         speechListenerProvider.overrideWithValue(listener ?? FakeListener()),
         mistakeAlertProvider.overrideWithValue(() {}),
         ayahPlayerProvider.overrideWithValue(FakePlayer()),
+        audioStoreProvider.overrideWithValue(AudioStore.none()),
       ],
       child: child,
     ),

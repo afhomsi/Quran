@@ -46,3 +46,9 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+tool/asr/export_onnx.py
+tool/asr/*.pt
+tool/asr/*.onnx
+tool/asr/*-tokens.txt
+tool/asr/*.wav
+tool/asr/*.mp3

@@ -2,6 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:speech_to_text/speech_recognition_error.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
+import 'offline_model.dart';
+import 'offline_speech.dart';
+
 /// Turns the microphone into text, one listening session at a time.
 ///
 /// Kept behind an interface so the recitation screen can be tested without
@@ -20,6 +23,11 @@ abstract class SpeechListener {
   });
 
   Future<void> stop();
+}
+
+/// A listener that holds resources until it is disposed.
+abstract class DisposableSpeechListener implements SpeechListener {
+  Future<void> dispose();
 }
 
 /// Recognition through the platform: Google's recognizer on Android and in
@@ -84,6 +92,14 @@ class PlatformSpeechListener implements SpeechListener {
   Future<void> stop() => _speech.stop();
 }
 
-final speechListenerProvider = Provider<SpeechListener>(
-  (ref) => PlatformSpeechListener(),
-);
+/// The offline model once it is downloaded, otherwise the platform's
+/// recognizer.
+final speechListenerProvider = Provider<SpeechListener>((ref) {
+  final offline = ref.watch(
+    offlineModelProvider.select((s) => s.status == OfflineModelStatus.ready),
+  );
+  if (!offline) return PlatformSpeechListener();
+  final listener = createOfflineSpeechListener();
+  ref.onDispose(listener.dispose);
+  return listener;
+});

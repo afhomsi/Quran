@@ -1,5 +1,8 @@
 import 'dart:convert';
 
+import 'package:archive/archive.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
@@ -8,31 +11,43 @@ import 'mushaf_models.dart';
 import 'study_cache.dart';
 
 /// The books the study panel reads from: tafsir, qira'at, i'rab and a
-/// translation. Only books free of copyright are used: classical works,
-/// whose authors died long ago, and Pickthall's English translation (1930).
+/// translation. Only open books are used: classical works, whose authors
+/// died long ago, Pickthall's English translation (1930), and al-Jami'
+/// al-Wajiz, whose author shares it under CC BY-ND 4.0.
 ///
-/// They come per ayah from the open tafsir_api collection on GitHub
-/// (github.com/spa5k/tafsir_api) and the quran-api translations
+/// The books with an [asset] are kept in the app and read without
+/// internet. The others come per ayah from the open tafsir_api collection
+/// on GitHub (github.com/spa5k/tafsir_api) and the quran-api translations
 /// (github.com/fawazahmed0/quran-api), and are kept on the device once read.
 enum StudyBook {
-  jalalayn('ar-tafsir-al-jalalayn', splitAtQuotes: true),
+  jamiWajiz('ar-tafsir-al-jami-al-wajiz', asset: jamiWajizAssetPath),
+  jalalayn(
+    'ar-tafsir-al-jalalayn',
+    splitAtQuotes: true,
+    asset: 'assets/search/jalalayn.json.gz',
+  ),
   saadi('ar-tafseer-al-saddi'),
   ibnKathir('ar-tafsir-ibn-kathir'),
   baghawi('ar-tafsir-al-baghawi'),
   tabari('ar-tafsir-al-tabari'),
   nashr('al-nashr-li-ibn-al-jazari'),
   samin('al-dur-al-masun-lil-samin-al-halabi', splitAtQuotes: true),
-  english('eng-mohammedmarmadu');
+  english('eng-mohammedmarmadu', asset: 'assets/search/pickthall.json.gz');
 
-  const StudyBook(this.slug, {this.splitAtQuotes = false});
+  const StudyBook(this.slug, {this.splitAtQuotes = false, this.asset});
 
   final String slug;
+
+  /// The book's file in the app, a gzipped list of surahs, each a list of
+  /// ayah texts; null when it is read from the internet.
+  final String? asset;
 
   /// The book explains the ayah piece by piece in one paragraph, each piece
   /// after the words it quotes, so a word's part starts at its quote.
   final bool splitAtQuotes;
 
-  static const tafsirs = [saadi, ibnKathir, baghawi, tabari];
+  /// The tafsir tab's books, the one kept in the app first.
+  static const tafsirs = [jamiWajiz, saadi, ibnKathir, baghawi, tabari];
 
   /// Where the text of [ayah] can be read, mirrors first.
   List<Uri> urls(AyahRef ayah) {
@@ -50,19 +65,49 @@ enum StudyBook {
 /// The largest answer read for one ayah of one book, in bytes.
 const maxStudyResponseBytes = 2 * 1024 * 1024;
 
+const jamiWajizAssetPath = 'assets/tafsir/jami_wajiz.json.gz';
+
+/// A book kept in the app: its gzipped list of surahs, each a list of ayah
+/// texts.
+List<List<String>> readBundledBook(Uint8List gzipped) {
+  final json = utf8.decode(const GZipDecoder().decodeBytes(gzipped));
+  return [
+    for (final surah in jsonDecode(json) as List)
+      [for (final ayah in surah as List) ayah as String],
+  ];
+}
+
+Future<List<List<String>>> _loadBook(String path) async {
+  final data = await rootBundle.load(path);
+  return compute(readBundledBook, data.buffer.asUint8List());
+}
+
 /// Fetches study texts and keeps them, in memory and on the device.
 class StudyRepository {
-  StudyRepository({http.Client? client, StudyCache? cache})
-    : _client = client ?? http.Client(),
-      _cache = cache ?? StudyCache();
+  StudyRepository({
+    http.Client? client,
+    StudyCache? cache,
+    Future<List<List<String>>> Function(String asset)? loadBook,
+  }) : _client = client ?? http.Client(),
+       _cache = cache ?? StudyCache(),
+       _load = loadBook ?? _loadBook;
 
   final http.Client _client;
   final StudyCache _cache;
+  final Future<List<List<String>>> Function(String asset) _load;
   final _memory = <String, String>{};
+  final _bundled = <String, Future<List<List<String>>>>{};
 
   /// The text [book] gives for [ayah], or '' when the book says nothing on
   /// it. Throws when it cannot be fetched, e.g. without internet.
   Future<String> text(StudyBook book, AyahRef ayah) async {
+    if (book.asset case final asset?) {
+      final surahs = await (_bundled[asset] ??= _load(asset));
+      if (ayah.surah < 1 || ayah.surah > surahs.length) return '';
+      final ayat = surahs[ayah.surah - 1];
+      if (ayah.ayah < 1 || ayah.ayah > ayat.length) return '';
+      return ayat[ayah.ayah - 1].trim();
+    }
     final key = '${book.slug}/${ayah.surah}/${ayah.ayah}';
     if (_memory[key] case final text?) return text;
     var text = await _cache.read(key);
