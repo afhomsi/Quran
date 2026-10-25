@@ -354,6 +354,18 @@ class S {
     'তাজবীদের রং',
     'تجوید کے رنگ',
   );
+  String get jalala => _(
+    'تلوين لفظ الجلالة',
+    'Colour the name of Allah',
+    'আল্লাহ নামটি রঙিন করুন',
+    'لفظِ جلالہ کو رنگین کریں',
+  );
+  String jalalaColorName(JalalaColor c) => switch (c) {
+    JalalaColor.red => _('أحمر', 'Red', 'লাল', 'سرخ'),
+    JalalaColor.gold => _('ذهبي', 'Gold', 'সোনালি', 'سنہری'),
+    JalalaColor.green => _('أخضر', 'Green', 'সবুজ', 'سبز'),
+    JalalaColor.blue => _('أزرق', 'Blue', 'নীল', 'نیلا'),
+  };
   String get tapOpensAyahMenu => _(
     'فتح بطاقة الكلمة بلمسة واحدة',
     'Open the word card with one tap',

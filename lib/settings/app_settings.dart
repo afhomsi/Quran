@@ -39,6 +39,21 @@ enum PageTheme {
   final Color color;
 }
 
+/// Colours for lafz al-jalala on a light and on a dark page.
+enum JalalaColor {
+  red(Color(0xFFC0392B), Color(0xFFFF7B72)),
+  gold(Color(0xFFA8741A), Color(0xFFE9B949)),
+  green(Color(0xFF1E7A46), Color(0xFF5FD08F)),
+  blue(Color(0xFF1F5FAD), Color(0xFF7DB3F5));
+
+  const JalalaColor(this.light, this.dark);
+
+  final Color light;
+  final Color dark;
+
+  Color color(bool darkPage) => darkPage ? dark : light;
+}
+
 /// Everything on the settings screen, saved as one JSON string.
 class AppSettings {
   const AppSettings({
@@ -57,6 +72,8 @@ class AppSettings {
     this.hideWhileListening = true,
     this.showHizbMarks = true,
     this.tajweedColors = false,
+    this.jalalaColors = true,
+    this.jalalaColor = JalalaColor.red,
   });
 
   final AppLanguage language;
@@ -92,6 +109,10 @@ class AppSettings {
   /// Color the letters of the mushaf by the rules of tajweed.
   final bool tajweedColors;
 
+  /// Show the name of Allah in the mushaf in [jalalaColor].
+  final bool jalalaColors;
+  final JalalaColor jalalaColor;
+
   AppSettings copyWith({
     AppLanguage? language,
     bool? nightMode,
@@ -108,6 +129,8 @@ class AppSettings {
     bool? hideWhileListening,
     bool? showHizbMarks,
     bool? tajweedColors,
+    bool? jalalaColors,
+    JalalaColor? jalalaColor,
   }) => AppSettings(
     language: language ?? this.language,
     nightMode: nightMode ?? this.nightMode,
@@ -124,6 +147,8 @@ class AppSettings {
     hideWhileListening: hideWhileListening ?? this.hideWhileListening,
     showHizbMarks: showHizbMarks ?? this.showHizbMarks,
     tajweedColors: tajweedColors ?? this.tajweedColors,
+    jalalaColors: jalalaColors ?? this.jalalaColors,
+    jalalaColor: jalalaColor ?? this.jalalaColor,
   );
 
   Map<String, Object> toJson() => {
@@ -142,6 +167,8 @@ class AppSettings {
     'hideWhileListening': hideWhileListening,
     'showHizbMarks': showHizbMarks,
     'tajweedColors': tajweedColors,
+    'jalalaColors': jalalaColors,
+    'jalalaColor': jalalaColor.name,
   };
 
   /// Reads what [toJson] wrote. Missing or unknown values keep their
@@ -177,6 +204,8 @@ class AppSettings {
       hideWhileListening: pick('hideWhileListening', d.hideWhileListening),
       showHizbMarks: pick('showHizbMarks', d.showHizbMarks),
       tajweedColors: pick('tajweedColors', d.tajweedColors),
+      jalalaColors: pick('jalalaColors', d.jalalaColors),
+      jalalaColor: pickEnum('jalalaColor', JalalaColor.values, d.jalalaColor),
     );
   }
 }
