@@ -45,11 +45,21 @@ jobs:
           path: build/app/outputs/flutter-apk/app-debug.apk
       # A faster, smaller build for trying the app on a phone. It is still
       # signed with the debug key, so it is not for the Play Store.
-      - run: flutter build apk --release
+      # The build number and date show in Settings and on the download page,
+      # so an old install can be told apart from the newest one.
+      - name: Build the release APK
+        run: |
+          build="${{ github.run_number }} · $(date -u '+%Y-%m-%d %H:%M')"
+          flutter build apk --release \
+            --build-number=${{ github.run_number }} \
+            --dart-define="APP_BUILD=$build"
+          echo "$build" > build/app/outputs/flutter-apk/app-build.txt
       - uses: actions/upload-artifact@v4
         with:
           name: hifz-release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: |
+            build/app/outputs/flutter-apk/app-release.apk
+            build/app/outputs/flutter-apk/app-build.txt
 
   # Puts the newest release APK behind one fixed link on GitHub Pages
   # (https://afhomsi.github.io/Quran/), refreshed on every push to main.
@@ -69,20 +79,43 @@ jobs:
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+        with:
+          fetch-depth: 0
+      # Runs can finish out of order. Publish only when this commit is still
+      # the newest on main, so an older build never replaces a newer one.
+      - id: newest
+        run: |
+          git fetch -q origin main
+          if [ "$(git rev-parse origin/main)" = "$GITHUB_SHA" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "main has moved on; the newer run publishes instead."
+          fi
+      - if: steps.newest.outputs.publish == 'true'
+        uses: actions/download-artifact@v4
         with:
           name: hifz-release-apk
           path: apk
       - name: Build the download page
+        if: steps.newest.outputs.publish == 'true'
         run: |
           mkdir site
+          number=${{ github.run_number }}
+          build="$(cat apk/app-build.txt)"
+          # A new file name for every build, so the phone never opens an
+          # older download that has the same name. hifz.apk stays as a
+          # fixed link to the newest one.
+          cp apk/app-release.apk "site/hifz-$number.apk"
           mv apk/app-release.apk site/hifz.apk
-          built="$(date -u '+%Y-%m-%d %H:%M') UTC · ${GITHUB_SHA::7}"
-          sed -e "s/BUILD_INFO/$built/" -e "s/BUILD_SHA/${GITHUB_SHA::7}/" tool/apk_page/index.html > site/index.html
-      - uses: actions/upload-pages-artifact@v3
+          printf '{"build":"%s","apk":"hifz-%s.apk"}\n' "$build" "$number" > site/version.json
+          sed -e "s/BUILD_INFO/$build/g" -e "s/BUILD_APK/hifz-$number.apk/g" \
+            tool/apk_page/index.html > site/index.html
+      - if: steps.newest.outputs.publish == 'true'
+        uses: actions/upload-pages-artifact@v3
         with:
           path: site
       - id: deploy
+        if: steps.newest.outputs.publish == 'true'
         uses: actions/deploy-pages@v4
 
   build-ios:

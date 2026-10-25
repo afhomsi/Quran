@@ -12,16 +12,28 @@
   a.btn { display: block; margin: 24px 0; padding: 18px; border-radius: 14px;
           background: #0f6b63; color: #fff; font-size: 1.3rem; text-decoration: none; }
   p { line-height: 1.8; }
-  .info { color: #6b6b6b; font-size: 0.9rem; direction: ltr; }
+  .build { font-size: 1.1rem; font-weight: bold; }
 </style>
 </head>
 <body>
 <main>
   <h1>تطبيق حفظ القرآن</h1>
   <p>هذه أحدث نسخة، وتتحدّث تلقائياً مع كل تغيير جديد.</p>
-  <a class="btn" href="hifz.apk?v=BUILD_SHA" download="hifz.apk">تحميل التطبيق</a>
+  <p class="build">رقم النسخة: <span id="build" dir="ltr">BUILD_INFO</span></p>
+  <a class="btn" id="download" href="BUILD_APK" download>تحميل التطبيق</a>
   <p>بعد التحميل افتح الملف واضغط "تثبيت". إذا ظهر تحذير جوجل اضغط "مزيد من التفاصيل" ثم "التثبيت على أي حال".</p>
-  <p class="info">BUILD_INFO</p>
+  <p>للتأكد أن النسخة المثبتة هي الأحدث: افتح الإعدادات في التطبيق، وفي أسفلها رقم النسخة، ويجب أن يطابق الرقم أعلاه.</p>
 </main>
+<script>
+  // The browser may show this page from its cache for a few minutes after a
+  // new build. Ask for the newest build number directly and use it.
+  fetch('version.json?t=' + Date.now(), { cache: 'no-store' })
+    .then(function (r) { return r.json(); })
+    .then(function (v) {
+      document.getElementById('build').textContent = v.build;
+      document.getElementById('download').href = v.apk;
+    })
+    .catch(function () {});
+</script>
 </body>
 </html>

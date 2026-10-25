@@ -427,6 +427,12 @@ class S {
     'جدید ٹیکسٹ ایڈیٹر استعمال کریں',
   );
   String get dataSection => _('بياناتي', 'My data', 'আমার ডেটা', 'میرا ڈیٹا');
+  String appVersion(String build) => _(
+    'رقم النسخة: $build',
+    'Version: $build',
+    'সংস্করণ: $build',
+    'ورژن: $build',
+  );
   String get backupRestore => _(
     'حفظ بياناتي واسترجاعها',
     'Save and restore my data',

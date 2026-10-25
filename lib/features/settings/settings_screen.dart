@@ -15,6 +15,11 @@ import '../mushaf/text_size_sheet.dart';
 import '../recitation/offline_model_tile.dart';
 import '../../theme/app_theme.dart';
 
+/// Which build this is, e.g. "52 · 2026-10-25", set by CI with
+/// `--dart-define=APP_BUILD=...` so the user can tell an old install from
+/// the newest one on the download page. Empty in local builds.
+const appBuild = String.fromEnvironment('APP_BUILD');
+
 void openSettings(BuildContext context) {
   Navigator.of(context)
       .push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
@@ -190,6 +195,16 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ],
           ),
+          if (appBuild.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 24),
+              child: Text(
+                t.appVersion(appBuild),
+                key: const ValueKey('app-version'),
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
         ],
       ),
     );
