@@ -87,6 +87,12 @@ class S {
     'পড়া চালিয়ে যান · পৃষ্ঠা ${n(page)}',
     'پڑھنا جاری رکھیں · صفحہ ${n(page)}',
   );
+  String continueRecitation(Surah s, int ayah) => _(
+    'متابعة التسميع · ${surahName(s)} آية ${n(ayah)}',
+    'Continue reciting · ${surahName(s)} ${n(ayah)}',
+    'তিলাওয়াত চালিয়ে যান · ${surahName(s)} ${n(ayah)}',
+    'تسمیع جاری رکھیں · ${surahName(s)} ${n(ayah)}',
+  );
   String loadMushafError(Object error) => _(
     'تعذر تحميل المصحف\n$error',
     'Could not load the mushaf\n$error',

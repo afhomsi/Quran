@@ -3,8 +3,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/mushaf_repository.dart';
 import '../../data/quran_repository.dart';
+import '../../data/reading_state.dart';
 import '../../l10n/strings.dart';
+import '../../recitation/page_recitation.dart';
+import '../shell/navigation.dart';
 import 'recitation_screen.dart';
+
+/// Opens the mushaf where reciting last stopped and goes on reciting
+/// there, like "continue reading".
+void resumeRecitation(BuildContext context) {
+  final container = ProviderScope.containerOf(context, listen: false);
+  final from = container.read(lastRecitationProvider);
+  final mushaf = container.read(mushafProvider).value;
+  if (from == null || mushaf == null) return;
+  openMushaf(context, mushaf.pageOf(from));
+  container.read(pageRecitationProvider.notifier).resume();
+}
 
 /// Asks what to recite and opens the recitation screen.
 ///
@@ -42,11 +56,28 @@ class _RecitationPicker extends ConsumerWidget {
 
     void open(Widget screen) => Navigator.of(context).pop(screen);
     final t = S.of(context);
+    final resumeFrom = ref.watch(lastRecitationProvider);
 
     return SizedBox(
       height: MediaQuery.sizeOf(context).height * 0.75,
       child: ListView(
         children: [
+          if (resumeFrom != null) ...[
+            ListTile(
+              leading: Icon(
+                Icons.play_circle_rounded,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              title: Text(
+                t.continueRecitation(
+                  surahs[resumeFrom.surah - 1],
+                  resumeFrom.ayah,
+                ),
+              ),
+              onTap: () => resumeRecitation(context),
+            ),
+            const Divider(),
+          ],
           if (page != null) ...[
             ListTile(
               leading: const Icon(Icons.menu_book_rounded),

@@ -205,4 +205,46 @@ void main() {
     // The next page is hidden too, until recited.
     expect(shown.recitedWords, isNotNull);
   });
+
+  testWidgets('reciting goes on from where it last stopped', (tester) async {
+    final listener = FakeListener();
+    final surahs = parseSurahs(File(quranAssetPath).readAsStringSync());
+    final mulk = surahs[66].ayahs;
+    await _pump(
+      tester,
+      const MaterialApp(
+        home: Directionality(
+          textDirection: TextDirection.rtl,
+          child: MushafScreen(initialPage: 562),
+        ),
+      ),
+      listener: listener,
+    );
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(MushafScreen)),
+    );
+    expect(container.read(lastRecitationProvider), isNull);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'تسميع'));
+    await tester.pumpAndSettle();
+    listener.say(mulk.take(2).join(' '));
+    await tester.pump();
+    await tester.tap(find.byTooltip('إغلاق التسميع'));
+    await tester.pumpAndSettle();
+    expect(container.read(lastRecitationProvider), const AyahRef(67, 3));
+
+    await container.read(pageRecitationProvider.notifier).resume();
+    await tester.pumpAndSettle();
+    final recitation = container.read(pageRecitationProvider)!;
+    expect(recitation.from, const AyahRef(67, 3));
+    expect(recitation.session.expected.firstWhere((w) => !w.optional).ayah, 3);
+    // The ayat before it show; the rest are hidden until recited.
+    final shown = tester.widget<MushafPageView>(find.byType(MushafPageView));
+    expect(shown.recitedWords, {
+      const AyahRef(67, 1): PageRecitation.allWords,
+      const AyahRef(67, 2): PageRecitation.allWords,
+    });
+    await tester.tap(find.byTooltip('إغلاق التسميع'));
+    await tester.pumpAndSettle();
+  });
 }

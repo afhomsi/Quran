@@ -552,7 +552,14 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
                   }
                 : null
           : recitation?.covers(page) == true && recitation!.hideText
-          ? recitation.recitedWords
+          ? {
+              // Going on from where reciting stopped, the ayat before it
+              // were recited already.
+              if (recitation.from case final from?)
+                for (final w in mushaf.page(page).words)
+                  if (w.ayah < from) w.ayah: PageRecitation.allWords,
+              ...recitation.recitedWords,
+            }
           : null,
       bookmarks: [
         for (final kind in MarkerKind.values)

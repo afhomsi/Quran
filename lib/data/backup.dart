@@ -11,7 +11,8 @@ const _bookmarksKey = 'bookmarks';
 const _app = 'hifz';
 
 /// Other data saved as one JSON string each: markers, highlights, notes,
-/// khatma plans, the audio player's choices and the recitation history.
+/// khatma plans, the audio player's choices, the recitation history and
+/// where reciting stopped.
 const _jsonKeys = [
   'markers',
   'highlights',
@@ -19,6 +20,7 @@ const _jsonKeys = [
   'khatma_plans',
   'audio_settings',
   'recitation_history',
+  'last_recitation',
 ];
 
 /// The user's data as text to keep somewhere safe: the settings, the

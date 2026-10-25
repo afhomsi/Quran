@@ -16,7 +16,7 @@ import 'index_view.dart';
 export '../shell/navigation.dart' show openMushaf;
 
 /// The index tab: the mushaf's index (see [IndexView]), plus "continue
-/// reading".
+/// reading" and "continue reciting".
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -25,6 +25,7 @@ class HomeScreen extends ConsumerWidget {
     final mushaf = ref.watch(mushafProvider);
     final surahs = ref.watch(surahsProvider);
     final lastPage = ref.watch(lastPageProvider);
+    final resumeFrom = ref.watch(lastRecitationProvider);
     final hideRecite = ref.watch(
       settingsProvider.select((s) => s.hideRecitationButton),
     );
@@ -81,13 +82,40 @@ class HomeScreen extends ConsumerWidget {
               tabs: [for (final t in s.indexTabs) Tab(text: t)],
             ),
           ),
-          floatingActionButton: lastPage == null
-              ? null
-              : FloatingActionButton.extended(
+          // Continue reading, and continue reciting below it.
+          floatingActionButton: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            spacing: 12,
+            children: [
+              if (resumeFrom != null && !hideRecite)
+                if (surahs.value case final all?)
+                  FloatingActionButton.extended(
+                    heroTag: 'continueRecitation',
+                    backgroundColor: Theme.of(context)
+                        .colorScheme
+                        .secondaryContainer,
+                    foregroundColor: Theme.of(context)
+                        .colorScheme
+                        .onSecondaryContainer,
+                    onPressed: () => resumeRecitation(context),
+                    icon: const Icon(Icons.mic_rounded),
+                    label: Text(
+                      s.continueRecitation(
+                        all[resumeFrom.surah - 1],
+                        resumeFrom.ayah,
+                      ),
+                    ),
+                  ),
+              if (lastPage != null)
+                FloatingActionButton.extended(
+                  heroTag: 'continueReading',
                   onPressed: () => openMushaf(context, lastPage),
                   icon: const Icon(Icons.menu_book_rounded),
                   label: Text(s.continueReading(lastPage)),
                 ),
+            ],
+          ),
           body: switch ((mushaf, surahs)) {
             (AsyncData(value: final m), AsyncData(value: final all)) =>
               IndexView(mushaf: m, surahs: all, currentPage: lastPage),
