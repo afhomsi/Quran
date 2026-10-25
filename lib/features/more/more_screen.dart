@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/strings.dart';
 import '../../theme/app_theme.dart';
+import '../audio/reciters_screen.dart';
 import '../notes/notes_screen.dart';
 import '../profile/profile_screen.dart';
 import '../recitation/recitation_picker.dart';
@@ -41,6 +42,12 @@ class MoreScreen extends ConsumerWidget {
         label: t.recitationCheck,
         color: const Color(0xFFD9534F),
         onTap: () => showRecitationPicker(context),
+      ),
+      _MoreTile(
+        icon: Icons.record_voice_over_rounded,
+        label: t.reciters,
+        color: const Color(0xFF12897A),
+        onTap: () => openReciters(context),
       ),
       _MoreTile(
         icon: Icons.sticky_note_2_rounded,

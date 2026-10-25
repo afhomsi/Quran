@@ -5,6 +5,7 @@ import '../../audio/ayah_audio.dart';
 import '../../data/quran_repository.dart';
 import '../../l10n/strings.dart';
 import '../../settings/app_settings.dart';
+import 'reciters_screen.dart';
 import 'repeat_sheet.dart';
 
 /// Compact player controls under the mushaf page: close, next ayah, play
@@ -185,20 +186,17 @@ class _AudioOptions extends ConsumerWidget {
               },
             ),
             const Divider(),
-            Text(t.reciter, style: theme.textTheme.titleMedium),
-            RadioGroup<int>(
-              groupValue: audio.reciter,
-              onChanged: (r) => controller.setReciter(r ?? audio.reciter),
-              child: Column(
-                children: [
-                  for (var r = 0; r < reciters.length; r++)
-                    RadioListTile(
-                      value: r,
-                      title: Text(t.reciterName(reciters[r])),
-                      dense: true,
-                    ),
-                ],
-              ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.record_voice_over_rounded),
+              title: Text(t.reciter),
+              subtitle: Text(t.reciterName(reciters[audio.reciter])),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () {
+                // This sheet closes, so open the list from the app.
+                final navigator = Navigator.of(context)..pop();
+                openReciters(navigator.context);
+              },
             ),
             const Divider(),
             Text(
