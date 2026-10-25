@@ -21,10 +21,15 @@ class _FlakyPlayer extends FakePlayer {
   final speeds = <double>[];
 
   @override
-  Future<void> play(String url, {double speed = 1}) async {
+  Future<void> play(
+    String url, {
+    double speed = 1,
+    Duration? start,
+    Duration? end,
+  }) async {
     if (offline) throw const SocketException('offline');
     speeds.add(speed);
-    await super.play(url, speed: speed);
+    await super.play(url, speed: speed, start: start, end: end);
   }
 
   @override
@@ -279,6 +284,14 @@ void main() {
 
   test('every reciter has a recording of every ayah address', () {
     for (final r in reciters) {
+      if (r.timed) {
+        expect(r.folder, matches(RegExp(r'^[a-z0-9-]+/r[0-9]+$')));
+        expect(
+          r.url(const AyahRef(2, 7)),
+          'https://cdn.mp3quran.net/audio/${r.folder}/002.mp3',
+        );
+        continue;
+      }
       expect(r.folder, matches(RegExp(r'^[A-Za-z0-9_.-]+$')));
       expect(
         r.url(const AyahRef(2, 7)),

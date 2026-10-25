@@ -528,6 +528,22 @@ extension FeatureStrings on S {
     AppLanguage.en || AppLanguage.bn => r.latinName,
   };
   String get reciter => _('القارئ', 'Reciter', 'ক্বারী', 'قاری');
+  String get reciters => _('القرّاء', 'Reciters', 'ক্বারীগণ', 'قراء');
+  String get reciterByAyah =>
+      _('آية بآية', 'Ayah by ayah', 'আয়াত ধরে', 'آیت بہ آیت');
+  String get reciterTimed => _(
+    'سورة كاملة مقسّمة على الآيات',
+    'Whole surah, split into ayat',
+    'পূর্ণ সূরা, আয়াতে ভাগ করা',
+    'پوری سورت، آیات میں تقسیم',
+  );
+  String get recitersNote => _(
+    'التلاوات عبر الإنترنت. كل قارئ يقرأ من الآية التي تختارها ويكرر المقطع الذي تحدده.',
+    'Recitations play over the internet. Every reciter can start at any ayah and repeat the ayat you choose.',
+    'তিলাওয়াত ইন্টারনেটে চলে। প্রত্যেক ক্বারী যেকোনো আয়াত থেকে শুরু করে বাছাই করা আয়াত পুনরাবৃত্তি করতে পারেন।',
+    'تلاوتیں انٹرنیٹ سے چلتی ہیں۔ ہر قاری کسی بھی آیت سے شروع کر کے منتخب آیات دہرا سکتا ہے۔',
+  );
+  String get listenToReciter => _('استمع', 'Listen', 'শুনুন', 'سنیں');
   String repeatEachAyah(int times) => _(
     'تكرار كل آية: ${n(times)} ${times == 1 ? 'مرة' : 'مرات'}',
     'Play each ayah: ${n(times)} ${times == 1 ? 'time' : 'times'}',
@@ -543,10 +559,10 @@ extension FeatureStrings on S {
     'رفتار: $speed×',
   );
   String get audioSource => _(
-    'التلاوات من موقع everyayah.com وتحتاج اتصالًا بالإنترنت.',
-    'Recitations come from everyayah.com and need an internet connection.',
-    'তিলাওয়াত everyayah.com থেকে আসে, ইন্টারনেট সংযোগ লাগে।',
-    'تلاوتیں everyayah.com سے آتی ہیں اور انٹرنیٹ درکار ہے۔',
+    'التلاوات من موقعي everyayah.com و mp3quran.net وتحتاج اتصالًا بالإنترنت.',
+    'Recitations come from everyayah.com and mp3quran.net and need an internet connection.',
+    'তিলাওয়াত everyayah.com ও mp3quran.net থেকে আসে, ইন্টারনেট সংযোগ লাগে।',
+    'تلاوتیں everyayah.com اور mp3quran.net سے آتی ہیں اور انٹرنیٹ درکار ہے۔',
   );
 
   // Sources and rights.

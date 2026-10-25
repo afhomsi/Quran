@@ -339,12 +339,12 @@ void main() {
       expect(insecure, isEmpty);
     });
 
-    test('every recording is fetched over HTTPS from everyayah.com', () {
+    test('every recording is fetched over HTTPS from a known site', () {
       for (final r in reciters) {
         final url = Uri.parse(r.url(const AyahRef(114, 6)));
         expect(url.scheme, 'https');
-        expect(url.host, 'everyayah.com');
-        expect(url.pathSegments.last, '114006.mp3');
+        expect(url.host, r.timed ? 'cdn.mp3quran.net' : 'everyayah.com');
+        expect(url.pathSegments.last, r.timed ? '114.mp3' : '114006.mp3');
       }
     });
 

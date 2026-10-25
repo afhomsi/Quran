@@ -39,7 +39,13 @@ final contentSources = <ContentSource>[
         'the public domain, via fawazahmed0/quran-api (Unlicense). Kept in '
         'the app for searching in English.',
   ),
-  (title: (t) => t.sourceRecitations, detail: 'everyayah.com'),
+  (
+    title: (t) => t.sourceRecitations,
+    detail:
+        'everyayah.com (one recording per ayah). mp3quran.net (whole-surah '
+        'recordings and the time of each ayah in them): Saber Abdulhakam, '
+        'Bandar Baleela, Khalid Al-Muhanna.',
+  ),
 ];
 
 /// Lists where the app's content comes from, with the licences of the

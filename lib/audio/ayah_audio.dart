@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
 
 import '../data/mushaf_models.dart';
@@ -11,18 +12,43 @@ import '../data/reading_state.dart';
 
 const _audioSettingsKey = 'audio_settings';
 
-/// A reciter whose ayah-by-ayah recordings are served by everyayah.com.
+/// A reciter and where their recordings come from.
+///
+/// Most are served ayah by ayah by everyayah.com. The rest are whole-surah
+/// recordings from mp3quran.net, cut into ayat while playing by the start
+/// and end time mp3quran.net gives for each ayah, so every reciter can
+/// play a range of ayat and repeat it.
 class Reciter {
-  const Reciter(this.name, this.latinName, this.folder);
+  /// A reciter with one recording per ayah in everyayah.com's [folder].
+  const Reciter(this.name, this.latinName, this.folder) : timingRead = null;
+
+  /// A reciter with one recording per surah in mp3quran.net's [folder]
+  /// (e.g. `saber-abdulhakam/r1`), whose ayah times are read [timingRead].
+  const Reciter.timed(
+    this.name,
+    this.latinName,
+    this.folder, {
+    required int this.timingRead,
+  });
 
   final String name;
   final String latinName;
   final String folder;
 
-  /// URL of the recording of [ayah], e.g. `.../002255.mp3`.
-  String url(AyahRef ayah) =>
-      'https://everyayah.com/data/$folder/'
-      '${'${ayah.surah}'.padLeft(3, '0')}${'${ayah.ayah}'.padLeft(3, '0')}.mp3';
+  /// mp3quran.net's number for this recording's ayah times; null for an
+  /// ayah-by-ayah reciter.
+  final int? timingRead;
+
+  /// Whether each ayah is cut out of a whole-surah recording.
+  bool get timed => timingRead != null;
+
+  /// URL of the recording that holds [ayah]: its own file, e.g.
+  /// `.../002255.mp3`, or the file of its whole surah, e.g. `.../002.mp3`.
+  String url(AyahRef ayah) => timed
+      ? 'https://cdn.mp3quran.net/audio/$folder/'
+            '${'${ayah.surah}'.padLeft(3, '0')}.mp3'
+      : 'https://everyayah.com/data/$folder/'
+            '${'${ayah.surah}'.padLeft(3, '0')}${'${ayah.ayah}'.padLeft(3, '0')}.mp3';
 }
 
 const reciters = [
@@ -60,15 +86,126 @@ const reciters = [
   Reciter('ناصر القطامي', 'Nasser Al-Qatami', 'Nasser_Alqatami_128kbps'),
   Reciter('علي الحذيفي', 'Ali Al-Hudhaifi', 'Hudhaify_128kbps'),
   Reciter('فارس عباد', 'Fares Abbad', 'Fares_Abbad_64kbps'),
+  // Added later: the saved choice is a position in this list, so new
+  // reciters go at the end.
+  Reciter('محمد أيوب', 'Muhammad Ayyub', 'Muhammad_Ayyoub_128kbps'),
+  Reciter(
+    'محمود الحصري - المجوّد',
+    'Mahmoud Al-Husary (Mujawwad)',
+    'Husary_128kbps_Mujawwad',
+  ),
+  Reciter(
+    'محمود علي البنا',
+    'Mahmoud Ali Al-Banna',
+    'mahmoud_ali_al_banna_32kbps',
+  ),
+  Reciter('علي جابر', 'Ali Jaber', 'Ali_Jaber_64kbps'),
+  Reciter('مصطفى إسماعيل', 'Mustafa Ismail', 'Mustafa_Ismail_48kbps'),
+  Reciter(
+    'خالد القحطاني',
+    'Khalid Al-Qahtani',
+    'Khaalid_Abdullaah_al-Qahtaanee_192kbps',
+  ),
+  Reciter.timed(
+    'صابر عبد الحكم',
+    'Saber Abdulhakam',
+    'saber-abdulhakam/r1',
+    timingRead: 39,
+  ),
+  Reciter.timed(
+    'بندر بليلة',
+    'Bandar Baleela',
+    'bandar-baleela/r1',
+    timingRead: 217,
+  ),
+  Reciter.timed(
+    'خالد المهنا',
+    'Khalid Al-Muhanna',
+    'khalid-mohanna/r1',
+    timingRead: 159,
+  ),
 ];
+
+/// Where one ayah is in its surah's recording.
+typedef AyahSpan = ({Duration start, Duration end});
+
+/// Fetches from mp3quran.net when each ayah starts and ends in a
+/// whole-surah recording, keeping what it has fetched.
+class AyahTimings {
+  AyahTimings({http.Client? client}) : _client = client ?? http.Client();
+
+  final http.Client _client;
+  final _surahs = <(int, int), Future<Map<int, AyahSpan>>>{};
+
+  /// Where [ayah] is in the surah recording of [reciter].
+  Future<AyahSpan> span(Reciter reciter, AyahRef ayah) async {
+    final key = (reciter.timingRead!, ayah.surah);
+    final surah = _surahs[key] ??= _fetch(key.$1, key.$2);
+    try {
+      final span = (await surah)[ayah.ayah];
+      if (span == null) throw StateError('No time for $ayah');
+      return span;
+    } catch (_) {
+      // Try again next time, e.g. once the device is back online.
+      if (_surahs[key] == surah) _surahs.remove(key);
+      rethrow;
+    }
+  }
+
+  Future<Map<int, AyahSpan>> _fetch(int read, int surah) async {
+    final response = await _client.get(
+      Uri.https('mp3quran.net', '/api/v3/ayat_timing', {
+        'surah': '$surah',
+        'read': '$read',
+      }),
+    );
+    if (response.statusCode != 200) {
+      throw http.ClientException('Ayah times: ${response.statusCode}');
+    }
+    return parseAyahTimings(response.body);
+  }
+
+  void dispose() => _client.close();
+}
+
+/// Reads mp3quran.net's ayah times: a list of `{ayah, start_time,
+/// end_time}` in milliseconds. Entries that are not ayat are left out.
+Map<int, AyahSpan> parseAyahTimings(String body) {
+  final spans = <int, AyahSpan>{};
+  for (final entry in jsonDecode(body) as List) {
+    if (entry is! Map) continue;
+    final ayah = entry['ayah'];
+    final start = entry['start_time'];
+    final end = entry['end_time'];
+    if (ayah is! int || ayah < 1 || start is! num || end is! num) continue;
+    if (end <= start) continue;
+    spans[ayah] = (
+      start: Duration(milliseconds: start.round()),
+      end: Duration(milliseconds: end.round()),
+    );
+  }
+  return spans;
+}
+
+final ayahTimingsProvider = Provider<AyahTimings>((ref) {
+  final timings = AyahTimings();
+  ref.onDispose(timings.dispose);
+  return timings;
+});
 
 /// What playback goes back to when it reaches the end of it.
 enum AudioLoop { none, ayah, page, surah }
 
 /// Plays one recording at a time. Wraps just_audio so tests can swap it.
 abstract class AyahPlayer {
-  /// Starts [url] and completes once it has started.
-  Future<void> play(String url, {double speed = 1});
+  /// Starts [url] and completes once it has started. With [start] and
+  /// [end], plays only that part of it.
+  Future<void> play(
+    String url, {
+    double speed = 1,
+    Duration? start,
+    Duration? end,
+  });
   Future<void> pause();
   Future<void> resume();
   Future<void> stop();
@@ -84,11 +221,21 @@ class JustAudioAyahPlayer implements AyahPlayer {
   final _player = AudioPlayer();
 
   @override
-  Future<void> play(String url, {double speed = 1}) async {
+  Future<void> play(
+    String url, {
+    double speed = 1,
+    Duration? start,
+    Duration? end,
+  }) async {
     // Loading a new recording over a finished one is ignored on the web, so
     // the first ayah played again and again. Stop first to start afresh.
     await _player.stop();
-    await _player.setUrl(url);
+    final source = AudioSource.uri(Uri.parse(url));
+    await _player.setAudioSource(
+      start == null && end == null
+          ? source
+          : ClippingAudioSource(child: source, start: start, end: end),
+    );
     await _player.setSpeed(speed);
     // play() only returns once playback stops, so don't wait for it.
     unawaited(_player.play());
@@ -218,6 +365,10 @@ class AudioController extends Notifier<AudioState> {
   /// Whether the basmala is playing before the current ayah.
   var _basmala = false;
 
+  /// Counts the recordings started, so a slow one that was overtaken by
+  /// another choice does not start after it.
+  var _starts = 0;
+
   @override
   AudioState build() {
     final player = ref.watch(ayahPlayerProvider);
@@ -312,6 +463,7 @@ class AudioController extends Notifier<AudioState> {
   Future<void> _start(AyahRef ayah, {bool basmala = false}) async {
     _finished = false;
     _basmala = basmala;
+    final start = ++_starts;
     state = state.copyWith(
       current: ayah,
       visible: true,
@@ -321,12 +473,21 @@ class AudioController extends Notifier<AudioState> {
     );
     try {
       final recording = basmala ? const AyahRef(1, 1) : ayah;
+      final reciter = reciters[state.reciter];
+      final span = reciter.timed
+          ? await ref.read(ayahTimingsProvider).span(reciter, recording)
+          : null;
+      // Something else was chosen while the ayah times were fetched.
+      if (start != _starts || !state.playing) return;
       await _player.play(
-        reciters[state.reciter].url(recording),
+        reciter.url(recording),
         speed: state.speed,
+        start: span?.start,
+        end: span?.end,
       );
       if (state.current == ayah) state = state.copyWith(loading: false);
     } catch (e) {
+      if (start != _starts) return;
       state = state.copyWith(playing: false, loading: false, failed: true);
     }
   }
