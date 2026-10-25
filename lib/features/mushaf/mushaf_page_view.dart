@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../../data/jalala.dart';
 import '../../data/mushaf_models.dart';
 import '../../data/mushaf_text.dart';
 import '../../data/quarters.dart';
 import '../../data/tajweed.dart';
+import '../../settings/app_settings.dart';
 
 /// Width of one printed line in em of the mushaf font. Most lines of the
 /// Madinah layout take 14 to 18 em; longer ones are set a little smaller.
@@ -42,6 +44,7 @@ class MushafPageView extends StatelessWidget {
     this.recitedWords,
     this.showHizbMarks = false,
     this.tajweed,
+    this.jalala,
     this.textScale = 1,
     this.onAyahTap,
     this.onAyahLongPress,
@@ -68,6 +71,9 @@ class MushafPageView extends StatelessWidget {
 
   /// Letters in the colours of tajweed, when given.
   final TajweedMap? tajweed;
+
+  /// The colour of the name of Allah, when it is shown apart.
+  final JalalaColor? jalala;
 
   /// The text size, 1 being the size that fits the printed page. Smaller
   /// sizes keep the printed lines; larger ones let the words flow on as
@@ -149,6 +155,7 @@ class MushafPageView extends StatelessWidget {
   Widget _word(MushafWord w, double fontSize) => _Word(
     word: w,
     tajweed: w.isAyahEnd ? const [] : tajweed?.spansOf(w.ayah)[w.position - 1],
+    jalala: jalala,
     fontSize: fontSize,
     selected: w.ayah == selected,
     wordSelected: selectedWord == (w.ayah, w.position),
@@ -170,6 +177,7 @@ class MushafPageView extends StatelessWidget {
     double lineHeight,
   ) {
     final colors = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return switch (line) {
       SurahNameLine(:final surah) => _SurahHeader(
         surah: surah,
@@ -180,8 +188,8 @@ class MushafPageView extends StatelessWidget {
       BasmalaLine() => Center(
         child: FittedBox(
           fit: BoxFit.scaleDown,
-          child: Text(
-            mushafDisplayText(basmalaText),
+          child: Text.rich(
+            TextSpan(children: _colouredSpans(basmalaText, null, jalala, dark)),
             textDirection: TextDirection.rtl,
             style: TextStyle(
               fontFamily: mushafFont,
@@ -218,6 +226,7 @@ class _Word extends StatelessWidget {
   const _Word({
     required this.word,
     required this.tajweed,
+    this.jalala,
     required this.fontSize,
     required this.selected,
     this.wordSelected = false,
@@ -232,6 +241,7 @@ class _Word extends StatelessWidget {
 
   /// The letters to colour by the rules of tajweed, if they are shown.
   final List<TajweedSpan>? tajweed;
+  final JalalaColor? jalala;
   final double fontSize;
   final bool selected;
   final bool wordSelected;
@@ -308,7 +318,7 @@ class _Word extends StatelessWidget {
                   : TextSpan(
                       children: wordSelected
                           ? [TextSpan(text: _display(word.text))]
-                          : _tajweedSpans(word.text, tajweed, dark),
+                          : _colouredSpans(word.text, tajweed, jalala, dark),
                     ),
               textDirection: TextDirection.rtl,
               style: TextStyle(
@@ -343,25 +353,40 @@ class _Word extends StatelessWidget {
 /// apart.
 String _display(String text) => mushafDisplayText(text.replaceAll('۞', ''));
 
-/// [text] with each letter in the colour of its tajweed rule; a letter
-/// that takes two rules shows the first of [TajweedRule.values].
-List<TextSpan> _tajweedSpans(String text, List<TajweedSpan>? spans, bool dark) {
-  if (spans == null || spans.isEmpty) return [TextSpan(text: _display(text))];
+/// [text] with each letter in the colour of its tajweed rule, and the
+/// name of Allah in [jalala] over any rule; a letter that takes two rules
+/// shows the first of [TajweedRule.values].
+List<TextSpan> _colouredSpans(
+  String text,
+  List<TajweedSpan>? spans,
+  JalalaColor? jalala,
+  bool dark,
+) {
+  final name = jalala == null ? null : jalalaIn(text);
+  if ((spans == null || spans.isEmpty) && name == null) {
+    return [TextSpan(text: _display(text))];
+  }
   final rules = List<TajweedRule?>.filled(text.length, null);
-  for (final s in spans) {
+  for (final s in spans ?? const <TajweedSpan>[]) {
     for (var i = s.start; i < s.end; i++) {
       if (rules[i] == null || s.rule.index < rules[i]!.index) rules[i] = s.rule;
     }
   }
+  final colours = [
+    for (var i = 0; i < text.length; i++)
+      name != null && i >= name.start && i < name.end
+          ? jalala!.color(dark)
+          : rules[i]?.color(dark),
+  ];
   final out = <TextSpan>[];
   var start = 0;
   for (var i = 1; i <= text.length; i++) {
-    if (i < text.length && rules[i] == rules[start]) continue;
-    final rule = rules[start];
+    if (i < text.length && colours[i] == colours[start]) continue;
+    final colour = colours[start];
     out.add(
       TextSpan(
         text: _display(text.substring(start, i)),
-        style: rule == null ? null : TextStyle(color: rule.color(dark)),
+        style: colour == null ? null : TextStyle(color: colour),
       ),
     );
     start = i;

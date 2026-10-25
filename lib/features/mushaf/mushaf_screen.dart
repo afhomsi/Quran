@@ -907,6 +907,9 @@ class _PageSlot extends ConsumerWidget {
     final tajweed = ref.watch(settingsProvider.select((s) => s.tajweedColors))
         ? ref.watch(tajweedProvider).value
         : null;
+    final jalala = ref.watch(
+      settingsProvider.select((s) => s.jalalaColors ? s.jalalaColor : null),
+    );
     final hizb = (rub - 1) ~/ 4 + 1;
     final surah = surahs[page.firstAyah.surah - 1];
     return LayoutBuilder(
@@ -994,6 +997,7 @@ class _PageSlot extends ConsumerWidget {
                   showHizbMarks: showHizbMarks,
                   textScale: textScale,
                   tajweed: tajweed,
+                  jalala: jalala,
                   onAyahTap: onAyahTap,
                   onAyahLongPress: onAyahLongPress,
                 ),

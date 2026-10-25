@@ -44,6 +44,21 @@ enum PageTheme {
   final Color color;
 }
 
+/// Colours for lafz al-jalala on a light and on a dark page.
+enum JalalaColor {
+  red(Color(0xFFC0392B), Color(0xFFFF7B72)),
+  gold(Color(0xFFA8741A), Color(0xFFE9B949)),
+  green(Color(0xFF1E7A46), Color(0xFF5FD08F)),
+  blue(Color(0xFF1F5FAD), Color(0xFF7DB3F5));
+
+  const JalalaColor(this.light, this.dark);
+
+  final Color light;
+  final Color dark;
+
+  Color color(bool darkPage) => darkPage ? dark : light;
+}
+
 /// Everything on the settings screen, saved as one JSON string.
 class AppSettings {
   const AppSettings({
@@ -62,6 +77,8 @@ class AppSettings {
     this.hideWhileListening = true,
     this.showHizbMarks = true,
     this.tajweedColors = false,
+    this.jalalaColors = true,
+    this.jalalaColor = JalalaColor.red,
     this.mushafTextScale = 1.0,
   });
 
@@ -98,6 +115,10 @@ class AppSettings {
   /// Color the letters of the mushaf by the rules of tajweed.
   final bool tajweedColors;
 
+  /// Show the name of Allah in the mushaf in [jalalaColor].
+  final bool jalalaColors;
+  final JalalaColor jalalaColor;
+
   /// The size of the mushaf text. Above 1 the words of the page flow on
   /// as many lines as they need, and the page scrolls.
   final double mushafTextScale;
@@ -118,6 +139,8 @@ class AppSettings {
     bool? hideWhileListening,
     bool? showHizbMarks,
     bool? tajweedColors,
+    bool? jalalaColors,
+    JalalaColor? jalalaColor,
     double? mushafTextScale,
   }) => AppSettings(
     language: language ?? this.language,
@@ -135,6 +158,8 @@ class AppSettings {
     hideWhileListening: hideWhileListening ?? this.hideWhileListening,
     showHizbMarks: showHizbMarks ?? this.showHizbMarks,
     tajweedColors: tajweedColors ?? this.tajweedColors,
+    jalalaColors: jalalaColors ?? this.jalalaColors,
+    jalalaColor: jalalaColor ?? this.jalalaColor,
     mushafTextScale: mushafTextScale ?? this.mushafTextScale,
   );
 
@@ -154,6 +179,8 @@ class AppSettings {
     'hideWhileListening': hideWhileListening,
     'showHizbMarks': showHizbMarks,
     'tajweedColors': tajweedColors,
+    'jalalaColors': jalalaColors,
+    'jalalaColor': jalalaColor.name,
     'mushafTextScale': mushafTextScale,
   };
 
@@ -190,6 +217,8 @@ class AppSettings {
       hideWhileListening: pick('hideWhileListening', d.hideWhileListening),
       showHizbMarks: pick('showHizbMarks', d.showHizbMarks),
       tajweedColors: pick('tajweedColors', d.tajweedColors),
+      jalalaColors: pick('jalalaColors', d.jalalaColors),
+      jalalaColor: pickEnum('jalalaColor', JalalaColor.values, d.jalalaColor),
       mushafTextScale: switch (json['mushafTextScale']) {
         final num v when v.isFinite => v.toDouble().clamp(
           minMushafTextScale,
