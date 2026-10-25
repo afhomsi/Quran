@@ -158,6 +158,17 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
       final page = m.pageOf(ayah);
       if (page < _page || page >= _page + _step) _turnTo(page);
     });
+    // The pages turn with the reciter, as they do when listening.
+    ref.listen(pageRecitationProvider.select((r) => r?.currentWord), (_, word) {
+      final m = ref.read(mushafProvider).value;
+      if (word == null || m == null) return;
+      final (ayah, position) = word;
+      var page = m.pageOf(ayah);
+      // An ayah may go on over the next page.
+      final printed = m.page(page).words.where((w) => w.ayah == ayah).length;
+      if (position > printed && page < mushafPageCount) page++;
+      if (page < _page || page >= _page + _step) _turnTo(page);
+    });
     if (mushaf == null || surahs == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
@@ -525,7 +536,7 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
       page: mushaf.page(page),
       highlights: {
         for (final e in highlights.entries) e.key: highlightColors[e.value],
-        if (recitation?.page == page)
+        if (recitation?.covers(page) == true)
           for (final e in recitation!.ayahStates.entries)
             e.key: e.value == AyahRecitation.mistake
                 ? _mistakeColor
@@ -540,7 +551,7 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
                       a: PageRecitation.allWords,
                   }
                 : null
-          : recitation?.page == page && recitation!.hideText
+          : recitation?.covers(page) == true && recitation!.hideText
           ? recitation.recitedWords
           : null,
       bookmarks: [
