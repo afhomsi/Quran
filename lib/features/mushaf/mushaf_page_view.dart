@@ -7,9 +7,14 @@ import '../../data/quarters.dart';
 import '../../data/tajweed.dart';
 import '../../settings/app_settings.dart';
 
-/// Width of one printed line in em of the mushaf font. Most lines of the
-/// Madinah layout take 14 to 18 em; longer ones are set a little smaller.
-const _lineWidthEm = 16.5;
+/// Width of one printed line in em of the mushaf font: as wide as the
+/// longest line of the Madinah layout in this font (page 507, line 7), so
+/// that every line of every page is set at one size. Shorter lines are
+/// spread to this width. A test measures all the lines against it.
+const mushafLineWidthEm = 23.0;
+
+/// The least space between two words of a line, in em.
+const mushafWordGapEm = 0.1;
 
 /// Distance between two printed lines in em.
 const _linePitchEm = 1.7;
@@ -23,10 +28,10 @@ final _quarterStarts = rubStarts.skip(1).toSet();
 /// A tall screen is limited by its width, a wide one by its height.
 double mushafTextWidth(double width, double height) {
   final fontSize = [
-    width / _lineWidthEm,
+    width / mushafLineWidthEm,
     height / _linesPerPage / _linePitchEm,
   ].reduce((a, b) => a < b ? a : b);
-  return fontSize * _lineWidthEm;
+  return fontSize * mushafLineWidthEm;
 }
 
 /// Called with the word pressed and where it is on the screen.
@@ -87,7 +92,7 @@ class MushafPageView extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, box) {
         final fitted =
-            mushafTextWidth(box.maxWidth, box.maxHeight) / _lineWidthEm;
+            mushafTextWidth(box.maxWidth, box.maxHeight) / mushafLineWidthEm;
         if (textScale > 1) return _flowing(context, fitted * textScale);
         final lineHeight = box.maxHeight / _linesPerPage * textScale;
         final fontSize = fitted * textScale;
@@ -98,7 +103,7 @@ class MushafPageView extends StatelessWidget {
             for (final line in page.lines)
               SizedBox(
                 height: lineHeight,
-                width: fontSize * _lineWidthEm,
+                width: fontSize * mushafLineWidthEm,
                 child: _line(context, line, fontSize, lineHeight),
               ),
           ],
@@ -200,19 +205,19 @@ class MushafPageView extends StatelessWidget {
           ),
         ),
       ),
-      // A line as wide as the text block, or as its words if they need
-      // more, then shrunk to fit.
+      // A line as wide as the text block. All lines fit it; shrinking is
+      // only a guard against a font that sets them wider.
       AyahLine(:final words, :final centered) => FittedBox(
         fit: BoxFit.scaleDown,
         child: ConstrainedBox(
-          constraints: BoxConstraints(minWidth: fontSize * _lineWidthEm),
+          constraints: BoxConstraints(minWidth: fontSize * mushafLineWidthEm),
           child: IntrinsicWidth(
             child: Row(
               // Pages 1 and 2 are set in a narrow centered block.
               mainAxisAlignment: centered || page.number <= 2
                   ? MainAxisAlignment.center
                   : MainAxisAlignment.spaceBetween,
-              spacing: fontSize * 0.15,
+              spacing: fontSize * mushafWordGapEm,
               children: [for (final w in words) _word(w, fontSize)],
             ),
           ),
