@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../audio/audio_downloads.dart';
 import '../../audio/ayah_audio.dart';
 import '../../data/mushaf_models.dart';
+import '../../data/quran_repository.dart';
 import '../../l10n/strings.dart';
 import '../../theme/app_theme.dart';
+import 'downloads_screen.dart';
 
 void openReciters(BuildContext context) =>
     Navigator.of(context)
@@ -22,6 +25,7 @@ class RecitersScreen extends ConsumerWidget {
     final t = S.of(context);
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final canDownload = ref.watch(audioStoreProvider).supported;
 
     return Scaffold(
       appBar: AppBar(title: Text(t.reciters), centerTitle: true),
@@ -74,36 +78,77 @@ class RecitersScreen extends ConsumerWidget {
                   fontWeight: chosen ? FontWeight.bold : null,
                 ),
               ),
-              subtitle: Text(
-                reciter.timed ? t.reciterTimed : t.reciterByAyah,
-                style: theme.textTheme.bodySmall,
-              ),
-              trailing: IconButton(
-                tooltip: playing ? t.pause : t.listenToReciter,
-                icon: Icon(
-                  playing
-                      ? Icons.pause_circle_filled_rounded
-                      : Icons.play_circle_fill_rounded,
-                  color: colors.primary,
-                  size: 36,
-                ),
-                onPressed: () {
-                  if (playing) {
-                    controller.togglePlay();
-                    return;
-                  }
-                  // Choosing another reciter while playing starts them.
-                  if (!chosen) controller.setReciter(r);
-                  if (!ref.read(audioProvider).playing) {
-                    controller.playFrom(audio.current ?? const AyahRef(1, 1));
-                  }
-                },
+              subtitle: _Subtitle(reciter: r),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (canDownload)
+                    IconButton(
+                      key: ValueKey('download-reciter-$r'),
+                      tooltip: t.offlineAudio,
+                      icon: Icon(
+                        Icons.download_for_offline_rounded,
+                        color: colors.secondary,
+                        size: 30,
+                      ),
+                      onPressed: () => openDownloads(context, r),
+                    ),
+                  IconButton(
+                    tooltip: playing ? t.pause : t.listenToReciter,
+                    icon: Icon(
+                      playing
+                          ? Icons.pause_circle_filled_rounded
+                          : Icons.play_circle_fill_rounded,
+                      color: colors.primary,
+                      size: 36,
+                    ),
+                    onPressed: () {
+                      if (playing) {
+                        controller.togglePlay();
+                        return;
+                      }
+                      // Choosing another reciter while playing starts them.
+                      if (!chosen) controller.setReciter(r);
+                      if (!ref.read(audioProvider).playing) {
+                        controller.playFrom(
+                          audio.current ?? const AyahRef(1, 1),
+                        );
+                      }
+                    },
+                  ),
+                ],
               ),
               onTap: () => controller.setReciter(r),
             ),
           );
         },
       ),
+    );
+  }
+}
+
+/// How the reciter's recordings come, and how many surahs are downloaded.
+class _Subtitle extends ConsumerWidget {
+  const _Subtitle({required this.reciter});
+
+  final int reciter;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = S.of(context);
+    final theme = Theme.of(context);
+    final r = reciters[reciter];
+    final kept = ref.watch(keptAudioProvider(reciter)).value ?? const {};
+    final surahs = ref.watch(surahsProvider).value ?? const [];
+    final count = kept.isEmpty
+        ? 0
+        : surahs.where((s) => surahProgress(r, s, kept) == 1).length;
+    return Text(
+      [
+        r.timed ? t.reciterTimed : t.reciterByAyah,
+        if (count > 0) t.surahsDownloaded(count),
+      ].join(' · '),
+      style: theme.textTheme.bodySmall,
     );
   }
 }
