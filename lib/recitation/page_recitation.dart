@@ -41,24 +41,29 @@ class PageRecitation {
     hideText: hideText ?? this.hideText,
   );
 
-  /// How many words of each ayah were recited so far, right or wrong. An
-  /// ayah recited to its end shows all its words, whatever the count, so
-  /// a word printed apart on the page does not stay hidden.
+  /// How many words of each ayah show while the text is hidden: those
+  /// recited correctly so far. An ayah recited to its end shows all its
+  /// words, whatever the count, so a word printed apart on the page does
+  /// not stay hidden. An ayah with a mistake stays hidden until it is
+  /// recited again correctly.
   Map<AyahRef, int> get recitedWords {
     final counts = <AyahRef, int>{};
     final unfinished = <AyahRef>{};
+    final wrong = <AyahRef>{};
     for (final w in session.result.words) {
       if (w.word.kind != WordKind.ayah) continue;
       final ayah = AyahRef(w.surah, w.ayah);
+      if (w.isMistake) wrong.add(ayah);
       if (w.status == WordStatus.pending) {
         unfinished.add(ayah);
-      } else {
+      } else if (w.status == WordStatus.correct) {
         counts[ayah] = (counts[ayah] ?? 0) + 1;
       }
     }
     return {
       for (final e in counts.entries)
-        e.key: unfinished.contains(e.key) ? e.value : allWords,
+        if (!wrong.contains(e.key))
+          e.key: unfinished.contains(e.key) ? e.value : allWords,
     };
   }
 

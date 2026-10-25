@@ -129,10 +129,10 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     listener.say('رب الناس', isFinal: true);
     await tester.pump();
-    expect(
-      container.read(pageRecitationProvider)!.recitedWords[const AyahRef(1, 2)],
-      PageRecitation.allWords,
-    );
+    // An ayah recited wrongly stays hidden.
+    expect(container.read(pageRecitationProvider)!.recitedWords, {
+      const AyahRef(1, 1): PageRecitation.allWords,
+    });
 
     // A labelled button shows the whole page.
     await tester.tap(find.text('إظهار الآيات'));
