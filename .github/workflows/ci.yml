@@ -51,6 +51,32 @@ jobs:
           name: hifz-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
 
+  # Also keeps the newest release APK on the `apk` branch, so it can be
+  # downloaded from raw.githubusercontent.com without any Pages setup:
+  # https://raw.githubusercontent.com/afhomsi/Quran/apk/hifz.apk
+  # The branch is replaced on every push, so it always holds one commit.
+  publish-apk-branch:
+    needs: build-android
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: hifz-release-apk
+          path: apk
+      - name: Replace the apk branch with the new build
+        run: |
+          cd apk
+          mv app-release.apk hifz.apk
+          git init -q -b apk
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add hifz.apk
+          git commit -q -m "APK built from ${GITHUB_SHA::7}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" apk
+
   # Puts the newest release APK behind one fixed link on GitHub Pages
   # (https://afhomsi.github.io/Quran/), refreshed on every push to main.
   # Needs Settings > Pages > Source set to "GitHub Actions" once.
