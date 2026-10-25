@@ -9,6 +9,7 @@ import '../data/mushaf_models.dart';
 import '../data/mushaf_repository.dart';
 import '../data/quran_repository.dart';
 import '../data/reading_state.dart';
+import 'audio_downloads.dart';
 import 'audio_store.dart';
 
 const _audioSettingsKey = 'audio_settings';
@@ -318,6 +319,7 @@ class AudioState {
     this.playlist,
     this.listRepeats = 1,
     this.pass = 1,
+    this.autoSave = true,
   });
 
   /// The ayah playing or paused; null before anything has played.
@@ -338,6 +340,10 @@ class AudioState {
 
   /// How many times each ayah is played before moving on.
   final int repeats;
+
+  /// Whether a surah listened to over the internet is downloaded to the
+  /// phone as it plays, so it plays without internet next time.
+  final bool autoSave;
   final double speed;
 
   /// The ayat chosen to play and repeat together, e.g. a range of ayat or
@@ -365,6 +371,7 @@ class AudioState {
     bool clearPlaylist = false,
     int? listRepeats,
     int? pass,
+    bool? autoSave,
   }) => AudioState(
     current: current ?? this.current,
     visible: visible ?? this.visible,
@@ -378,6 +385,7 @@ class AudioState {
     playlist: clearPlaylist ? null : playlist ?? this.playlist,
     listRepeats: listRepeats ?? this.listRepeats,
     pass: pass ?? this.pass,
+    autoSave: autoSave ?? this.autoSave,
   );
 }
 
@@ -421,6 +429,7 @@ class AudioController extends Notifier<AudioState> {
         speed: (saved['speed'] as num).toDouble().clamp(0.5, 1.5),
         loop: AudioLoop.values.byName(saved['loop'] as String),
         listRepeats: (saved['listRepeats'] as int? ?? 1).clamp(1, 20),
+        autoSave: saved['autoSave'] as bool? ?? true,
       );
     }, const AudioState());
   }
@@ -512,9 +521,14 @@ class AudioController extends Notifier<AudioState> {
           ? await ref.read(ayahTimingsProvider).span(reciter, recording)
           : null;
       // A downloaded recording plays from the phone, without internet.
-      final kept = await ref
-          .read(audioStoreProvider)
-          .find(reciter, reciter.fileName(recording));
+      final store = ref.read(audioStoreProvider);
+      final kept = await store.find(reciter, reciter.fileName(recording));
+      if (kept == null && state.autoSave && store.supported) {
+        // Saves the surah while it plays, for listening without internet.
+        ref.read(audioDownloadsProvider.notifier).download(state.reciter, [
+          ayah.surah,
+        ]);
+      }
       // Something else was chosen while the ayah times were fetched.
       if (start != _starts || !state.playing) return;
       await _player.play(
@@ -592,6 +606,9 @@ class AudioController extends Notifier<AudioState> {
     if (state.playing && state.current != null) _playAyah(state.current!);
   }
 
+  void setAutoSave(bool autoSave) =>
+      _saveSettings(state.copyWith(autoSave: autoSave));
+
   void setRepeats(int repeats) =>
       _saveSettings(state.copyWith(repeats: repeats));
 
@@ -612,6 +629,7 @@ class AudioController extends Notifier<AudioState> {
             'speed': s.speed,
             'loop': s.loop.name,
             'listRepeats': s.listRepeats,
+            'autoSave': s.autoSave,
           }),
         );
   }

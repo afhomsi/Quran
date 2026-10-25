@@ -107,6 +107,33 @@ void main() {
     expect(surahProgress(alafasy, surahs[110], kept), 0);
   });
 
+  test(
+    'a surah listened to online is saved to the phone as it plays',
+    () async {
+      await audio().playFrom(const AyahRef(112, 2));
+      expect(player.played.single, startsWith('https://everyayah.com/'));
+      await downloaded();
+      final kept = await store.files(alafasy);
+      expect(surahProgress(alafasy, surahs[111], kept), 1);
+      // Next time it plays from the phone.
+      online = false;
+      await audio().playFrom(const AyahRef(112, 3));
+      expect(
+        player.played.last,
+        Uri.file('${root.path}/Alafasy_128kbps/112003.mp3').toString(),
+      );
+    },
+  );
+
+  test('with saving turned off, listening downloads nothing', () async {
+    audio().setAutoSave(false);
+    await audio().playFrom(const AyahRef(112, 2));
+    await pumpEventQueue();
+    expect(container.read(audioDownloadsProvider).queue, isEmpty);
+    expect(await store.files(alafasy), isEmpty);
+    expect(container.read(audioProvider).autoSave, isFalse);
+  });
+
   test('a downloaded surah plays from the phone, without internet', () async {
     downloads().download(0, [112]);
     await downloaded();
