@@ -70,6 +70,12 @@ final keptAudioSizeProvider = FutureProvider.family<int, int>((ref, reciter) {
   return ref.watch(audioStoreProvider).size(reciters[reciter]);
 });
 
+/// Sent with every download. Some recitation sites refuse requests that
+/// name no browser or player, as Dart's own default does.
+const audioUserAgent =
+    'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 '
+    '(KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36';
+
 /// Makes the connection downloads are fetched over; swapped in tests.
 final audioDownloadClientProvider = Provider<http.Client Function()>(
   (ref) => http.Client.new,
@@ -83,7 +89,7 @@ class DownloadsState {
     this.queue = const [],
     this.done = 0,
     this.total = 0,
-    this.failed = false,
+    this.error,
   });
 
   /// The surahs still to download; the first one is downloading now.
@@ -93,9 +99,11 @@ class DownloadsState {
   final int done;
   final int total;
 
-  /// Whether the last download stopped because a file could not be
-  /// fetched, usually because the device is offline.
-  final bool failed;
+  /// Why the last download stopped, when a file could not be fetched,
+  /// usually because the device is offline; shown to help find the cause.
+  final String? error;
+
+  bool get failed => error != null;
 
   SurahDownload? get active => queue.isEmpty ? null : queue.first;
 
@@ -110,6 +118,9 @@ class DownloadsState {
 class AudioDownloads extends Notifier<DownloadsState> {
   /// Files fetched at the same time.
   static const _parallel = 4;
+
+  /// Times a file is tried before downloading stops.
+  static const _tries = 3;
 
   http.Client? _client;
   var _running = false;
@@ -215,7 +226,7 @@ class AudioDownloads extends Notifier<DownloadsState> {
         Future<void> worker() async {
           while (run == _stops && next < missing.length) {
             final file = missing[next++];
-            await _fetch(client, store, reciter, file);
+            await _fetchWithRetries(client, store, reciter, file, run);
             if (run != _stops) return;
             state = DownloadsState(
               queue: state.queue,
@@ -230,16 +241,36 @@ class AudioDownloads extends Notifier<DownloadsState> {
         ref.invalidate(keptAudioProvider(item.reciter));
         state = DownloadsState(queue: state.queue.skip(1).toList());
       }
-    } catch (_) {
+    } catch (e) {
       if (run != _stops) return;
       final active = state.active;
       if (active != null) ref.invalidate(keptAudioProvider(active.reciter));
       // Stops everything; the user can start again once back online.
-      state = const DownloadsState(failed: true);
+      state = DownloadsState(error: downloadError(e));
     } finally {
       if (run == _stops) _running = false;
     }
   }
+
+  Future<void> _fetchWithRetries(
+    http.Client client,
+    AudioStore store,
+    Reciter reciter,
+    AudioFile file,
+    int run,
+  ) async {
+    for (var attempt = 1; ; attempt++) {
+      try {
+        return await _fetch(client, store, reciter, file);
+      } catch (_) {
+        if (attempt >= _tries || run != _stops) rethrow;
+        await Future<void>.delayed(retryDelay * attempt);
+      }
+    }
+  }
+
+  /// Wait before trying a file again; shortened in tests.
+  static var retryDelay = const Duration(seconds: 1);
 
   Future<void> _fetch(
     http.Client client,
@@ -247,7 +278,9 @@ class AudioDownloads extends Notifier<DownloadsState> {
     Reciter reciter,
     AudioFile file,
   ) async {
-    final response = await client.send(http.Request('GET', file.url));
+    final request = http.Request('GET', file.url)
+      ..headers['User-Agent'] = audioUserAgent;
+    final response = await client.send(request);
     if (response.statusCode != 200) {
       await response.stream.drain<void>();
       throw http.ClientException('${response.statusCode}', file.url);
@@ -263,6 +296,15 @@ class AudioDownloads extends Notifier<DownloadsState> {
     }
     await store.save(reciter, file.name, response.stream);
   }
+}
+
+/// A short reason for a failed download, e.g. `HTTP 403` or the
+/// connection error.
+String downloadError(Object e) {
+  final text = e is http.ClientException
+      ? (int.tryParse(e.message) != null ? 'HTTP ${e.message}' : e.message)
+      : '$e';
+  return text.length > 140 ? '${text.substring(0, 140)}…' : text;
 }
 
 final audioDownloadsProvider = NotifierProvider<AudioDownloads, DownloadsState>(

@@ -37,7 +37,13 @@ void main() {
   late List<Uri> asked;
   var online = true;
 
+  late List<String?> agents;
+  var refusals = 0;
+
   setUp(() async {
+    AudioDownloads.retryDelay = Duration.zero;
+    agents = [];
+    refusals = 0;
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     root = await Directory.systemTemp.createTemp('audio');
@@ -47,7 +53,12 @@ void main() {
     online = true;
     final client = MockClient((request) async {
       asked.add(request.url);
+      agents.add(request.headers['User-Agent']);
       if (!online) throw const SocketException('offline');
+      if (refusals > 0) {
+        refusals--;
+        return http.Response('busy', 503);
+      }
       if (request.url.host == 'mp3quran.net') {
         final surah = int.parse(request.url.queryParameters['surah']!);
         return http.Response(_timings(surahs[surah - 1].ayahCount), 200);
@@ -178,6 +189,29 @@ void main() {
     );
     expect(player.clips, ['2000-3000']);
     expect(asked, isEmpty);
+  });
+
+  test('downloads say they come from a browser, as some sites refuse '
+      "Dart's own name", () async {
+    downloads().download(0, [112]);
+    await downloaded();
+    expect(agents, isNotEmpty);
+    expect(agents.toSet(), {audioUserAgent});
+  });
+
+  test('a file that fails is tried again before downloading stops', () async {
+    refusals = 2;
+    downloads().download(0, [112]);
+    await downloaded();
+    expect(container.read(audioDownloadsProvider).failed, isFalse);
+    expect(surahProgress(alafasy, surahs[111], await store.files(alafasy)), 1);
+  });
+
+  test('when a site keeps refusing, the reason is shown', () async {
+    refusals = 1000;
+    downloads().download(0, [112]);
+    await downloaded();
+    expect(container.read(audioDownloadsProvider).error, 'HTTP 503');
   });
 
   test('offline, downloading stops and says so', () async {

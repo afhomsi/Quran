@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../audio/ayah_audio.dart';
 import '../../l10n/strings.dart';
 import '../../theme/app_theme.dart';
+import '../audio/downloads_screen.dart';
 import '../audio/reciters_screen.dart';
 import '../notes/notes_screen.dart';
 import '../profile/profile_screen.dart';
@@ -49,6 +51,13 @@ class MoreScreen extends ConsumerWidget {
         color: const Color(0xFF12897A),
         onTap: () => openReciters(context),
       ),
+      if (ref.watch(audioStoreProvider).supported)
+        _MoreTile(
+          icon: Icons.download_for_offline_rounded,
+          label: t.offlineAudio,
+          color: const Color(0xFF0E7C66),
+          onTap: () => openDownloads(context, ref.read(audioProvider).reciter),
+        ),
       _MoreTile(
         icon: Icons.sticky_note_2_rounded,
         label: t.myNotes,

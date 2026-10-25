@@ -82,6 +82,15 @@ class DownloadsScreen extends ConsumerWidget {
                         ),
                         textAlign: TextAlign.center,
                       ),
+                      Text(
+                        downloads.error!,
+                        key: const ValueKey('download-error'),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colors.error,
+                        ),
+                        textAlign: TextAlign.center,
+                        textDirection: TextDirection.ltr,
+                      ),
                     ],
                     const SizedBox(height: 12),
                     if (busy)
