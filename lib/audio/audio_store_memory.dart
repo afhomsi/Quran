@@ -5,6 +5,8 @@ class AudioStore {
   /// [root] is a folder on other platforms; unused here.
   AudioStore({Object? root});
 
+  AudioStore.none();
+
   bool get supported => false;
 
   Future<Set<String>> files(Reciter reciter) async => {};

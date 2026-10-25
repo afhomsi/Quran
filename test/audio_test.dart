@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hifz/audio/audio_store.dart';
 import 'package:hifz/audio/ayah_audio.dart';
 import 'package:hifz/audio/heard_ayat.dart';
 import 'package:hifz/data/mushaf_models.dart';
@@ -28,6 +29,7 @@ void main() {
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
         ayahPlayerProvider.overrideWithValue(player),
+        audioStoreProvider.overrideWithValue(AudioStore.none()),
         mushafProvider.overrideWith((ref) async => mushaf),
         surahsProvider.overrideWith((ref) async => surahs),
       ],

@@ -9,14 +9,19 @@ import 'ayah_audio.dart';
 class AudioStore {
   /// Files go in [root]; by default the app's support folder.
   AudioStore({Directory? root})
-    : _root = root == null ? null : Future.value(root);
+    : _root = root == null ? null : Future.value(root),
+      supported = true;
+
+  /// Keeps nothing, without touching the device's files; for tests.
+  AudioStore.none() : supported = false;
 
   Future<Directory>? _root;
 
   /// Whether recordings can be kept on this device.
-  bool get supported => true;
+  final bool supported;
 
   Future<Directory> _dir(Reciter reciter) async {
+    if (!supported) throw UnsupportedError('Nothing is kept');
     final root = await (_root ??= getApplicationSupportDirectory().then(
       (d) => Directory('${d.path}/audio'),
     ));
