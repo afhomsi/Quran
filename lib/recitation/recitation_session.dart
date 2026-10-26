@@ -3,16 +3,27 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
+import 'harakat.dart';
 import 'recitation_matcher.dart';
 import 'speech_listener.dart';
 
+/// What kind of mistake a reciter made.
+enum MistakeKind {
+  /// A word or ayah said wrong, left out, or added: shown in red.
+  word,
+
+  /// The right word with a wrong haraka: shown in orange.
+  harakat,
+}
+
 /// A mistake found while reciting, to alert the reciter about.
 class Mistake {
-  const Mistake(this.wordIndex, this.message);
+  const Mistake(this.wordIndex, this.message, {this.kind = MistakeKind.word});
 
   /// Index of the surah word the mistake is at.
   final int wordIndex;
   final String message;
+  final MistakeKind kind;
 }
 
 /// Listens to the reciter and keeps the comparison with the text up to
@@ -29,6 +40,7 @@ class RecitationSession extends ChangeNotifier {
     required this.listener,
     required this.expected,
     required this.surahName,
+    this.mode = RecitationMode.strict,
   }) : _multiSurah =
            expected.map((w) => w.surah).where((s) => s > 0).toSet().length > 1 {
     _clear();
@@ -37,6 +49,9 @@ class RecitationSession extends ChangeNotifier {
   final SpeechListener listener;
   final List<ExpectedWord> expected;
   final String Function(int surah) surahName;
+
+  /// How strictly the recitation is checked.
+  final RecitationMode mode;
   final bool _multiSurah;
 
   /// Words compared so far, from finished listening sessions.
@@ -69,6 +84,9 @@ class RecitationSession extends ChangeNotifier {
   final _alerted = <String>{};
   final _mistakes = <Mistake>[];
   late RecitationResult _result;
+
+  /// Whether the recognizer wrote harakat, so they could be checked.
+  bool heardHarakat = false;
 
   /// Message to show when the microphone or recognizer cannot be used.
   String? error;
@@ -128,6 +146,7 @@ class RecitationSession extends ChangeNotifier {
       await listener.listen(
         onResult: (text, isFinal) {
           if (id != _sessionId) return;
+          if (!heardHarakat && hasHarakat(text)) heardHarakat = true;
           if (!isFinal) _freezeStable(text);
           final words = _wordsOf(text);
           _current = words.skip(_frozen).join(' ');
@@ -238,6 +257,7 @@ class RecitationSession extends ChangeNotifier {
       heard,
       settled: settled,
       start: _pos - from,
+      mode: mode,
     );
     if (end < expected.length && sub.extrasAtEnd.isNotEmpty) {
       // Left over past a window that is not the end of the text. The window
@@ -269,6 +289,7 @@ class RecitationSession extends ChangeNotifier {
         status: before.status,
         heard: before.heard,
         extrasBefore: [...before.extrasBefore, ...now.extrasBefore],
+        wrongHarakat: before.wrongHarakat,
       );
     }
     return WordResult(
@@ -278,6 +299,7 @@ class RecitationSession extends ChangeNotifier {
       extrasBefore: before.status == WordStatus.pending
           ? [...before.extrasBefore, ...now.extrasBefore]
           : now.extrasBefore,
+      wrongHarakat: now.wrongHarakat,
     );
   }
 
@@ -351,6 +373,7 @@ class RecitationSession extends ChangeNotifier {
 
   void _reportMistakes() {
     final words = _result.words;
+    final leftOut = _ayatLeftOut(words);
     for (var i = 0; i < words.length; i++) {
       final w = words[i];
       if (w.extrasBefore.isNotEmpty) {
@@ -372,9 +395,26 @@ class RecitationSession extends ChangeNotifier {
           ),
         );
       } else if (w.status == WordStatus.skipped) {
+        if (leftOut.contains((w.surah, w.ayah))) {
+          _alert(
+            'skippedAyah:${w.surah}:${w.ayah}',
+            Mistake(i, 'نسيت ${_where(w)}'),
+          );
+        } else {
+          _alert(
+            'skipped:$i',
+            Mistake(i, 'نسيت كلمة «${w.text}» في ${_where(w)}'),
+          );
+        }
+      } else if (w.isHarakatMistake) {
         _alert(
-          'skipped:$i',
-          Mistake(i, 'نسيت كلمة «${w.text}» في ${_where(w)}'),
+          'harakat:$i:${w.wrongHarakat}',
+          Mistake(
+            i,
+            'خطأ في الحركة في ${_where(w)}: سمعت «${w.wrongHarakat}» '
+            'والصواب «${w.text}»',
+            kind: MistakeKind.harakat,
+          ),
         );
       }
     }
@@ -387,6 +427,17 @@ class RecitationSession extends ChangeNotifier {
         ),
       );
     }
+  }
+
+  /// The ayat whose words were all left out.
+  static Set<(int, int)> _ayatLeftOut(List<WordResult> words) {
+    final all = <(int, int)>{};
+    final not = <(int, int)>{};
+    for (final w in words) {
+      if (w.word.kind != WordKind.ayah) continue;
+      (w.status == WordStatus.skipped ? all : not).add((w.surah, w.ayah));
+    }
+    return all.difference(not);
   }
 
   /// Where a word is, e.g. "الآية 5" or "الآية 5 من سورة البقرة".

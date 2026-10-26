@@ -22,6 +22,7 @@ import '../audio/audio_bar.dart';
 import '../audio/repeat_sheet.dart';
 import '../recitation/recitation_bar.dart';
 import '../recitation/recitation_picker.dart';
+import '../recitation/recitation_mode.dart';
 import '../search/search_screen.dart';
 import '../settings/settings_screen.dart';
 import '../home/index_icons.dart';
@@ -241,6 +242,15 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
       if (position > printed && page < mushafPageCount) page++;
       if (page < _page || page >= _page + _step) _turnTo(page);
     });
+    // The mistakes report, once the recitation is finished.
+    ref.listen(
+      pageRecitationProvider.select(
+        (r) => r == null || !r.session.result.isComplete ? null : r.session,
+      ),
+      (_, session) {
+        if (session != null) showMistakesReport(context, session);
+      },
+    );
     if (mushaf == null || surahs == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
@@ -474,7 +484,6 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
   /// surah can be recited without the end of the one before it.
   Future<void> _recite() async {
     final controller = ref.read(pageRecitationProvider.notifier);
-    final current = ref.read(pageRecitationProvider);
     final mushaf = ref.read(mushafProvider).value;
     final surahs = ref.read(surahsProvider).value;
     if (mushaf == null || surahs == null) return;
@@ -483,9 +492,12 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
       for (final line in page.lines.whereType<SurahNameLine>())
         if (AyahRef(line.surah, 1) != page.firstAyah) AyahRef(line.surah, 1),
     ];
-    final listening =
-        current?.covers(_page) == true && current!.session.isListening;
-    if (starts.isEmpty || listening) return controller.start(_page);
+    if (controller.isListeningTo(_page)) return controller.start(_page);
+    if (starts.isEmpty) {
+      final mode = await chooseRecitationMode(context);
+      if (mode == null || !mounted) return;
+      return controller.start(_page, mode: mode);
+    }
     final t = S.of(context);
     final from = await showModalBottomSheet<AyahRef>(
       context: context,
@@ -512,7 +524,13 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
       ),
     );
     if (from == null || !mounted) return;
-    await controller.start(_page, from: from == page.firstAyah ? null : from);
+    final mode = await chooseRecitationMode(context);
+    if (mode == null || !mounted) return;
+    await controller.start(
+      _page,
+      from: from == page.firstAyah ? null : from,
+      mode: mode,
+    );
   }
 
   /// Opens or closes the page navigator. It opens with the bars hidden, as
@@ -679,9 +697,11 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
         for (final e in highlights.entries) e.key: highlightColors[e.value],
         if (recitation?.covers(page) == true)
           for (final e in recitation!.ayahStates.entries)
-            e.key: e.value == AyahRecitation.mistake
-                ? _mistakeColor
-                : _correctColor,
+            e.key: switch (e.value) {
+              AyahRecitation.mistake => _mistakeColor,
+              AyahRecitation.harakat => _harakatColor,
+              AyahRecitation.correct => _correctColor,
+            },
       },
       // Listening, also after reciting, shows the ayat as the reciter
       // reaches them, or all of them when that is turned off.
@@ -704,6 +724,9 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
           : null,
       wrongWords: !audio.visible && recitation?.covers(page) == true
           ? recitation!.wrongWords
+          : const {},
+      harakatWords: recitation?.covers(page) == true
+          ? recitation!.harakatWords
           : const {},
       bookmarks: [
         for (final kind in MarkerKind.values)
@@ -803,6 +826,8 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
 /// How ayat are colored while reciting the page.
 final _correctColor = Colors.green.withValues(alpha: 0.3);
 final _mistakeColor = Colors.red.withValues(alpha: 0.35);
+// Pale, so the words said with a wrong haraka stand out on it in orange.
+const _harakatColor = Color(0xFFFFDDB0);
 
 /// The time, as in the top bar of the screenshots. Updates every minute.
 class _Clock extends StatefulWidget {
@@ -913,6 +938,7 @@ class _PageSlot extends ConsumerWidget {
     required this.highlights,
     this.recitedWords,
     this.wrongWords = const {},
+    this.harakatWords = const {},
     required this.bookmarks,
     required this.showHizbMarks,
     required this.textScale,
@@ -933,6 +959,7 @@ class _PageSlot extends ConsumerWidget {
   final Map<AyahRef, Color> highlights;
   final Map<AyahRef, int>? recitedWords;
   final Set<(AyahRef, int)> wrongWords;
+  final Set<(AyahRef, int)> harakatWords;
 
   /// Markers and khatma plans that stand on this page: their color and
   /// name, drawn as ribbons in the header.
@@ -1044,6 +1071,7 @@ class _PageSlot extends ConsumerWidget {
                   highlights: highlights,
                   recitedWords: recitedWords,
                   wrongWords: wrongWords,
+                  harakatWords: harakatWords,
                   showHizbMarks: showHizbMarks,
                   textScale: textScale,
                   tajweed: tajweed,

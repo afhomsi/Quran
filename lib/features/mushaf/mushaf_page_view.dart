@@ -6,6 +6,7 @@ import '../../data/mushaf_text.dart';
 import '../../data/quarters.dart';
 import '../../data/tajweed.dart';
 import '../../settings/app_settings.dart';
+import '../recitation/recitation_mode.dart';
 
 /// Width of one printed line in em of the mushaf font: as wide as the
 /// longest line of the Madinah layout in this font (page 507, line 7), so
@@ -48,6 +49,7 @@ class MushafPageView extends StatelessWidget {
     this.highlights = const {},
     this.recitedWords,
     this.wrongWords = const {},
+    this.harakatWords = const {},
     this.showHizbMarks = false,
     this.tajweed,
     this.jalala,
@@ -76,6 +78,10 @@ class MushafPageView extends StatelessWidget {
   /// page is recited from memory, though words after them show: those
   /// recited wrong.
   final Set<(AyahRef, int)> wrongWords;
+
+  /// Words, as their ayah and position, recited with a wrong haraka:
+  /// shown in orange.
+  final Set<(AyahRef, int)> harakatWords;
 
   /// Put ۞ over the first word of each quarter of a hizb.
   final bool showHizbMarks;
@@ -171,6 +177,7 @@ class MushafPageView extends StatelessWidget {
     selected: w.ayah == selected,
     wordSelected: selectedWord == (w.ayah, w.position),
     highlight: highlights[w.ayah],
+    wrongHarakat: harakatWords.contains((w.ayah, w.position)),
     hidden:
         recitedWords != null &&
         !w.isAyahEnd &&
@@ -243,6 +250,7 @@ class _Word extends StatelessWidget {
     required this.selected,
     this.wordSelected = false,
     this.highlight,
+    this.wrongHarakat = false,
     this.hidden = false,
     this.hizbMark = false,
     this.onTap,
@@ -258,6 +266,9 @@ class _Word extends StatelessWidget {
   final bool selected;
   final bool wordSelected;
   final Color? highlight;
+
+  /// Recited with a wrong haraka, so shown on orange.
+  final bool wrongHarakat;
 
   /// Not recited yet, or recited wrongly, so drawn as a block of the
   /// word's size: grey, or in the ayah's highlight colour.
@@ -313,6 +324,8 @@ class _Word extends StatelessWidget {
         decoration: BoxDecoration(
           color: wordSelected
               ? _wordColor(dark).withValues(alpha: 0.18)
+              : wrongHarakat
+              ? harakatColor.withValues(alpha: dark ? 0.7 : 1)
               : selected
               ? colors.primaryContainer
               // Highlighter colors are light, so tone them down at night.

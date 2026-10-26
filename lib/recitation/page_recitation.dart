@@ -13,8 +13,9 @@ import 'recitation_session.dart';
 import 'session_record.dart';
 import 'speech_listener.dart';
 
-/// How each ayah of a page was recited so far.
-enum AyahRecitation { correct, mistake }
+/// How each ayah of a page was recited so far: a mistake is a wrong or
+/// missing word, a harakat mistake only wrong harakat.
+enum AyahRecitation { correct, harakat, mistake }
 
 /// Reciting in place in the mushaf, from a bar under the page: from the
 /// page open when it started on to the end of the surah, so a surah longer
@@ -101,6 +102,16 @@ class PageRecitation {
     };
   }
 
+  /// The words said with a wrong haraka, as their ayah and position:
+  /// they show in orange.
+  Set<(AyahRef, int)> get harakatWords {
+    final words = <(AyahRef, int)>{};
+    _forEachAyahWord((ayah, position, w) {
+      if (w.isHarakatMistake) words.add((ayah, position));
+    });
+    return words;
+  }
+
   /// The words said wrong or left out, as their ayah and position: they
   /// stay hidden until recited again correctly, while the rest of their
   /// ayah shows and the reciting goes on.
@@ -138,6 +149,10 @@ class PageRecitation {
       final ayah = AyahRef(w.surah, w.ayah);
       if (w.isMistake) {
         states[ayah] = AyahRecitation.mistake;
+      } else if (w.isHarakatMistake) {
+        if (states[ayah] != AyahRecitation.mistake) {
+          states[ayah] = AyahRecitation.harakat;
+        }
       } else if (w.status == WordStatus.correct) {
         states.putIfAbsent(ayah, () => AyahRecitation.correct);
       }
@@ -203,7 +218,13 @@ class PageRecitationController extends Notifier<PageRecitation?> {
     ref.listen(speechListenerProvider, (_, _) {
       final current = state;
       if (current == null || current.session.isListening) return;
-      _start(current.page, from: current.from, listen: false, restart: true);
+      _start(
+        current.page,
+        from: current.from,
+        mode: current.session.mode,
+        listen: false,
+        restart: true,
+      );
     });
     return null;
   }
@@ -213,23 +234,34 @@ class PageRecitationController extends Notifier<PageRecitation?> {
   /// page ends in. Each start recites anew, so a recitation that ended or
   /// stopped earlier does not take the new one for words after its end.
   /// While the page is being listened to, only stops listening.
-  Future<void> start(int page, {AyahRef? from}) async {
+  ///
+  /// [mode] is how strictly to check the recitation.
+  Future<void> start(
+    int page, {
+    AyahRef? from,
+    RecitationMode mode = RecitationMode.strict,
+  }) async {
     final session = state?.covers(page) == true ? state!.session : null;
     if (session != null && session.isListening) return session.stop();
-    await _start(page, from: from, restart: true);
+    await _start(page, from: from, mode: mode, restart: true);
   }
 
+  /// Whether starting on [page] only stops listening to it.
+  bool isListeningTo(int page) =>
+      state?.covers(page) == true && state!.session.isListening;
+
   /// Goes on reciting from where reciting last stopped.
-  Future<void> resume() async {
+  Future<void> resume({RecitationMode mode = RecitationMode.strict}) async {
     final mushaf = ref.read(mushafProvider).value;
     final from = ref.read(lastRecitationProvider);
     if (mushaf == null || from == null) return;
-    await _start(mushaf.pageOf(from), from: from);
+    await _start(mushaf.pageOf(from), from: from, mode: mode, restart: true);
   }
 
   Future<void> _start(
     int page, {
     AyahRef? from,
+    RecitationMode mode = RecitationMode.strict,
     bool listen = true,
     bool restart = false,
   }) async {
@@ -250,6 +282,7 @@ class PageRecitationController extends Notifier<PageRecitation?> {
           from: from,
         ),
         surahName: (s) => surahs[s - 1].name,
+        mode: mode,
       )..onMistake = (_) => ref.read(mistakeAlertProvider)();
       session.addListener(() => _changed(session));
       _saved = false;

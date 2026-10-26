@@ -16,6 +16,7 @@ import '../../recitation/speech_listener.dart';
 import '../audio/audio_bar.dart';
 import '../audio/repeat_sheet.dart';
 import 'offline_model_tile.dart';
+import 'recitation_mode.dart';
 import '../../data/mushaf_text.dart';
 
 /// Recite a surah or a mushaf page from memory; the app listens and points
@@ -23,13 +24,24 @@ import '../../data/mushaf_text.dart';
 /// and repeated here too, and each recitation is kept in the history.
 class RecitationScreen extends ConsumerWidget {
   /// Recite a whole surah.
-  const RecitationScreen.surah(int this.surah, {super.key}) : page = null;
+  const RecitationScreen.surah(
+    int this.surah, {
+    super.key,
+    this.mode = RecitationMode.strict,
+  }) : page = null;
 
   /// Recite the ayat on a page of the mushaf.
-  const RecitationScreen.page(int this.page, {super.key}) : surah = null;
+  const RecitationScreen.page(
+    int this.page, {
+    super.key,
+    this.mode = RecitationMode.strict,
+  }) : surah = null;
 
   final int? surah;
   final int? page;
+
+  /// How strictly the recitation is checked.
+  final RecitationMode mode;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -49,6 +61,7 @@ class RecitationScreen extends ConsumerWidget {
         page: page,
         surahs: s,
         listener: listener,
+        mode: mode,
       ),
       (AsyncError(:final error), _) ||
       (_, AsyncError(:final error)) => Scaffold(
@@ -92,6 +105,7 @@ class _RecitationView extends ConsumerStatefulWidget {
     required this.page,
     required this.surahs,
     required this.listener,
+    required this.mode,
   });
 
   final String title;
@@ -100,6 +114,7 @@ class _RecitationView extends ConsumerStatefulWidget {
   final int? page;
   final List<Surah> surahs;
   final SpeechListener listener;
+  final RecitationMode mode;
 
   @override
   ConsumerState<_RecitationView> createState() => _RecitationViewState();
@@ -110,6 +125,7 @@ class _RecitationViewState extends ConsumerState<_RecitationView> {
     listener: widget.listener,
     expected: widget.words,
     surahName: (s) => widget.surahs[s - 1].name,
+    mode: widget.mode,
   )..onMistake = (_) => ref.read(mistakeAlertProvider)();
 
   late final List<_Group> _groups = _groupWords(widget.words);
@@ -147,8 +163,20 @@ class _RecitationViewState extends ConsumerState<_RecitationView> {
     super.dispose();
   }
 
+  /// Whether the report was shown for the recitation ending now.
+  bool _reported = false;
+
   void _saveWhenComplete() {
-    if (_session.result.isComplete) _save();
+    if (!_session.result.isComplete) {
+      _reported = false;
+      return;
+    }
+    _save();
+    if (_reported) return;
+    _reported = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) showMistakesReport(context, _session);
+    });
   }
 
   /// Keeps what was recited and its mistakes in the history, once.
@@ -219,6 +247,11 @@ class _RecitationViewState extends ConsumerState<_RecitationView> {
             title: Text(widget.title),
             actions: [
               IconButton(
+                tooltip: t.mistakesReport,
+                icon: const Icon(Icons.assignment_rounded),
+                onPressed: () => showMistakesReport(context, _session),
+              ),
+              IconButton(
                 tooltip: t.listenToRecited,
                 icon: const Icon(Icons.headphones_rounded),
                 onPressed: () => _listenTo(_ayat, t.listenToRecited),
@@ -252,7 +285,9 @@ class _RecitationViewState extends ConsumerState<_RecitationView> {
               if (mistakes.isNotEmpty)
                 _Banner(
                   key: ValueKey(mistakes.length),
-                  color: Theme.of(context).colorScheme.errorContainer,
+                  color: mistakes.last.kind == MistakeKind.harakat
+                      ? harakatColor.withValues(alpha: 0.3)
+                      : Theme.of(context).colorScheme.errorContainer,
                   icon: Icons.warning_amber_rounded,
                   text: mistakes.last.message,
                 ),
@@ -446,9 +481,7 @@ class _StatusBar extends StatelessWidget {
     final t = S.of(context);
     final String status;
     if (result.isComplete) {
-      status = result.mistakeCount == 0
-          ? t.perfectRecitation
-          : t.finishedWithMistakes(result.mistakeCount);
+      status = finishedStatus(t, result);
     } else if (session.isListening) {
       status = t.listening(done, total);
     } else {
@@ -494,6 +527,11 @@ class _Word extends StatelessWidget {
       Color foreground,
       String? note,
     ) = switch (word.status) {
+      WordStatus.correct when word.isHarakatMistake => (
+        harakatColor.withValues(alpha: 0.25),
+        Colors.orange.shade900,
+        '${S.of(context).wrongHarakatNote}: ${word.wrongHarakat}',
+      ),
       WordStatus.correct => (null, Colors.green.shade700, null),
       WordStatus.wrong => (
         scheme.errorContainer,
@@ -501,8 +539,8 @@ class _Word extends StatelessWidget {
         S.of(context).heard(word.heard ?? ''),
       ),
       WordStatus.skipped => (
-        Colors.orange.shade100,
-        Colors.orange.shade900,
+        scheme.errorContainer,
+        scheme.onErrorContainer,
         S.of(context).forgotten,
       ),
       WordStatus.pending when showText => (null, scheme.onSurface, null),

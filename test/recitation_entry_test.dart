@@ -15,6 +15,8 @@ import 'package:hifz/data/recitation_history.dart';
 import 'package:hifz/features/mushaf/mushaf_screen.dart';
 import 'package:hifz/recitation/alert_sound.dart';
 import 'package:hifz/recitation/page_recitation.dart';
+import 'package:hifz/recitation/recitation_matcher.dart';
+import 'package:hifz/settings/app_settings.dart';
 import 'package:hifz/recitation/speech_listener.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -25,8 +27,13 @@ Future<void> _pump(
   WidgetTester tester,
   Widget child, {
   FakeListener? listener,
+  bool askMode = false,
 }) async {
-  SharedPreferences.setMockInitialValues({});
+  // How strictly to check is asked before each recitation; most tests
+  // recite with the mode chosen once for all.
+  SharedPreferences.setMockInitialValues({
+    if (!askMode) 'settings': '{"askRecitationMode":false}',
+  });
   final prefs = await SharedPreferences.getInstance();
   final mushaf = parseMushaf(File(mushafLayoutAssetPath).readAsStringSync());
   final surahs = parseSurahs(File(quranAssetPath).readAsStringSync());
@@ -51,6 +58,7 @@ Finder _inSheet(String text) =>
     find.descendant(of: find.byType(BottomSheet), matching: find.text(text));
 
 void main() {
+  _modeTests();
   testWidgets('any surah can be recited from the home screen', (tester) async {
     await _pump(tester, const HifzApp());
     await tester.tap(find.text('الفهرس'));
@@ -375,6 +383,10 @@ void main() {
     expect(recitation.session.result.isComplete, isTrue);
     expect(recitation.session.mistakes, isEmpty);
     expect(listener.listening, isFalse);
+    // The mistakes report shows at the end.
+    expect(_inSheet('تقرير الأخطاء'), findsOneWidget);
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pumpAndSettle();
 
     // Pressing it again recites the page anew, not as words after its end.
     await tester.tap(find.widgetWithText(FilledButton, 'تسميع'));
@@ -386,6 +398,118 @@ void main() {
     listener.say(all);
     await tester.pumpAndSettle();
     expect(recitation.session.mistakes, isEmpty);
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('إغلاق التسميع'));
+    await tester.pumpAndSettle();
+  });
+}
+
+/// Al-Fatiha with harakat, as the offline model writes it, with
+/// al-hamdu said as al-hamda.
+const _fatihaWrongHaraka =
+    'بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ الْحَمْدَ لِلَّهِ رَبِّ الْعَالَمِينَ '
+    'الرَّحْمَنِ الرَّحِيمِ مَالِكِ يَوْمِ الدِّينِ '
+    'إِيَّاكَ نَعْبُدُ وَإِيَّاكَ نَسْتَعِينُ اهْدِنَا الصِّرَاطَ الْمُسْتَقِيمَ '
+    'صِرَاطَ الَّذِينَ أَنْعَمْتَ عَلَيْهِمْ غَيْرِ الْمَغْضُوبِ عَلَيْهِمْ '
+    'وَلَا الضَّالِّينَ';
+
+void _modeTests() {
+  testWidgets('before reciting, asks how strictly to check', (tester) async {
+    final listener = FakeListener();
+    await _pump(
+      tester,
+      const MaterialApp(
+        home: Directionality(
+          textDirection: TextDirection.rtl,
+          child: MushafScreen(initialPage: 1),
+        ),
+      ),
+      listener: listener,
+      askMode: true,
+    );
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(MushafScreen)),
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'تسميع'));
+    await tester.pumpAndSettle();
+    expect(_inSheet('كيف تريد التسميع؟'), findsOneWidget);
+    expect(listener.listening, isFalse);
+    await tester.tap(_inSheet('مخفف: الكلمات فقط'));
+    await tester.pumpAndSettle();
+    expect(listener.listening, isTrue);
+    var recitation = container.read(pageRecitationProvider)!;
+    expect(recitation.session.mode, RecitationMode.lenient);
+    expect(
+      container.read(settingsProvider).recitationMode,
+      RecitationMode.lenient,
+    );
+    expect(find.textContaining('مخفف'), findsOneWidget);
+
+    // Remembered: not asked again.
+    await tester.tap(find.byTooltip('إغلاق التسميع'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'تسميع'));
+    await tester.pumpAndSettle();
+    await tester.tap(_inSheet('تذكّر اختياري ولا تسألني مرة أخرى'));
+    await tester.pump();
+    await tester.tap(_inSheet('دقيق: الكلمات والحركات'));
+    await tester.pumpAndSettle();
+    expect(container.read(settingsProvider).askRecitationMode, isFalse);
+    await tester.tap(find.byTooltip('إغلاق التسميع'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'تسميع'));
+    await tester.pumpAndSettle();
+    expect(find.byType(BottomSheet), findsNothing);
+    recitation = container.read(pageRecitationProvider)!;
+    expect(recitation.session.mode, RecitationMode.strict);
+    await tester.tap(find.byTooltip('إغلاق التسميع'));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('a wrong haraka shows in orange and in the report', (
+    tester,
+  ) async {
+    final listener = FakeListener();
+    await _pump(
+      tester,
+      const MaterialApp(
+        home: Directionality(
+          textDirection: TextDirection.rtl,
+          child: MushafScreen(initialPage: 1),
+        ),
+      ),
+      listener: listener,
+    );
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(MushafScreen)),
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'تسميع'));
+    await tester.pumpAndSettle();
+    listener.say(_fatihaWrongHaraka, isFinal: true);
+    await tester.pumpAndSettle();
+    final recitation = container.read(pageRecitationProvider)!;
+    expect(recitation.session.result.isComplete, isTrue);
+    expect(recitation.ayahStates[const AyahRef(1, 2)], AyahRecitation.harakat);
+    expect(recitation.ayahStates[const AyahRef(1, 3)], AyahRecitation.correct);
+    expect(recitation.harakatWords, {(const AyahRef(1, 2), 1)});
+    expect(recitation.wrongWords, isEmpty);
+    final view = tester.widget<MushafPageView>(find.byType(MushafPageView));
+    expect(view.harakatWords, {(const AyahRef(1, 2), 1)});
+
+    // The report lists it with the harakat mistakes.
+    expect(_inSheet('تقرير الأخطاء'), findsOneWidget);
+    expect(_inSheet('أخطاء الكلمات والآيات (0)'), findsOneWidget);
+    expect(_inSheet('أخطاء الحركات (1)'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(BottomSheet),
+        matching: find.textContaining('الْحَمْدَ'),
+      ),
+      findsOneWidget,
+    );
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('إغلاق التسميع'));
     await tester.pumpAndSettle();
   });
