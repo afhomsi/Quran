@@ -230,6 +230,24 @@ class S {
     'সূরা ${surahName(s)} তিলাওয়াত',
     'سورۃ ${surahName(s)} کی تسمیع',
   );
+  String get reciteFromWhere => _(
+    'من أين تبدأ التسميع؟',
+    'Where to start reciting?',
+    'কোথা থেকে তিলাওয়াত শুরু করবেন?',
+    'تسمیع کہاں سے شروع کریں؟',
+  );
+  String get reciteFromPageStart => _(
+    'من أول الصفحة',
+    'From the top of the page',
+    'পৃষ্ঠার শুরু থেকে',
+    'صفحے کے شروع سے',
+  );
+  String reciteFromSurah(Surah s) => _(
+    'من أول سورة ${surahName(s)}',
+    'From the start of Surah ${surahName(s)}',
+    'সূরা ${surahName(s)}-এর শুরু থেকে',
+    'سورۃ ${surahName(s)} کے شروع سے',
+  );
   String recitePageTitle(int p) => _(
     'تسميع الصفحة ${n(p)}',
     'Reciting page ${n(p)}',

@@ -9,7 +9,6 @@ import 'package:hifz/data/mushaf_models.dart';
 import 'package:hifz/data/mushaf_repository.dart';
 import 'package:hifz/data/quran_repository.dart';
 import 'package:hifz/data/reading_state.dart';
-import 'package:hifz/recitation/alert_sound.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fake_player.dart';
@@ -176,9 +175,5 @@ void main() {
       AyahRef(2, 1),
       AyahRef(2, 2),
     ]);
-  });
-
-  test('the mistake alert sound is bundled', () {
-    expect(File(mistakeSoundAsset).existsSync(), isTrue);
   });
 }

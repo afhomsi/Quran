@@ -123,4 +123,18 @@ void main() {
       expect(tawbah.where((w) => w.kind == WordKind.basmala), isEmpty);
     });
   });
+
+  test('the basmala of the next surah is still ahead after a surah ends', () {
+    final surahs = parseSurahs(File(quranAssetPath).readAsStringSync());
+    final expected = wordsToRecite([
+      (95, 8, surahs[94].ayahs[7]),
+      (96, 1, surahs[95].ayahs[0]),
+    ]);
+    final r = alignRecitation(expected, surahs[94].ayahs[7].split(' '));
+    expect(expected[r.end].kind, WordKind.basmala);
+    // So its first word is taken for the basmala, not for «بِٱسۡمِ» of the
+    // first ayah with «ٱقۡرَأۡ» left out.
+    final next = alignRecitation(expected, ['بسم'], start: r.end);
+    expect(next.words.where((w) => w.isMistake), isEmpty);
+  });
 }

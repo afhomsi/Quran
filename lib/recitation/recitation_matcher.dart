@@ -262,6 +262,12 @@ RecitationResult alignRecitation(
   for (var i = 1; i <= n; i++) {
     if (cost[m][i] <= cost[m][end]) end = i;
   }
+  // Optional words not said yet are still ahead, not passed: a reciter who
+  // ends a surah says the basmala of the next one after a pause, and that
+  // must not be taken for words of its first ayah.
+  while (end > 0 && step[m][end] == _Step.skip && expected[end - 1].optional) {
+    end--;
+  }
 
   // Walking back from the end, the first time a word is met is the last
   // time it was recited. Each going back starts an earlier attempt; extra

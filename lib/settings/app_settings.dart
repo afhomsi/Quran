@@ -74,7 +74,7 @@ class AppSettings {
     this.westernDigits = true,
     this.followSystemFontSize = true,
     this.hideRecitationButton = false,
-    this.hideWhileListening = true,
+    this.hideWhileListening = false,
     this.showHizbMarks = true,
     this.tajweedColors = false,
     this.jalalaColors = true,
@@ -106,7 +106,8 @@ class AppSettings {
   final bool hideRecitationButton;
 
   /// While listening, hide the ayat of the page and show each one as the
-  /// reciter reaches it.
+  /// reciter reaches it. Off unless chosen: listening shows the text. It
+  /// is saved under a new name, as the old one was on for everyone.
   final bool hideWhileListening;
 
   /// The ۞ sign where each quarter of a hizb starts.
@@ -176,7 +177,7 @@ class AppSettings {
     'westernDigits': westernDigits,
     'followSystemFontSize': followSystemFontSize,
     'hideRecitationButton': hideRecitationButton,
-    'hideWhileListening': hideWhileListening,
+    'hideListening': hideWhileListening,
     'showHizbMarks': showHizbMarks,
     'tajweedColors': tajweedColors,
     'jalalaColors': jalalaColors,
@@ -214,7 +215,7 @@ class AppSettings {
         'hideRecitationButton',
         d.hideRecitationButton,
       ),
-      hideWhileListening: pick('hideWhileListening', d.hideWhileListening),
+      hideWhileListening: pick('hideListening', d.hideWhileListening),
       showHizbMarks: pick('showHizbMarks', d.showHizbMarks),
       tajweedColors: pick('tajweedColors', d.tajweedColors),
       jalalaColors: pick('jalalaColors', d.jalalaColors),

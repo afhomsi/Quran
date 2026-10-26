@@ -81,30 +81,50 @@ class PageRecitation {
     hideText: hideText ?? this.hideText,
   );
 
-  /// How many words of each ayah show while the text is hidden: those
-  /// recited correctly so far. An ayah recited to its end shows all its
-  /// words, whatever the count, so a word printed apart on the page does
-  /// not stay hidden. An ayah with a mistake stays hidden until it is
-  /// recited again correctly.
+  /// How many words of each ayah show while the text is hidden: those up
+  /// to the last one recited, except the [wrongWords]. An ayah recited to
+  /// its end shows all its words, whatever the count, so a word printed
+  /// apart on the page does not stay hidden.
   Map<AyahRef, int> get recitedWords {
     final counts = <AyahRef, int>{};
     final unfinished = <AyahRef>{};
-    final wrong = <AyahRef>{};
+    _forEachAyahWord((ayah, position, w) {
+      if (w.status == WordStatus.pending) {
+        unfinished.add(ayah);
+      } else {
+        counts[ayah] = position;
+      }
+    });
+    return {
+      for (final e in counts.entries)
+        e.key: unfinished.contains(e.key) ? e.value : allWords,
+    };
+  }
+
+  /// The words said wrong or left out, as their ayah and position: they
+  /// stay hidden until recited again correctly, while the rest of their
+  /// ayah shows and the reciting goes on.
+  Set<(AyahRef, int)> get wrongWords {
+    final wrong = <(AyahRef, int)>{};
+    _forEachAyahWord((ayah, position, w) {
+      if (w.status == WordStatus.wrong || w.status == WordStatus.skipped) {
+        wrong.add((ayah, position));
+      }
+    });
+    return wrong;
+  }
+
+  /// Calls [f] with each word of the ayat, its ayah and its position.
+  void _forEachAyahWord(void Function(AyahRef, int, WordResult) f) {
+    AyahRef? last;
+    var position = 0;
     for (final w in session.result.words) {
       if (w.word.kind != WordKind.ayah) continue;
       final ayah = AyahRef(w.surah, w.ayah);
-      if (w.isMistake) wrong.add(ayah);
-      if (w.status == WordStatus.pending) {
-        unfinished.add(ayah);
-      } else if (w.status == WordStatus.correct) {
-        counts[ayah] = (counts[ayah] ?? 0) + 1;
-      }
+      position = ayah == last ? position + 1 : 1;
+      last = ayah;
+      f(ayah, position, w);
     }
-    return {
-      for (final e in counts.entries)
-        if (!wrong.contains(e.key))
-          e.key: unfinished.contains(e.key) ? e.value : allWords,
-    };
   }
 
   /// The count of an ayah recited to its end in [recitedWords].
@@ -188,10 +208,16 @@ class PageRecitationController extends Notifier<PageRecitation?> {
     return null;
   }
 
-  /// Opens the bar for [page] and starts listening, on to the end of the
-  /// surah the page ends in. On a page already being recited, only starts
-  /// or stops listening.
-  Future<void> start(int page) => _start(page);
+  /// Opens the bar for [page] and starts listening from the top of the
+  /// page, or from the ayah [from] on it, on to the end of the surah the
+  /// page ends in. Each start recites anew, so a recitation that ended or
+  /// stopped earlier does not take the new one for words after its end.
+  /// While the page is being listened to, only stops listening.
+  Future<void> start(int page, {AyahRef? from}) async {
+    final session = state?.covers(page) == true ? state!.session : null;
+    if (session != null && session.isListening) return session.stop();
+    await _start(page, from: from, restart: true);
+  }
 
   /// Goes on reciting from where reciting last stopped.
   Future<void> resume() async {
