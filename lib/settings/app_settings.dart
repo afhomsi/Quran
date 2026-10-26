@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/reading_state.dart';
+import '../recitation/recitation_matcher.dart';
 
 const settingsKey = 'settings';
 
@@ -80,6 +81,8 @@ class AppSettings {
     this.jalalaColors = true,
     this.jalalaColor = JalalaColor.red,
     this.mushafTextScale = 1.0,
+    this.askRecitationMode = true,
+    this.recitationMode = RecitationMode.strict,
   });
 
   final AppLanguage language;
@@ -124,6 +127,13 @@ class AppSettings {
   /// as many lines as they need, and the page scrolls.
   final double mushafTextScale;
 
+  /// Ask before each recitation how strictly to check it; otherwise
+  /// [recitationMode] is used.
+  final bool askRecitationMode;
+
+  /// How strictly recitations are checked, the last one chosen.
+  final RecitationMode recitationMode;
+
   AppSettings copyWith({
     AppLanguage? language,
     bool? nightMode,
@@ -143,6 +153,8 @@ class AppSettings {
     bool? jalalaColors,
     JalalaColor? jalalaColor,
     double? mushafTextScale,
+    bool? askRecitationMode,
+    RecitationMode? recitationMode,
   }) => AppSettings(
     language: language ?? this.language,
     nightMode: nightMode ?? this.nightMode,
@@ -162,6 +174,8 @@ class AppSettings {
     jalalaColors: jalalaColors ?? this.jalalaColors,
     jalalaColor: jalalaColor ?? this.jalalaColor,
     mushafTextScale: mushafTextScale ?? this.mushafTextScale,
+    askRecitationMode: askRecitationMode ?? this.askRecitationMode,
+    recitationMode: recitationMode ?? this.recitationMode,
   );
 
   Map<String, Object> toJson() => {
@@ -183,6 +197,8 @@ class AppSettings {
     'jalalaColors': jalalaColors,
     'jalalaColor': jalalaColor.name,
     'mushafTextScale': mushafTextScale,
+    'askRecitationMode': askRecitationMode,
+    'recitationMode': recitationMode.name,
   };
 
   /// Reads what [toJson] wrote. Missing or unknown values keep their
@@ -227,6 +243,12 @@ class AppSettings {
         ),
         _ => d.mushafTextScale,
       },
+      askRecitationMode: pick('askRecitationMode', d.askRecitationMode),
+      recitationMode: pickEnum(
+        'recitationMode',
+        RecitationMode.values,
+        d.recitationMode,
+      ),
     );
   }
 }

@@ -6,34 +6,42 @@ import '../../data/quran_repository.dart';
 import '../../data/reading_state.dart';
 import '../../l10n/strings.dart';
 import '../../recitation/page_recitation.dart';
+import '../../recitation/recitation_matcher.dart';
 import '../shell/navigation.dart';
 import 'offline_model_tile.dart';
+import 'recitation_mode.dart';
 import 'recitation_screen.dart';
 
 /// Opens the mushaf where reciting last stopped and goes on reciting
 /// there, like "continue reading".
-void resumeRecitation(BuildContext context) {
+Future<void> resumeRecitation(BuildContext context) async {
   final container = ProviderScope.containerOf(context, listen: false);
   final from = container.read(lastRecitationProvider);
   final mushaf = container.read(mushafProvider).value;
   if (from == null || mushaf == null) return;
+  final mode = await chooseRecitationMode(context);
+  if (mode == null || !context.mounted) return;
   openMushaf(context, mushaf.pageOf(from));
-  container.read(pageRecitationProvider.notifier).resume();
+  await container.read(pageRecitationProvider.notifier).resume(mode: mode);
 }
 
-/// Asks what to recite and opens the recitation screen.
+/// The recitation screen for a mode, as chosen in the picker.
+typedef _ScreenFor = Widget Function(RecitationMode mode);
+
+/// Asks what to recite and how strictly, and opens the recitation screen.
 ///
 /// From a mushaf [page], the page itself and its surahs come first.
 Future<void> showRecitationPicker(BuildContext context, {int? page}) async {
-  final screen = await showModalBottomSheet<Widget>(
+  final screen = await showModalBottomSheet<_ScreenFor>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
     builder: (_) => _RecitationPicker(page: page),
   );
-  if (screen != null && context.mounted) {
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
-  }
+  if (screen == null || !context.mounted) return;
+  final mode = await chooseRecitationMode(context);
+  if (mode == null || !context.mounted) return;
+  Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen(mode)));
 }
 
 class _RecitationPicker extends ConsumerWidget {
@@ -55,7 +63,7 @@ class _RecitationPicker extends ConsumerWidget {
         ? const <int>[]
         : mushaf.page(page!).words.map((w) => w.ayah.surah).toSet().toList();
 
-    void open(Widget screen) => Navigator.of(context).pop(screen);
+    void open(_ScreenFor screen) => Navigator.of(context).pop(screen);
     final t = S.of(context);
     final resumeFrom = ref.watch(lastRecitationProvider);
 
@@ -84,13 +92,13 @@ class _RecitationPicker extends ConsumerWidget {
             ListTile(
               leading: const Icon(Icons.menu_book_rounded),
               title: Text(t.recitePage(page!)),
-              onTap: () => open(RecitationScreen.page(page!)),
+              onTap: () => open((m) => RecitationScreen.page(page!, mode: m)),
             ),
             for (final s in onPage)
               ListTile(
                 leading: const Icon(Icons.mic_rounded),
                 title: Text(t.reciteWholeSurah(surahs[s - 1])),
-                onTap: () => open(RecitationScreen.surah(s)),
+                onTap: () => open((m) => RecitationScreen.surah(s, mode: m)),
               ),
             const Divider(),
           ],
@@ -106,7 +114,8 @@ class _RecitationPicker extends ConsumerWidget {
               leading: CircleAvatar(child: Text(t.n(s.number))),
               title: Text(t.surahName(s)),
               subtitle: Text(t.ayahCount(s.ayahCount)),
-              onTap: () => open(RecitationScreen.surah(s.number)),
+              onTap: () =>
+                  open((m) => RecitationScreen.surah(s.number, mode: m)),
             ),
         ],
       ),

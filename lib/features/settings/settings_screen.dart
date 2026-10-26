@@ -10,6 +10,7 @@ import '../../data/mushaf_text.dart';
 import '../../data/recitation_history.dart';
 import '../../data/reading_state.dart';
 import '../../l10n/strings.dart';
+import '../../recitation/recitation_matcher.dart';
 import '../../settings/app_settings.dart';
 import '../mushaf/text_size_sheet.dart';
 import '../recitation/offline_model_tile.dart';
@@ -149,6 +150,35 @@ class SettingsScreen extends ConsumerWidget {
                 value: settings.hideWhileListening,
                 onChanged: (v) =>
                     update((s) => s.copyWith(hideWhileListening: v)),
+              ),
+              _Switch(
+                icon: Icons.help_outline_rounded,
+                title: t.askRecitationMode,
+                value: settings.askRecitationMode,
+                onChanged: (v) =>
+                    update((s) => s.copyWith(askRecitationMode: v)),
+              ),
+              ListTile(
+                leading: const IconBadge(Icons.spellcheck_rounded),
+                title: Text(t.recitationModeTitle),
+                subtitle: Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: SegmentedButton<RecitationMode>(
+                    segments: [
+                      ButtonSegment(
+                        value: RecitationMode.strict,
+                        label: Text(t.strictShort),
+                      ),
+                      ButtonSegment(
+                        value: RecitationMode.lenient,
+                        label: Text(t.lenientShort),
+                      ),
+                    ],
+                    selected: {settings.recitationMode},
+                    onSelectionChanged: (v) =>
+                        update((s) => s.copyWith(recitationMode: v.first)),
+                  ),
+                ),
               ),
               const OfflineModelTile(),
             ],

@@ -6,7 +6,10 @@ import '../../l10n/strings.dart';
 import '../../recitation/page_recitation.dart';
 import '../../recitation/session_record.dart';
 import '../audio/repeat_sheet.dart';
+import '../../recitation/recitation_matcher.dart';
+import '../../recitation/recitation_session.dart';
 import 'offline_model_tile.dart';
+import 'recitation_mode.dart';
 
 /// Reciting controls under the mushaf page, like the audio player: close,
 /// start over, the microphone and listening to the ayat recited wrongly.
@@ -33,9 +36,7 @@ class RecitationBar extends ConsumerWidget {
         .length;
     final String status;
     if (result.isComplete) {
-      status = result.mistakeCount == 0
-          ? t.perfectRecitation
-          : t.finishedWithMistakes(result.mistakeCount);
+      status = finishedStatus(t, result);
     } else if (session.isListening) {
       status = t.listening(done, total);
     } else {
@@ -50,6 +51,10 @@ class RecitationBar extends ConsumerWidget {
     final message =
         session.error ??
         (session.mistakes.isEmpty ? null : session.mistakes.last.message);
+    final harakatMessage =
+        session.error == null &&
+        session.mistakes.isNotEmpty &&
+        session.mistakes.last.kind == MistakeKind.harakat;
 
     return Container(
       margin: const EdgeInsets.fromLTRB(8, 0, 8, 4),
@@ -64,7 +69,7 @@ class RecitationBar extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            '$title · $status',
+            '$title · ${session.mode == RecitationMode.lenient ? t.lenientShort : t.strictShort} · $status',
             style: textTheme.labelMedium,
             textAlign: TextAlign.center,
             maxLines: 2,
@@ -76,7 +81,9 @@ class RecitationBar extends ConsumerWidget {
               child: Text(
                 message,
                 key: ValueKey(session.mistakes.length),
-                style: textTheme.bodyMedium?.copyWith(color: colors.error),
+                style: textTheme.bodyMedium?.copyWith(
+                  color: harakatMessage ? Colors.orange.shade800 : colors.error,
+                ),
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -99,6 +106,11 @@ class RecitationBar extends ConsumerWidget {
                 ),
                 label: Text(recitation.hideText ? t.showAyat : t.hideAyat),
                 onPressed: controller.toggleHideText,
+              ),
+              IconButton(
+                tooltip: t.mistakesReport,
+                icon: Icon(Icons.assignment_rounded, color: colors.primary),
+                onPressed: () => showMistakesReport(context, session),
               ),
               IconButton(
                 tooltip: t.restartRecitation,

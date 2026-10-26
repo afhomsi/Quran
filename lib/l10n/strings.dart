@@ -11,6 +11,7 @@ import '../settings/app_settings.dart';
 
 part 'strings_features.dart';
 part 'strings_hifz.dart';
+part 'strings_mode.dart';
 part 'strings_search.dart';
 part 'strings_study.dart';
 

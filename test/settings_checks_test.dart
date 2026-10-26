@@ -90,6 +90,12 @@ final _switches =
         (t) => t.hideWhileListening,
       ),
       (
+        'askRecitationMode',
+        (s) => s.askRecitationMode,
+        (s, v) => s.copyWith(askRecitationMode: v),
+        (t) => t.askRecitationMode,
+      ),
+      (
         'westernDigits',
         (s) => s.westernDigits,
         (s, v) => s.copyWith(westernDigits: v),
