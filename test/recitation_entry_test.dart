@@ -342,6 +342,103 @@ void main() {
     });
   });
 
+  group('a mistake hides and colours only the wrong word', () {
+    // Al-Baqarah 1 to 5 are on page 2.
+    final baqarah = parseSurahs(
+      File(quranAssetPath).readAsStringSync(),
+    )[1].ayahs;
+    final ayah4 = baqarah[3].split(' ');
+
+    Future<FakeListener> recite(WidgetTester tester) async {
+      final listener = FakeListener();
+      await _pump(
+        tester,
+        const MaterialApp(
+          home: Directionality(
+            textDirection: TextDirection.rtl,
+            child: MushafScreen(initialPage: 2),
+          ),
+        ),
+        listener: listener,
+      );
+      await tester.tap(find.widgetWithText(FilledButton, 'تسميع'));
+      await tester.pumpAndSettle();
+      listener.say(baqarah.take(3).join(' '), isFinal: true);
+      await tester.pumpAndSettle(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+      return listener;
+    }
+
+    MushafPageView shown(WidgetTester tester) =>
+        tester.widget<MushafPageView>(find.byType(MushafPageView));
+
+    /// Ayat 1 to [ayat] show, green, except the word [extraBefore] that
+    /// extra words were said before, which shows red where they were.
+    void expectRecitedRight(
+      WidgetTester tester,
+      int ayat, {
+      (AyahRef, int)? extraBefore,
+    }) {
+      final page = shown(tester);
+      for (var a = 1; a <= ayat; a++) {
+        final ayah = AyahRef(2, a);
+        expect(page.recitedWords![ayah], PageRecitation.allWords);
+        expect(page.wrongWords.where((w) => w.$1 == ayah), isEmpty);
+        for (final w in page.page.words) {
+          if (w.ayah == ayah &&
+              !w.isAyahEnd &&
+              (ayah, w.position) != extraBefore) {
+            // Green, not red.
+            final colour = page.wordColors[(ayah, w.position)]!;
+            expect(colour.g, greaterThan(colour.r), reason: '$ayah');
+          }
+        }
+      }
+    }
+
+    testWidgets('a wrong word leaves the ayat before it as recited', (
+      tester,
+    ) async {
+      final listener = await recite(tester);
+      listener.say(([...ayah4]..[4] = 'كتب').join(' '));
+      await tester.pumpAndSettle();
+      expectRecitedRight(tester, 3);
+      expect(shown(tester).wrongWords, {(const AyahRef(2, 4), 5)});
+      expect(shown(tester).recitedWords![const AyahRef(2, 4)], isNonZero);
+    });
+
+    testWidgets('a slip, then going back, does not undo what was recited', (
+      tester,
+    ) async {
+      final listener = await recite(tester);
+      // The reciter stumbles after four words of ayah 4, then recites it
+      // again from its third word.
+      listener.say(
+        [
+          ...ayah4.take(4),
+          'يا',
+          'رب',
+          'ما',
+          'هو',
+          'لا',
+          'ادري',
+          ...ayah4.skip(2),
+        ].join(' '),
+        isFinal: true,
+      );
+      await tester.pumpAndSettle();
+      expectRecitedRight(tester, 4, extraBefore: (const AyahRef(2, 4), 3));
+    });
+
+    testWidgets('a wrong word, then reciting the ayah again', (tester) async {
+      final listener = await recite(tester);
+      listener.say([...ayah4.take(4), 'كتب', ...ayah4].join(' '));
+      await tester.pumpAndSettle();
+      expectRecitedRight(tester, 4, extraBefore: (const AyahRef(2, 4), 1));
+    });
+  });
+
   testWidgets('reciting goes on from where it last stopped', (tester) async {
     final listener = FakeListener();
     final surahs = parseSurahs(File(quranAssetPath).readAsStringSync());
