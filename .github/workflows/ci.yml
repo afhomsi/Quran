@@ -24,8 +24,9 @@ jobs:
       - run: flutter analyze
       - run: flutter test
 
+  # Runs alongside the tests instead of after them, so the phone download
+  # is ready sooner; publish-apk still waits for both.
   build-android:
-    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,17 +34,14 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+          # Keeps Gradle and its downloads between runs.
+          cache: gradle
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: 3.47.7
           channel: stable
           cache: true
-      - run: flutter build apk --debug
-      - uses: actions/upload-artifact@v4
-        with:
-          name: hifz-debug-apk
-          path: build/app/outputs/flutter-apk/app-debug.apk
-      # A faster, smaller build for trying the app on a phone. It is still
+      # The build for trying the app on a phone. It is still
       # signed with the debug key, so it is not for the Play Store.
       # The run number is the app's build number, shown in the Tools tab and
       # on the download page, so the phone can be checked to have the newest.
@@ -67,7 +65,7 @@ jobs:
   # (https://afhomsi.github.io/Quran/), refreshed on every push to main.
   # Needs Settings > Pages > Source set to "GitHub Actions" once.
   publish-apk:
-    needs: build-android
+    needs: [test, build-android]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
