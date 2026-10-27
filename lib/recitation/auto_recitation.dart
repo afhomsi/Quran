@@ -134,10 +134,17 @@ class AutoRecitationController extends Notifier<AutoRecitation?> {
       await listener.listen(
         onResult: (text, isFinal) {
           if (id != _sessionId) return;
-          _current = [
+          final words = [
             for (final w in text.trim().split(RegExp(r'\s+')))
               if (w.isNotEmpty) w,
           ];
+          // Google's recognizer may start its text over after a pause in
+          // the same session: the words before are kept.
+          if (words.length + 3 <= _current.length &&
+              (words.isEmpty || words.first != _current.first)) {
+            _commit();
+          }
+          _current = words;
           if (isFinal) _commit();
           if (_search()) return;
           _showHeard();
@@ -313,6 +320,7 @@ class HandoverListener implements SpeechListener {
     }
     _listening = true;
     _lastText = '';
+    _lastWords = const [];
     await inner.listen(
       onResult: (text, isFinal) {
         _lastText = text;
@@ -322,11 +330,23 @@ class HandoverListener implements SpeechListener {
     );
   }
 
+  /// The words of the last result of the session going on.
+  List<String> _lastWords = const [];
+
   void _forward(String text, bool isFinal) {
     final words = [
       for (final w in text.trim().split(RegExp(r'\s+')))
         if (w.isNotEmpty) w,
     ];
+    // Google's recognizer may start its text over after a pause in the
+    // same session; what it sends then holds only new words, so nothing
+    // handed over belongs before them.
+    if (words.length + 3 <= _lastWords.length &&
+        (words.isEmpty || words.first != _lastWords.first)) {
+      _carry = '';
+      _skip = 0;
+    }
+    _lastWords = isFinal ? const [] : words;
     final out = [
       if (_carry.isNotEmpty) _carry,
       ...words.skip(_skip < words.length ? _skip : words.length),
@@ -343,6 +363,7 @@ class HandoverListener implements SpeechListener {
   Future<void> stop() {
     _listening = false;
     _lastText = '';
+    _lastWords = const [];
     _carry = '';
     _skip = 0;
     return inner.stop();

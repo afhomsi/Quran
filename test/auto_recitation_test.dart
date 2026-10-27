@@ -256,6 +256,26 @@ void main() {
       await tester.pumpAndSettle();
     });
 
+    test(
+      'words handed over are left out once the recognizer starts over',
+      () async {
+        final inner = FakeListener();
+        final listener = HandoverListener(inner);
+        await listener.initialize(onError: (_) {}, onDone: () {});
+        final heard = <String>[];
+        await listener.listen(onResult: (_, _) {});
+        inner.say('السلام عليكم إنا نحن نحيي الموتى');
+        listener.handOver('', 2);
+        await listener.listen(onResult: (text, _) => heard.add(text));
+        expect(heard.last, 'إنا نحن نحيي الموتى');
+        inner.say('السلام عليكم إنا نحن نحيي الموتى ونكتب ما');
+        expect(heard.last, 'إنا نحن نحيي الموتى ونكتب ما');
+        // After a pause, the text starts over with only the new words.
+        inner.say('وكل شيء');
+        expect(heard.last, 'وكل شيء');
+      },
+    );
+
     testWidgets('starts from the recitation picker', (tester) async {
       final listener = FakeListener();
       await _pump(tester, listener, child: const HifzApp());
