@@ -24,6 +24,7 @@
   <a class="btn" id="download" href="hifz-BUILD_NUMBER.apk" download="hifz-BUILD_NUMBER.apk">تحميل التطبيق</a>
   <p>بعد التحميل افتح الملف الذي اسمه <span dir="ltr">hifz-<span class="n">BUILD_NUMBER</span>.apk</span> واضغط "تثبيت". إذا ظهر تحذير جوجل اضغط "مزيد من التفاصيل" ثم "التثبيت على أي حال".</p>
   <p>للتأكد أن النسخة الجديدة مثبّتة: افتح «أدواتي» في التطبيق، وانظر أسفل الشاشة. يجب أن يظهر نفس رقم النسخة.</p>
+  <p>إذا قال الهاتف إن التطبيق لا يناسبه (هاتف قديم)، حمّل <a id="old" href="hifz-32bit-BUILD_NUMBER.apk" download="hifz-32bit-BUILD_NUMBER.apk">نسخة الهواتف القديمة</a>.</p>
   <p class="info">BUILD_INFO</p>
 </main>
 <script>
@@ -35,6 +36,9 @@
       var a = document.getElementById('download');
       a.href = 'hifz-' + v.build + '.apk';
       a.setAttribute('download', 'hifz-' + v.build + '.apk');
+      var old = document.getElementById('old');
+      old.href = 'hifz-32bit-' + v.build + '.apk';
+      old.setAttribute('download', 'hifz-32bit-' + v.build + '.apk');
       document.querySelectorAll('.n').forEach(function (e) { e.textContent = v.build; });
     })
     .catch(function () {});

@@ -47,14 +47,21 @@ jobs:
       # signed with the debug key, so it is not for the Play Store.
       # The run number is the app's build number, shown in the Tools tab and
       # on the download page, so the phone can be checked to have the newest.
+      # One APK per phone type instead of one holding the native code of
+      # every type: the 64-bit one is what almost every phone needs, and the
+      # 32-bit one is for older phones. x86 (emulators only) is left out.
       - run: >-
-          flutter build apk --release
+          flutter build apk --release --split-per-abi
+          --target-platform android-arm,android-arm64
           --build-number=${{ github.run_number }}
           --dart-define=APP_BUILD=${{ github.run_number }}
+      - run: ls -l build/app/outputs/flutter-apk/
       - uses: actions/upload-artifact@v4
         with:
           name: hifz-release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: |
+            build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+            build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
 
   # Puts the newest release APK behind one fixed link on GitHub Pages
   # (https://afhomsi.github.io/Quran/), refreshed on every push to main.
@@ -95,8 +102,9 @@ jobs:
           mkdir site
           # Each build gets its own file name, so the phone never opens an
           # older download by mistake; hifz.apk stays for old links.
-          cp apk/app-release.apk "site/hifz-$GITHUB_RUN_NUMBER.apk"
-          mv apk/app-release.apk site/hifz.apk
+          cp apk/app-arm64-v8a-release.apk "site/hifz-$GITHUB_RUN_NUMBER.apk"
+          mv apk/app-arm64-v8a-release.apk site/hifz.apk
+          mv apk/app-armeabi-v7a-release.apk "site/hifz-32bit-$GITHUB_RUN_NUMBER.apk"
           built="$(date -u '+%Y-%m-%d %H:%M') UTC · ${GITHUB_SHA::7}"
           sed -e "s/BUILD_INFO/$built/" -e "s/BUILD_NUMBER/$GITHUB_RUN_NUMBER/g" tool/apk_page/index.html > site/index.html
           printf '{"build":"%s"}\n' "$GITHUB_RUN_NUMBER" > site/version.json
