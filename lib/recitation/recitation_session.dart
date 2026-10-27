@@ -95,6 +95,12 @@ class RecitationSession extends ChangeNotifier {
   void Function(Mistake mistake)? onMistake;
 
   RecitationResult get result => _result;
+
+  /// The words settled so far, leaving out the recognizer's last words,
+  /// which it may still change: a recognizer guessing ahead of the
+  /// reciter, as Whisper may, then takes those words back.
+  RecitationResult get settledResult =>
+      RecitationResult(words: _base, endAt: _pos);
   bool get isListening => _wantListening;
   List<Mistake> get mistakes => List.unmodifiable(_mistakes);
 

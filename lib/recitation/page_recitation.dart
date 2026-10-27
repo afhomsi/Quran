@@ -57,9 +57,15 @@ class PageRecitation {
 
   /// The word the reciter is at, as its ayah and position in the ayah:
   /// the next one to recite, or the last one once all is recited.
-  (AyahRef, int) get currentWord {
-    final words = session.result.words;
-    var k = session.result.end;
+  (AyahRef, int) get currentWord => _wordAt(session.result);
+
+  /// The word the settled recitation is at; see
+  /// [RecitationSession.settledResult].
+  (AyahRef, int) get settledWord => _wordAt(session.settledResult);
+
+  static (AyahRef, int) _wordAt(RecitationResult result) {
+    final words = result.words;
+    var k = result.end;
     while (k < words.length && words[k].word.kind != WordKind.ayah) {
       k++;
     }
@@ -75,6 +81,24 @@ class PageRecitation {
       position++;
     }
     return (AyahRef(w.surah, w.ayah), position);
+  }
+
+  /// The page to show while reciting: the one with the next word to
+  /// recite. It follows only the settled words, so the page turns once
+  /// the page shown is recited to its end, and not when the recognizer
+  /// guesses words ahead of the reciter and then takes them back.
+  int pageToShow(Mushaf mushaf) {
+    final (ayah, position) = settledWord;
+    var p = mushaf.pageOf(ayah);
+    // An ayah may go on over the next page.
+    while (p < lastPage &&
+        !mushaf
+            .page(p)
+            .words
+            .any((w) => w.ayah == ayah && w.position >= position)) {
+      p++;
+    }
+    return p.clamp(page, lastPage);
   }
 
   /// Changes whenever the session does, so listeners redraw.
