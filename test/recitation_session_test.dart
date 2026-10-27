@@ -193,6 +193,29 @@ void main() {
       expect(session.isListening, isTrue);
       expect(page.ayahStates[const AyahRef(2, 2)], AyahRecitation.mistake);
     });
+
+    test('help shows the next word, also the first of the next ayah', () {
+      listener.say(ayahs[0]);
+      expect(session.hint(), isTrue);
+      var page = PageRecitation(2, session, 0);
+      expect(page.recitedWords[const AyahRef(2, 2)], 1);
+      session.hint();
+      page = PageRecitation(2, session, 0);
+      expect(page.recitedWords[const AyahRef(2, 2)], 2);
+      expect(page.ayahStates[const AyahRef(2, 2)], isNull);
+    });
+
+    test('help shows the word just said wrong, then the next one', () {
+      listener.say(withMistake().join(' '));
+      var page = PageRecitation(2, session, 0);
+      expect(page.wrongWords, {(const AyahRef(2, 2), 3)});
+      session.hint();
+      page = PageRecitation(2, session, 0);
+      expect(page.wrongWords, isEmpty);
+      session.hint();
+      page = PageRecitation(2, session, 0);
+      expect(page.recitedWords[const AyahRef(2, 2)], 4);
+    });
   });
 
   testWidgets('each page of Juz Amma is recited on from surah to surah', (

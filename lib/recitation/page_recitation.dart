@@ -89,10 +89,11 @@ class PageRecitation {
   Map<AyahRef, int> get recitedWords {
     final counts = <AyahRef, int>{};
     final unfinished = <AyahRef>{};
-    _forEachAyahWord((ayah, position, w) {
-      if (w.status == WordStatus.pending) {
-        unfinished.add(ayah);
-      } else {
+    final hints = session.hints;
+    _forEachAyahWord((ayah, position, w, i) {
+      if (w.status == WordStatus.pending) unfinished.add(ayah);
+      // A word shown by a hint shows like one recited.
+      if (w.status != WordStatus.pending || hints.contains(i)) {
         counts[ayah] = position;
       }
     });
@@ -106,7 +107,7 @@ class PageRecitation {
   /// they show in orange.
   Set<(AyahRef, int)> get harakatWords {
     final words = <(AyahRef, int)>{};
-    _forEachAyahWord((ayah, position, w) {
+    _forEachAyahWord((ayah, position, w, _) {
       if (w.isHarakatMistake) words.add((ayah, position));
     });
     return words;
@@ -114,27 +115,32 @@ class PageRecitation {
 
   /// The words said wrong or left out, as their ayah and position: they
   /// stay hidden until recited again correctly, while the rest of their
-  /// ayah shows and the reciting goes on.
+  /// ayah shows and the reciting goes on, or until shown by a hint.
   Set<(AyahRef, int)> get wrongWords {
     final wrong = <(AyahRef, int)>{};
-    _forEachAyahWord((ayah, position, w) {
-      if (w.status == WordStatus.wrong || w.status == WordStatus.skipped) {
+    final hints = session.hints;
+    _forEachAyahWord((ayah, position, w, i) {
+      if ((w.status == WordStatus.wrong || w.status == WordStatus.skipped) &&
+          !hints.contains(i)) {
         wrong.add((ayah, position));
       }
     });
     return wrong;
   }
 
-  /// Calls [f] with each word of the ayat, its ayah and its position.
-  void _forEachAyahWord(void Function(AyahRef, int, WordResult) f) {
+  /// Calls [f] with each word of the ayat, its ayah, its position and
+  /// its index in the session's words.
+  void _forEachAyahWord(void Function(AyahRef, int, WordResult, int) f) {
     AyahRef? last;
     var position = 0;
-    for (final w in session.result.words) {
+    final words = session.result.words;
+    for (var i = 0; i < words.length; i++) {
+      final w = words[i];
       if (w.word.kind != WordKind.ayah) continue;
       final ayah = AyahRef(w.surah, w.ayah);
       position = ayah == last ? position + 1 : 1;
       last = ayah;
-      f(ayah, position, w);
+      f(ayah, position, w, i);
     }
   }
 
@@ -310,6 +316,9 @@ class PageRecitationController extends Notifier<PageRecitation?> {
     }
     await session.start();
   }
+
+  /// Shows the word the reciter is stuck on; see [RecitationSession.hint].
+  void hint() => state?.session.hint();
 
   /// Keeps the try so far and recites the page again from the start.
   Future<void> restart() async {

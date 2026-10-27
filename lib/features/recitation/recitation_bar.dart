@@ -68,12 +68,28 @@ class RecitationBar extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            '$title · ${session.mode == RecitationMode.lenient ? t.lenientShort : t.strictShort} · $status',
-            style: textTheme.labelMedium,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '$title · ${session.mode == RecitationMode.lenient ? t.lenientShort : t.strictShort} · $status',
+                  style: textTheme.labelMedium,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              // Shows the word the reciter is stuck on, one more each press.
+              if (recitation.hideText && !result.isComplete)
+                Tooltip(
+                  message: t.hintTooltip,
+                  child: TextButton.icon(
+                    icon: const Icon(Icons.lightbulb_rounded),
+                    label: Text(t.hint),
+                    onPressed: controller.hint,
+                  ),
+                ),
+            ],
           ),
           if (message != null)
             Padding(

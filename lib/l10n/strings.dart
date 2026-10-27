@@ -263,6 +263,13 @@ class S {
   );
   String get showAyat =>
       _('إظهار الآيات', 'Show ayat', 'আয়াত দেখান', 'آیات دکھائیں');
+  String get hint => _('مساعدة', 'Help', 'সাহায্য', 'مدد');
+  String get hintTooltip => _(
+    'إظهار الكلمة التالية',
+    'Show the next word',
+    'পরের শব্দ দেখান',
+    'اگلا لفظ دکھائیں',
+  );
   String get hideAyat =>
       _('إخفاء الآيات', 'Hide ayat', 'আয়াত লুকান', 'آیات چھپائیں');
   String get hideText =>
