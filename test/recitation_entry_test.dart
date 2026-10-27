@@ -17,6 +17,7 @@ import 'package:hifz/features/mushaf/mushaf_screen.dart';
 import 'package:hifz/recitation/alert_sound.dart';
 import 'package:hifz/recitation/page_recitation.dart';
 import 'package:hifz/recitation/recitation_matcher.dart';
+import 'package:hifz/recitation/recitation_session.dart';
 import 'package:hifz/settings/app_settings.dart';
 import 'package:hifz/recitation/speech_listener.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -455,6 +456,105 @@ void main() {
     });
   });
 
+  group('reciting on from surah to surah', () {
+    // Page 601 holds Al-Asr, Al-Humaza and Al-Fil; Quraysh starts page 602.
+    final surahs = parseSurahs(File(quranAssetPath).readAsStringSync());
+    String surah(int s, {bool basmala = true}) => [
+      if (basmala) 'بسم الله الرحمن الرحيم',
+      ...surahs[s - 1].ayahs,
+    ].join(' ');
+
+    Future<ProviderContainer> recite(
+      WidgetTester tester,
+      FakeListener listener,
+    ) async {
+      await _pump(
+        tester,
+        const MaterialApp(
+          home: Directionality(
+            textDirection: TextDirection.rtl,
+            child: MushafScreen(initialPage: 601),
+          ),
+        ),
+        listener: listener,
+      );
+      await tester.tap(find.widgetWithText(FilledButton, 'تسميع'));
+      await tester.pumpAndSettle();
+      await tester.tap(_inSheet('من أول الصفحة'));
+      await tester.pumpAndSettle();
+      return ProviderScope.containerOf(
+        tester.element(find.byType(MushafScreen)),
+      );
+    }
+
+    // The reciter pauses after each surah; the recognizer ends there and
+    // listens again shortly.
+    Future<void> pause(
+      WidgetTester tester,
+      FakeListener listener,
+      String text,
+    ) async {
+      listener.say(text, isFinal: true);
+      await tester.pumpAndSettle(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+    }
+
+    int shownPage(WidgetTester tester) =>
+        tester.widget<MushafPageView>(find.byType(MushafPageView)).page.number;
+
+    for (final basmala in [true, false]) {
+      testWidgets('goes on into the next surah on the next page, '
+          '${basmala ? 'with' : 'without'} its basmala', (tester) async {
+        final listener = FakeListener();
+        final container = await recite(tester, listener);
+        for (final s in [103, 104, 105]) {
+          await pause(tester, listener, surah(s, basmala: basmala));
+        }
+        // Al-Fil ends the surah the page ends in, and the reciter goes on.
+        await tester.pump(const Duration(seconds: 2));
+        expect(listener.listening, isTrue);
+        expect(_inSheet('تقرير الأخطاء'), findsNothing);
+        await pause(tester, listener, surah(106, basmala: basmala));
+
+        final recitation = container.read(pageRecitationProvider)!;
+        expect(recitation.session.mistakes, isEmpty);
+        expect(recitation.lastPage, 602);
+        expect(recitation.ayahStates[const AyahRef(106, 4)], isNotNull);
+        expect(shownPage(tester), 602);
+        expect(listener.listening, isTrue);
+
+        // On and on, into the next surah on the same page.
+        await pause(tester, listener, surah(107, basmala: basmala));
+        expect(recitation.session.mistakes, isEmpty);
+        expect(
+          recitation.ayahStates[const AyahRef(107, 7)],
+          AyahRecitation.correct,
+        );
+
+        // Stopping shows the report of all of it.
+        await tester.tap(find.byTooltip('إيقاف'));
+        await tester.pumpAndSettle();
+        expect(_inSheet('تقرير الأخطاء'), findsOneWidget);
+      });
+    }
+
+    testWidgets('stops a little after the end when the reciter stops', (
+      tester,
+    ) async {
+      final listener = FakeListener();
+      final container = await recite(tester, listener);
+      for (final s in [103, 104, 105]) {
+        await pause(tester, listener, surah(s));
+      }
+      await tester.pump(RecitationSession.goOnDelay);
+      await tester.pumpAndSettle();
+      expect(listener.listening, isFalse);
+      expect(container.read(pageRecitationProvider)!.lastPage, 601);
+      expect(_inSheet('تقرير الأخطاء'), findsOneWidget);
+    });
+  });
+
   testWidgets('reciting goes on from where it last stopped', (tester) async {
     final listener = FakeListener();
     final surahs = parseSurahs(File(quranAssetPath).readAsStringSync());
@@ -764,6 +864,9 @@ void _modeTests() {
     await tester.tap(find.widgetWithText(FilledButton, 'تسميع'));
     await tester.pumpAndSettle();
     listener.say(_fatihaWrongHaraka, isFinal: true);
+    await tester.pumpAndSettle();
+    // The report shows once it stops waiting for the reciter to go on.
+    await tester.pump(RecitationSession.goOnDelay);
     await tester.pumpAndSettle();
     final recitation = container.read(pageRecitationProvider)!;
     expect(recitation.session.result.isComplete, isTrue);

@@ -249,10 +249,17 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
       final page = recitation.pageToShow(m);
       if (page < _page || page >= _page + _step) _turnTo(page);
     });
-    // The mistakes report, once the recitation is finished.
+    // The mistakes report, once the recitation is finished and stopped
+    // listening, or once the reciter stops after going on from surah to
+    // surah.
     ref.listen(
       pageRecitationProvider.select(
-        (r) => r == null || !r.session.result.isComplete ? null : r.session,
+        (r) =>
+            r != null &&
+                !r.session.isListening &&
+                (r.session.result.isComplete || r.wentOn)
+            ? r.session
+            : null,
       ),
       (_, session) {
         if (session != null) showMistakesReport(context, session);
