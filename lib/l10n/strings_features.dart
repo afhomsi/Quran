@@ -339,6 +339,37 @@ extension FeatureStrings on S {
   String get readPortion =>
       _('ابدأ القراءة', 'Start reading', 'পড়া শুরু', 'پڑھنا شروع کریں');
   String get markRead => _('أنهيته', 'Finished', 'শেষ করেছি', 'مکمل کر لیا');
+  String get planKindRead =>
+      _('خطة قراءة', 'Reading plan', 'পাঠ পরিকল্পনা', 'تلاوت کا منصوبہ');
+  String get planKindRecite => _(
+    'خطة تسميع',
+    'Recitation plan',
+    'মুখস্থ শোনানোর পরিকল্পনা',
+    'سنانے کا منصوبہ',
+  );
+  String get chooseReciteType => _(
+    'كيف تحب أن تُسمّع القرآن؟',
+    'How would you like to recite the Quran?',
+    'কীভাবে কুরআন মুখস্থ শোনাতে চান?',
+    'آپ قرآن کیسے سنانا چاہیں گے؟',
+  );
+  String get reciteChip => _('تسميع', 'Recitation', 'শোনানো', 'سنانا');
+  String defaultRecitePlanTitle(String date) =>
+      _('تسميع $date', 'Recitation $date', 'শোনানো $date', 'سنانا $date');
+  String get recitePlanHelp => _(
+    'تسمّع كل وِرد غيبًا بزر «ابدأ التسميع»، ويُعلَّم تلقائيًا عند إتمامه.',
+    'Recite each portion from memory with «Start reciting»; it is ticked off when you finish it.',
+    '«শোনানো শুরু» দিয়ে প্রতিটি অংশ মুখস্থ শোনান; শেষ হলে নিজে থেকে চিহ্নিত হবে।',
+    'ہر حصہ «سنانا شروع کریں» سے زبانی سنائیں؛ مکمل ہونے پر خود نشان لگ جائے گا۔',
+  );
+  String get recitePortion =>
+      _('ابدأ التسميع', 'Start reciting', 'শোনানো শুরু', 'سنانا شروع کریں');
+  String recitedOf(int done, int total) => _(
+    'سمّعت ${n(done)} من ${n(total)} وِردًا',
+    '${n(done)} of ${n(total)} portions recited',
+    '${n(total)}টির মধ্যে ${n(done)}টি শোনানো হয়েছে',
+    '${n(total)} میں سے ${n(done)} سنائے',
+  );
   String get deleteKhatma =>
       _('حذف الخطة', 'Delete plan', 'পরিকল্পনা মুছুন', 'منصوبہ حذف کریں');
   String get deleteKhatmaQuestion => _(

@@ -7,7 +7,9 @@ import '../../data/mushaf_repository.dart';
 import '../../data/quran_models.dart';
 import '../../data/quran_repository.dart';
 import '../../l10n/strings.dart';
+import '../../recitation/page_recitation.dart';
 import '../../theme/app_theme.dart';
+import '../recitation/recitation_mode.dart';
 import '../shell/navigation.dart';
 
 IconData khatmaTypeIcon(KhatmaType type) => switch (type) {
@@ -75,20 +77,39 @@ class KhatmaScreen extends ConsumerWidget {
   }
 }
 
-/// Asks for the kind of plan, then its bookmark color and title.
+/// Asks for the kind of plan, to read or to recite, then its bookmark
+/// color and title.
 Future<void> startNewKhatma(BuildContext context) async {
-  final type = await showModalBottomSheet<KhatmaType>(
+  final choice = await showModalBottomSheet<(KhatmaType, bool)>(
     context: context,
     isScrollControlled: true,
     builder: (_) => const _TypePicker(),
   );
-  if (type == null || !context.mounted) return;
+  if (choice == null || !context.mounted) return;
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    builder: (_) => _PlanForm(type: type),
+    builder: (_) => _PlanForm(type: choice.$1, recite: choice.$2),
   );
+}
+
+/// Opens the mushaf on portion [index] of the recitation plan [plan] and
+/// recites it from memory there; it is ticked off once recited to its end.
+Future<void> reciteKhatmaPortion(
+  BuildContext context,
+  KhatmaPlan plan,
+  int index,
+) async {
+  final container = ProviderScope.containerOf(context, listen: false);
+  final mushaf = container.read(mushafProvider).value;
+  if (mushaf == null) return;
+  final mode = await chooseRecitationMode(context);
+  if (mode == null || !context.mounted) return;
+  openMushaf(context, plan.portions(mushaf)[index].firstPage(mushaf));
+  await container
+      .read(pageRecitationProvider.notifier)
+      .startPortion(plan, index, mode: mode);
 }
 
 class _TypePicker extends StatefulWidget {
@@ -100,6 +121,7 @@ class _TypePicker extends StatefulWidget {
 
 class _TypePickerState extends State<_TypePicker> {
   var _type = KhatmaType.salaf;
+  var _recite = false;
 
   @override
   Widget build(BuildContext context) {
@@ -115,7 +137,7 @@ class _TypePickerState extends State<_TypePicker> {
               children: [
                 Expanded(
                   child: Text(
-                    t.chooseKhatmaType,
+                    _recite ? t.chooseReciteType : t.chooseKhatmaType,
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                 ),
@@ -125,6 +147,23 @@ class _TypePickerState extends State<_TypePicker> {
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
+            ),
+            const SizedBox(height: 8),
+            SegmentedButton<bool>(
+              segments: [
+                ButtonSegment(
+                  value: false,
+                  icon: const Icon(Icons.import_contacts_rounded),
+                  label: Text(t.planKindRead),
+                ),
+                ButtonSegment(
+                  value: true,
+                  icon: const Icon(Icons.mic_rounded),
+                  label: Text(t.planKindRecite),
+                ),
+              ],
+              selected: {_recite},
+              onSelectionChanged: (v) => setState(() => _recite = v.single),
             ),
             const SizedBox(height: 8),
             for (var row = 0; row < KhatmaType.values.length; row += 2)
@@ -148,7 +187,7 @@ class _TypePickerState extends State<_TypePicker> {
               style: FilledButton.styleFrom(
                 minimumSize: const Size.fromHeight(52),
               ),
-              onPressed: () => Navigator.pop(context, _type),
+              onPressed: () => Navigator.pop(context, (_type, _recite)),
               child: Text(t.next),
             ),
           ],
@@ -225,9 +264,10 @@ class _TypeTile extends StatelessWidget {
 }
 
 class _PlanForm extends ConsumerStatefulWidget {
-  const _PlanForm({required this.type});
+  const _PlanForm({required this.type, required this.recite});
 
   final KhatmaType type;
+  final bool recite;
 
   @override
   ConsumerState<_PlanForm> createState() => _PlanFormState();
@@ -242,13 +282,14 @@ class _PlanFormState extends ConsumerState<_PlanForm> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final now = DateTime.now();
+    final date =
+        '${now.year}-${'${now.month}'.padLeft(2, '0')}-'
+        '${'${now.day}'.padLeft(2, '0')}';
+    final t = S.of(context);
     _title ??= TextEditingController(
-      text: S
-          .of(context)
-          .defaultPlanTitle(
-            '${now.year}-${'${now.month}'.padLeft(2, '0')}-'
-            '${'${now.day}'.padLeft(2, '0')}',
-          ),
+      text: widget.recite
+          ? t.defaultRecitePlanTitle(date)
+          : t.defaultPlanTitle(date),
     );
   }
 
@@ -289,7 +330,10 @@ class _PlanFormState extends ConsumerState<_PlanForm> {
                     children: [
                       Text(t.createPlan, style: theme.textTheme.headlineSmall),
                       Text(
-                        t.khatmaTitle(widget.type),
+                        widget.recite
+                            ? '${t.planKindRecite} · '
+                                  '${t.khatmaTitle(widget.type)}'
+                            : t.khatmaTitle(widget.type),
                         style: theme.textTheme.titleLarge?.copyWith(
                           color: theme.colorScheme.secondary,
                         ),
@@ -304,6 +348,15 @@ class _PlanFormState extends ConsumerState<_PlanForm> {
                 ),
               ],
             ),
+            if (widget.recite) ...[
+              const SizedBox(height: 8),
+              Text(
+                t.recitePlanHelp,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             Text(t.planBookmark, style: labelStyle),
             const SizedBox(height: 8),
@@ -399,6 +452,7 @@ class _PlanFormState extends ConsumerState<_PlanForm> {
           title: _title!.text.trim(),
           color: _color,
           customDays: _customDays ?? 30,
+          recite: widget.recite,
         );
     Navigator.pop(context);
   }
@@ -471,6 +525,12 @@ class _PlanCard extends ConsumerWidget {
                               text: t.khatmaTitle(plan.type),
                               color: color,
                             ),
+                            if (plan.recite)
+                              _Chip(
+                                icon: Icons.mic_rounded,
+                                text: t.reciteChip,
+                                color: colors.primary,
+                              ),
                             _Chip(
                               icon: Icons.today_rounded,
                               text: t.dayOf(day, plan.days),
@@ -508,7 +568,9 @@ class _PlanCard extends ConsumerWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                t.doneOf(plan.done.length, portions.length),
+                plan.recite
+                    ? t.recitedOf(plan.done.length, portions.length)
+                    : t.doneOf(plan.done.length, portions.length),
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: colors.onSurfaceVariant,
                 ),
@@ -546,15 +608,22 @@ class _PlanCard extends ConsumerWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: FilledButton.icon(
-                        icon: const Icon(Icons.import_contacts_rounded),
-                        label: Text(t.readPortion),
-                        onPressed: () => openMushaf(
-                          context,
-                          portions[next].firstPage(mushaf),
-                          highlight: portions[next].from,
-                        ),
-                      ),
+                      child: plan.recite
+                          ? FilledButton.icon(
+                              icon: const Icon(Icons.mic_rounded),
+                              label: Text(t.recitePortion),
+                              onPressed: () =>
+                                  reciteKhatmaPortion(context, plan, next),
+                            )
+                          : FilledButton.icon(
+                              icon: const Icon(Icons.import_contacts_rounded),
+                              label: Text(t.readPortion),
+                              onPressed: () => openMushaf(
+                                context,
+                                portions[next].firstPage(mushaf),
+                                highlight: portions[next].from,
+                              ),
+                            ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -681,15 +750,27 @@ class KhatmaPlanScreen extends ConsumerWidget {
               ),
             ),
             subtitle: Text(portionLabel(t, p, mushaf, surahs)),
-            secondary: IconButton(
-              tooltip: t.openInMushaf,
-              icon: Icon(
-                Icons.import_contacts_rounded,
-                color: khatmaColors[plan.color],
-              ),
-              onPressed: () =>
-                  openMushaf(context, p.firstPage(mushaf), highlight: p.from),
-            ),
+            secondary: plan.recite
+                ? IconButton(
+                    tooltip: t.recitePortion,
+                    icon: Icon(
+                      Icons.mic_rounded,
+                      color: khatmaColors[plan.color],
+                    ),
+                    onPressed: () => reciteKhatmaPortion(context, plan, i),
+                  )
+                : IconButton(
+                    tooltip: t.openInMushaf,
+                    icon: Icon(
+                      Icons.import_contacts_rounded,
+                      color: khatmaColors[plan.color],
+                    ),
+                    onPressed: () => openMushaf(
+                      context,
+                      p.firstPage(mushaf),
+                      highlight: p.from,
+                    ),
+                  ),
           );
         },
       ),

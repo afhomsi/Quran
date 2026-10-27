@@ -7,6 +7,7 @@ import 'package:hifz/app.dart';
 import 'package:hifz/audio/audio_store.dart';
 import 'package:hifz/audio/ayah_audio.dart';
 import 'package:hifz/features/mushaf/mushaf_page_view.dart';
+import 'package:hifz/data/khatma.dart';
 import 'package:hifz/data/mushaf_models.dart';
 import 'package:hifz/data/mushaf_repository.dart';
 import 'package:hifz/data/quran_repository.dart';
@@ -264,6 +265,54 @@ void main() {
       const AyahRef(67, 1): PageRecitation.allWords,
       const AyahRef(67, 2): PageRecitation.allWords,
     });
+    await tester.tap(find.byTooltip('إغلاق التسميع'));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('a recitation plan portion is recited and ticked off', (
+    tester,
+  ) async {
+    final listener = FakeListener();
+    final surahs = parseSurahs(File(quranAssetPath).readAsStringSync());
+    await _pump(
+      tester,
+      const MaterialApp(
+        home: Directionality(
+          textDirection: TextDirection.rtl,
+          child: MushafScreen(initialPage: 2),
+        ),
+      ),
+      listener: listener,
+    );
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(MushafScreen)),
+    );
+    // A page a day: the second portion is page 2, al-Baqarah 1 to 5.
+    final plan = container
+        .read(khatmaPlansProvider.notifier)
+        .add(
+          type: KhatmaType.custom,
+          title: 'r',
+          color: 0,
+          customDays: 604,
+          recite: true,
+        );
+    await container.read(pageRecitationProvider.notifier).startPortion(plan, 1);
+    await tester.pumpAndSettle();
+    final recitation = container.read(pageRecitationProvider)!;
+    expect(recitation.lastPage, 2);
+    expect(
+      {
+        for (final w in recitation.session.expected)
+          if (w.kind == WordKind.ayah) (w.surah, w.ayah),
+      },
+      {for (var a = 1; a <= 5; a++) (2, a)},
+    );
+
+    listener.say(surahs[1].ayahs.take(5).join(' '), isFinal: true);
+    await tester.pumpAndSettle();
+    expect(container.read(khatmaPlansProvider).single.done, {1});
+    expect(container.read(lastRecitationProvider), const AyahRef(2, 6));
     await tester.tap(find.byTooltip('إغلاق التسميع'));
     await tester.pumpAndSettle();
   });
