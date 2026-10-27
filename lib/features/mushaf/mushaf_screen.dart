@@ -197,7 +197,12 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
   void _scheduleAutoTurn() {
     _autoTurn?.cancel();
     final settings = ref.read(settingsProvider);
-    if (!settings.autoPageTurn || _autoTurnPaused) return;
+    // While reciting, the pages turn with the reciter only.
+    if (!settings.autoPageTurn ||
+        _autoTurnPaused ||
+        ref.read(pageRecitationProvider) != null) {
+      return;
+    }
     _autoTurn = Timer(Duration(seconds: settings.autoPageSeconds), _nextPage);
   }
 
@@ -208,6 +213,10 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
     final settings = ref.watch(settingsProvider);
     ref.listen(
       settingsProvider.select((s) => (s.autoPageTurn, s.autoPageSeconds)),
+      (_, _) => _scheduleAutoTurn(),
+    );
+    ref.listen(
+      pageRecitationProvider.select((r) => r != null),
       (_, _) => _scheduleAutoTurn(),
     );
     ref.listen(appTabProvider, (_, tab) {
@@ -231,15 +240,13 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
       final page = m.pageOf(ayah);
       if (page < _page || page >= _page + _step) _turnTo(page);
     });
-    // The pages turn with the reciter, as they do when listening.
-    ref.listen(pageRecitationProvider.select((r) => r?.currentWord), (_, word) {
+    // The pages turn with the reciter, as they do when listening, once
+    // the page shown is recited to its end.
+    ref.listen(pageRecitationProvider.select((r) => r?.settledWord), (_, _) {
       final m = ref.read(mushafProvider).value;
-      if (word == null || m == null) return;
-      final (ayah, position) = word;
-      var page = m.pageOf(ayah);
-      // An ayah may go on over the next page.
-      final printed = m.page(page).words.where((w) => w.ayah == ayah).length;
-      if (position > printed && page < mushafPageCount) page++;
+      final recitation = ref.read(pageRecitationProvider);
+      if (recitation == null || m == null) return;
+      final page = recitation.pageToShow(m);
       if (page < _page || page >= _page + _step) _turnTo(page);
     });
     // The mistakes report, once the recitation is finished.

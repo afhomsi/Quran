@@ -29,11 +29,15 @@ Future<void> _pump(
   Widget child, {
   FakeListener? listener,
   bool askMode = false,
+  String? settings,
 }) async {
   // How strictly to check is asked before each recitation; most tests
   // recite with the mode chosen once for all.
   SharedPreferences.setMockInitialValues({
-    if (!askMode) 'settings': '{"askRecitationMode":false}',
+    if (settings != null)
+      'settings': settings
+    else if (!askMode)
+      'settings': '{"askRecitationMode":false}',
   });
   final prefs = await SharedPreferences.getInstance();
   final mushaf = parseMushaf(File(mushafLayoutAssetPath).readAsStringSync());
@@ -218,6 +222,14 @@ void main() {
     ].join(' ');
     listener.say(text);
     await tester.pumpAndSettle();
+    // Words still being recognized do not turn the page yet.
+    expect(
+      tester.widget<MushafPageView>(find.byType(MushafPageView)).page.number,
+      start,
+    );
+    // The reciter pauses at the end of the page.
+    listener.say(text, isFinal: true);
+    await tester.pumpAndSettle();
 
     expect(listener.listening, isTrue);
     expect(container.read(pageRecitationProvider)!.session.mistakes, isEmpty);
@@ -225,6 +237,109 @@ void main() {
     expect(shown.page.number, start + 1);
     // The next page is hidden too, until recited.
     expect(shown.recitedWords, isNotNull);
+  });
+
+  group('the page turns only once the page shown is recited', () {
+    // Al-Baqarah 1 to 5 are on page 2, 6 to 16 on page 3.
+    final baqarah = parseSurahs(
+      File(quranAssetPath).readAsStringSync(),
+    )[1].ayahs;
+    String ayat(int from, int to) => baqarah.sublist(from - 1, to).join(' ');
+
+    Future<ProviderContainer> recite(
+      WidgetTester tester,
+      FakeListener listener, {
+      String? settings,
+    }) async {
+      await _pump(
+        tester,
+        const MaterialApp(
+          home: Directionality(
+            textDirection: TextDirection.rtl,
+            child: MushafScreen(initialPage: 2),
+          ),
+        ),
+        listener: listener,
+        settings: settings,
+      );
+      await tester.tap(find.widgetWithText(FilledButton, 'تسميع'));
+      await tester.pumpAndSettle();
+      return ProviderScope.containerOf(
+        tester.element(find.byType(MushafScreen)),
+      );
+    }
+
+    // A pause ends what the recognizer heard; it listens again shortly.
+    Future<void> pause(
+      WidgetTester tester,
+      FakeListener listener,
+      String text,
+    ) async {
+      listener.say(text, isFinal: true);
+      await tester.pumpAndSettle(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+    }
+
+    int shownPage(WidgetTester tester) =>
+        tester.widget<MushafPageView>(find.byType(MushafPageView)).page.number;
+
+    testWidgets('not when the recognizer guesses ahead of the reciter', (
+      tester,
+    ) async {
+      final listener = FakeListener();
+      final container = await recite(tester, listener);
+      await pause(tester, listener, ayat(1, 3));
+      expect(shownPage(tester), 2);
+
+      // Reciting ayah 4, the recognizer guesses on into page 3, as
+      // Whisper may, then takes the guess back.
+      listener.say(ayat(4, 7));
+      await tester.pumpAndSettle();
+      expect(container.read(pageRecitationProvider)!.currentWord.$1.ayah, 8);
+      expect(shownPage(tester), 2);
+      listener.say(baqarah[3].split(' ').take(6).join(' '));
+      await tester.pumpAndSettle();
+      expect(shownPage(tester), 2);
+
+      await pause(tester, listener, ayat(4, 4));
+      expect(shownPage(tester), 2);
+      await pause(tester, listener, ayat(5, 5));
+      expect(shownPage(tester), 3);
+      expect(container.read(pageRecitationProvider)!.session.mistakes, isEmpty);
+    });
+
+    testWidgets('a pause half way through the page does not turn it', (
+      tester,
+    ) async {
+      final listener = FakeListener();
+      await recite(tester, listener);
+      for (var a = 1; a <= 4; a++) {
+        listener.say(ayat(a, a));
+        await tester.pump();
+        // Silence after the ayah, before the recognizer ends.
+        await tester.pump(const Duration(seconds: 2));
+        await pause(tester, listener, ayat(a, a));
+        expect(shownPage(tester), 2, reason: 'after ayah $a');
+      }
+      await pause(tester, listener, ayat(5, 5));
+      expect(shownPage(tester), 3);
+    });
+
+    testWidgets('and the page does not turn on its own while reciting', (
+      tester,
+    ) async {
+      final listener = FakeListener();
+      await recite(
+        tester,
+        listener,
+        settings: '{"askRecitationMode":false,"autoPageTurn":true,"autoPageSeconds":10}',
+      );
+      await pause(tester, listener, ayat(1, 2));
+      await tester.pump(const Duration(seconds: 30));
+      await tester.pumpAndSettle();
+      expect(shownPage(tester), 2);
+    });
   });
 
   testWidgets('reciting goes on from where it last stopped', (tester) async {
