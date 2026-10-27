@@ -83,6 +83,7 @@ class KhatmaPlan {
     required this.days,
     required this.created,
     this.done = const {},
+    this.recite = false,
   });
 
   final String id;
@@ -98,6 +99,10 @@ class KhatmaPlan {
 
   /// Indexes of the portions read so far.
   final Set<int> done;
+
+  /// A recitation plan: each portion is recited from memory, and is
+  /// ticked off once recited to its end, instead of read.
+  final bool recite;
 
   /// Number of days a plan of [type] takes; [customDays] is used for
   /// custom plans.
@@ -182,6 +187,7 @@ class KhatmaPlan {
         days: days,
         created: created,
         done: done ?? this.done,
+        recite: recite,
       );
 
   Map<String, Object> toJson() => {
@@ -192,6 +198,7 @@ class KhatmaPlan {
     'days': days,
     'created': created.toIso8601String(),
     'done': done.toList()..sort(),
+    if (recite) 'recite': true,
   };
 
   /// Reads what [toJson] wrote. The length is kept within what the plan
@@ -207,6 +214,7 @@ class KhatmaPlan {
       days: daysFor(type, customDays: json['days'] as int),
       created: DateTime.parse(json['created'] as String),
       done: {for (final i in json['done'] as List) i as int},
+      recite: json['recite'] == true,
     );
   }
 }
@@ -240,6 +248,7 @@ class KhatmaPlansNotifier extends Notifier<List<KhatmaPlan>> {
     required String title,
     required int color,
     int customDays = 30,
+    bool recite = false,
     DateTime? now,
   }) {
     final created = now ?? DateTime.now();
@@ -250,6 +259,7 @@ class KhatmaPlansNotifier extends Notifier<List<KhatmaPlan>> {
       color: color,
       days: KhatmaPlan.daysFor(type, customDays: customDays),
       created: created,
+      recite: recite,
     );
     _save([plan, ...state]);
     return plan;

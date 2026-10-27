@@ -72,6 +72,26 @@ void main() {
     expectWholeQuran(portions);
   });
 
+  test('a recitation plan keeps its kind when saved', () {
+    final p = KhatmaPlan.fromJson(
+      KhatmaPlan(
+        id: '1',
+        title: 't',
+        type: KhatmaType.ramadan,
+        color: 0,
+        days: 30,
+        created: DateTime(2026, 10, 27),
+        recite: true,
+      ).toJson(),
+    );
+    expect(p.recite, isTrue);
+    expect(p.copyWith(done: {0}).recite, isTrue);
+    expect(
+      KhatmaPlan.fromJson(plan(KhatmaType.salaf).toJson()).recite,
+      isFalse,
+    );
+  });
+
   test('plans are saved, ticked off and removed', () async {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
