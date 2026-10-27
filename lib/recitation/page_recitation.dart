@@ -147,6 +147,23 @@ class PageRecitation {
   /// The count of an ayah recited to its end in [recitedWords].
   static const allWords = 1 << 30;
 
+  /// The words recited so far, as their ayah and position: right, wrong
+  /// or left out, or said with a wrong haraka. Each word is coloured by
+  /// its own state, so a mistake does not colour its whole ayah.
+  Map<(AyahRef, int), AyahRecitation> get wordStates {
+    final states = <(AyahRef, int), AyahRecitation>{};
+    _forEachAyahWord((ayah, position, w, _) {
+      if (w.isMistake) {
+        states[(ayah, position)] = AyahRecitation.mistake;
+      } else if (w.isHarakatMistake) {
+        states[(ayah, position)] = AyahRecitation.harakat;
+      } else if (w.status == WordStatus.correct) {
+        states[(ayah, position)] = AyahRecitation.correct;
+      }
+    });
+    return states;
+  }
+
   /// The ayat reached so far: wrong if any of their words was, else right.
   Map<AyahRef, AyahRecitation> get ayahStates {
     final states = <AyahRef, AyahRecitation>{};

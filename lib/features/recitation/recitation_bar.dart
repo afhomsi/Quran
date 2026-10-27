@@ -13,7 +13,7 @@ import 'recitation_mode.dart';
 
 /// Reciting controls under the mushaf page, like the audio player: close,
 /// start over, the microphone and listening to the ayat recited wrongly.
-/// The page itself hides the words not recited yet and shows each ayah in
+/// The page itself hides the words not recited yet and shows each word in
 /// green or red as it is recited; the «show ayat» button shows the whole page.
 class RecitationBar extends ConsumerWidget {
   const RecitationBar({super.key});
