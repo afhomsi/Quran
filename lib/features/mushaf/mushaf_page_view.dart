@@ -47,6 +47,7 @@ class MushafPageView extends StatelessWidget {
     this.selected,
     this.selectedWord,
     this.highlights = const {},
+    this.wordColors = const {},
     this.recitedWords,
     this.wrongWords = const {},
     this.harakatWords = const {},
@@ -68,6 +69,10 @@ class MushafPageView extends StatelessWidget {
 
   /// Ayat colored by the reader, with their color.
   final Map<AyahRef, Color> highlights;
+
+  /// Words, as their ayah and position, colored on their own, as each
+  /// word recited: over the color of their ayah.
+  final Map<(AyahRef, int), Color> wordColors;
 
   /// When given, the page is being recited from memory: each word shows
   /// only once that many words of its ayah were recited, and the others
@@ -176,7 +181,7 @@ class MushafPageView extends StatelessWidget {
     fontSize: fontSize,
     selected: w.ayah == selected,
     wordSelected: selectedWord == (w.ayah, w.position),
-    highlight: highlights[w.ayah],
+    highlight: wordColors[(w.ayah, w.position)] ?? highlights[w.ayah],
     wrongHarakat: harakatWords.contains((w.ayah, w.position)),
     hidden:
         recitedWords != null &&
@@ -289,7 +294,7 @@ class _Word extends StatelessWidget {
               padding: EdgeInsets.symmetric(vertical: fontSize * 0.3),
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  // An ayah recited wrongly shows its colour, red.
+                  // A word recited wrongly shows its colour, red.
                   color:
                       highlight?.withValues(alpha: dark ? 0.35 : 0.5) ??
                       colors.onSurface.withValues(alpha: dark ? 0.16 : 0.1),

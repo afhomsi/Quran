@@ -194,6 +194,15 @@ void main() {
       expect(page.ayahStates[const AyahRef(2, 2)], AyahRecitation.mistake);
     });
 
+    test('colours only the wrong word red, the words after it green', () {
+      final said = [...withMistake(), ...ayahs[1].split(' ').skip(3)];
+      listener.say(said.join(' '));
+      final states = PageRecitation(2, session, 0).wordStates;
+      expect(states[(const AyahRef(2, 2), 2)], AyahRecitation.correct);
+      expect(states[(const AyahRef(2, 2), 3)], AyahRecitation.mistake);
+      expect(states[(const AyahRef(2, 2), 4)], AyahRecitation.correct);
+    });
+
     test('help shows the next word, also the first of the next ayah', () {
       listener.say(ayahs[0]);
       expect(session.hint(), isTrue);

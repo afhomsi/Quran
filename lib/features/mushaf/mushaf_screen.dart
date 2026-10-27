@@ -695,8 +695,11 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
       page: mushaf.page(page),
       highlights: {
         for (final e in highlights.entries) e.key: highlightColors[e.value],
+      },
+      // Each word recited shows green, or red when said wrong.
+      wordColors: {
         if (recitation?.covers(page) == true)
-          for (final e in recitation!.ayahStates.entries)
+          for (final e in recitation!.wordStates.entries)
             e.key: switch (e.value) {
               AyahRecitation.mistake => _mistakeColor,
               AyahRecitation.harakat => _harakatColor,
@@ -823,7 +826,7 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
   }
 }
 
-/// How ayat are colored while reciting the page.
+/// How words are colored while reciting the page.
 final _correctColor = Colors.green.withValues(alpha: 0.3);
 final _mistakeColor = Colors.red.withValues(alpha: 0.35);
 // Pale, so the words said with a wrong haraka stand out on it in orange.
@@ -936,6 +939,7 @@ class _PageSlot extends ConsumerWidget {
     required this.selected,
     required this.selectedWord,
     required this.highlights,
+    this.wordColors = const {},
     this.recitedWords,
     this.wrongWords = const {},
     this.harakatWords = const {},
@@ -957,6 +961,7 @@ class _PageSlot extends ConsumerWidget {
   final List<Surah> surahs;
   final AyahRef? selected;
   final Map<AyahRef, Color> highlights;
+  final Map<(AyahRef, int), Color> wordColors;
   final Map<AyahRef, int>? recitedWords;
   final Set<(AyahRef, int)> wrongWords;
   final Set<(AyahRef, int)> harakatWords;
@@ -1069,6 +1074,7 @@ class _PageSlot extends ConsumerWidget {
                   selected: selected,
                   selectedWord: selectedWord,
                   highlights: highlights,
+                  wordColors: wordColors,
                   recitedWords: recitedWords,
                   wrongWords: wrongWords,
                   harakatWords: harakatWords,
