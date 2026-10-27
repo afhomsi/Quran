@@ -302,6 +302,7 @@ class _RecitationViewState extends ConsumerState<_RecitationView> {
                       group: _groups[i],
                       result: result,
                       showText: _showText,
+                      hints: _session.hints,
                       surahName: (s) => widget.surahs[s - 1].name,
                     ),
                   ),
@@ -327,12 +328,29 @@ class _RecitationViewState extends ConsumerState<_RecitationView> {
           ),
           floatingActionButtonLocation:
               FloatingActionButtonLocation.centerFloat,
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: _toggleListening,
-            icon: Icon(
-              _session.isListening ? Icons.stop_rounded : Icons.mic_rounded,
-            ),
-            label: Text(_session.isListening ? t.stop : t.startRecitation),
+          floatingActionButton: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Shows the word the reciter is stuck on, one more each press.
+              if (!_showText && !result.isComplete) ...[
+                FloatingActionButton.extended(
+                  heroTag: 'hint',
+                  tooltip: t.hintTooltip,
+                  onPressed: _session.hint,
+                  icon: const Icon(Icons.lightbulb_rounded),
+                  label: Text(t.hint),
+                ),
+                const SizedBox(width: 12),
+              ],
+              FloatingActionButton.extended(
+                heroTag: 'recite',
+                onPressed: _toggleListening,
+                icon: Icon(
+                  _session.isListening ? Icons.stop_rounded : Icons.mic_rounded,
+                ),
+                label: Text(_session.isListening ? t.stop : t.startRecitation),
+              ),
+            ],
           ),
         );
       },
@@ -371,12 +389,16 @@ class _GroupView extends StatelessWidget {
     required this.group,
     required this.result,
     required this.showText,
+    required this.hints,
     required this.surahName,
   });
 
   final _Group group;
   final RecitationResult result;
   final bool showText;
+
+  /// The words shown by a hint, as indexes in [result]'s words.
+  final Set<int> hints;
   final String Function(int surah) surahName;
 
   @override
@@ -420,9 +442,13 @@ class _GroupView extends StatelessWidget {
             runSpacing: 10,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              for (final w in words) ...[
-                for (final e in w.extrasBefore) _ExtraWord(e),
-                _Word(word: w, showText: showText),
+              for (var i = 0; i < words.length; i++) ...[
+                for (final e in words[i].extrasBefore) _ExtraWord(e),
+                _Word(
+                  word: words[i],
+                  showText: showText,
+                  hinted: hints.contains(group.start + i),
+                ),
               ],
               if (kind == WordKind.ayah) _AyahEnd(group.first.ayah),
               if (group.end == result.words.length)
@@ -514,10 +540,17 @@ class _StatusBar extends StatelessWidget {
 const _wordStyle = TextStyle(fontFamily: mushafFont, fontSize: 26, height: 1.6);
 
 class _Word extends StatelessWidget {
-  const _Word({required this.word, required this.showText});
+  const _Word({
+    required this.word,
+    required this.showText,
+    this.hinted = false,
+  });
 
   final WordResult word;
   final bool showText;
+
+  /// Shown by the help button though not recited yet.
+  final bool hinted;
 
   @override
   Widget build(BuildContext context) {
@@ -544,6 +577,11 @@ class _Word extends StatelessWidget {
         S.of(context).forgotten,
       ),
       WordStatus.pending when showText => (null, scheme.onSurface, null),
+      WordStatus.pending when hinted => (
+        Colors.amber.withValues(alpha: 0.3),
+        scheme.onSurface,
+        null,
+      ),
       WordStatus.pending => (
         scheme.surfaceContainerHighest,
         Colors.transparent,
