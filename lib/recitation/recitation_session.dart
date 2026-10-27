@@ -38,21 +38,30 @@ class Mistake {
 class RecitationSession extends ChangeNotifier {
   RecitationSession({
     required this.listener,
-    required this.expected,
+    required List<ExpectedWord> expected,
     required this.surahName,
     this.mode = RecitationMode.strict,
-  }) : _multiSurah =
-           expected.map((w) => w.surah).where((s) => s > 0).toSet().length > 1 {
+  }) : expected = [...expected] {
+    _multiSurah = _surahsIn(this.expected) > 1;
     _clear();
   }
 
   final SpeechListener listener;
+
+  /// The words to recite; [onFinished] may add more.
   final List<ExpectedWord> expected;
   final String Function(int surah) surahName;
 
   /// How strictly the recitation is checked.
   final RecitationMode mode;
-  final bool _multiSurah;
+  late bool _multiSurah;
+
+  static int _surahsIn(List<ExpectedWord> words) =>
+      words.map((w) => w.surah).where((s) => s > 0).toSet().length;
+
+  /// The words to go on reciting with once all is recited while still
+  /// listening, such as the next surah; empty to end there.
+  List<ExpectedWord> Function()? onFinished;
 
   /// Words compared so far, from finished listening sessions.
   late List<WordResult> _base;
@@ -81,6 +90,11 @@ class RecitationSession extends ChangeNotifier {
   /// is reported. Until then the recognizer may still correct them; after
   /// it, the reciter has likely stopped at the mistake.
   static const quietDelay = Duration(milliseconds: 1200);
+
+  /// How long to go on listening once all is recited, in case the reciter
+  /// goes on into what [onFinished] gives.
+  static const goOnDelay = Duration(seconds: 5);
+  Timer? _goOnTimer;
   final _alerted = <String>{};
   final _mistakes = <Mistake>[];
   late RecitationResult _result;
@@ -161,6 +175,8 @@ class RecitationSession extends ChangeNotifier {
   }
 
   Future<void> stop() async {
+    _goOnTimer?.cancel();
+    _goOnTimer = null;
     _wantListening = false;
     _commit();
     notifyListeners();
@@ -268,13 +284,55 @@ class RecitationSession extends ChangeNotifier {
   void _settle(String text) {
     text = text.trim();
     if (text.isEmpty) return;
-    _committed.add(text);
     final (from, sub) = _alignFromPos(text, settled: true);
+    // Words said past the end are the start of what comes next.
+    if (from + sub.words.length == expected.length &&
+        sub.extrasAtEnd.isNotEmpty &&
+        _goOn()) {
+      return _settle(text);
+    }
+    _committed.add(text);
     _base = _overlay(_base, from, sub);
     if (from + sub.words.length == expected.length) {
       _extrasAtEnd.addAll(sub.extrasAtEnd);
     }
     _pos = from + sub.end;
+  }
+
+  /// Whether words were heard after the last word to recite. While the
+  /// reciter is still speaking they are not counted as extra words, so
+  /// this compares as if they were settled.
+  bool _heardPastEnd() {
+    if (_current.trim().isEmpty) return false;
+    final (from, sub) = _alignFromPos(_current, settled: true);
+    return from + sub.words.length == expected.length &&
+        sub.extrasAtEnd.isNotEmpty;
+  }
+
+  /// Stops listening once all is recited and the reciter did not go on.
+  void _finish() {
+    _goOnTimer = null;
+    if (!_wantListening || !_result.isComplete) return;
+    _wantListening = false;
+    listener.stop();
+    notifyListeners();
+  }
+
+  /// Adds the words [onFinished] gives, while listening, so the reciter
+  /// goes on without stopping; false when there are none.
+  bool _goOn() {
+    if (!_wantListening) return false;
+    final more = onFinished?.call() ?? const <ExpectedWord>[];
+    if (more.isEmpty) return false;
+    _goOnTimer?.cancel();
+    _goOnTimer = null;
+    expected.addAll(more);
+    _base = [
+      ..._base,
+      for (final w in more) WordResult(word: w, status: WordStatus.pending),
+    ];
+    _multiSurah = _surahsIn(expected) > 1;
+    return true;
   }
 
   /// Where a reciter going back may start again from: the start of the
@@ -358,7 +416,7 @@ class RecitationSession extends ChangeNotifier {
   }
 
   void _restart() {
-    if (!_wantListening || _result.isComplete) {
+    if (!_wantListening || (_result.isComplete && _goOnTimer == null)) {
       _wantListening = false;
       notifyListeners();
       return;
@@ -411,9 +469,17 @@ class RecitationSession extends ChangeNotifier {
       }
     }
     _result = RecitationResult(words: words, extrasAtEnd: extrasAtEnd);
+    if (_result.isComplete && _heardPastEnd() && _goOn()) {
+      return _update(settled: settled);
+    }
     if (_result.isComplete && _wantListening) {
-      _wantListening = false;
-      listener.stop();
+      if (onFinished == null) {
+        _wantListening = false;
+        listener.stop();
+      } else {
+        // Waits a little for the reciter to go on, then stops.
+        _goOnTimer ??= Timer(goOnDelay, _finish);
+      }
     }
     _reportMistakes();
     notifyListeners();
@@ -508,6 +574,7 @@ class RecitationSession extends ChangeNotifier {
   @override
   void dispose() {
     _quiet?.cancel();
+    _goOnTimer?.cancel();
     _wantListening = false;
     _sessionId++;
     listener.stop();

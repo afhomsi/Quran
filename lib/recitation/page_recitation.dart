@@ -31,7 +31,11 @@ class PageRecitation {
     this.until,
     this.portion,
     this.hideText = true,
+    this.wentOn = false,
   }) : lastPage = lastPage ?? page;
+
+  /// Whether the reciter went on past the end of the surah into the next.
+  final bool wentOn;
 
   /// The page the recitation started on.
   final int page;
@@ -108,15 +112,21 @@ class PageRecitation {
   /// show one by one as they are recited.
   final bool hideText;
 
-  PageRecitation copyWith({int? version, bool? hideText}) => PageRecitation(
+  PageRecitation copyWith({
+    int? version,
+    bool? hideText,
+    int? lastPage,
+    bool? wentOn,
+  }) => PageRecitation(
     page,
     session,
     version ?? this.version,
-    lastPage: lastPage,
+    lastPage: lastPage ?? this.lastPage,
     from: from,
     until: until,
     portion: portion,
     hideText: hideText ?? this.hideText,
+    wentOn: wentOn ?? this.wentOn,
   );
 
   /// How many words of each ayah show while the text is hidden: those up
@@ -259,6 +269,9 @@ List<ExpectedWord> wordsOfPages(
 class PageRecitationController extends Notifier<PageRecitation?> {
   bool _saved = false;
 
+  /// Where the recitation ends now that it went on into a next surah.
+  int? _lastPage;
+
   /// The session being recited, also for disposing it with the provider.
   RecitationSession? _session;
 
@@ -382,8 +395,26 @@ class PageRecitationController extends Notifier<PageRecitation?> {
         surahName: (s) => surahs[s - 1].name,
         mode: mode,
       )..onMistake = (_) => ref.read(mistakeAlertProvider)();
+      // Reciting on past the end of the surah goes on into the next one,
+      // as in juz 'Amma, where a page holds several short surahs.
+      List<ExpectedWord> nextSurah() {
+        final surah = session.expected.last.surah;
+        // An-Nas is the last; nothing to go on to after it.
+        if (surah + 1 == 114) session.onFinished = null;
+        final ayahs = surahs[surah].ayahs;
+        _lastPage = mushaf.pageOf(AyahRef(surah + 1, ayahs.length));
+        return [
+          for (final w in wordsOfSurah(surah + 1, ayahs))
+            if (w.kind != WordKind.istiadha) w,
+        ];
+      }
+
+      if (until == null && session.expected.last.surah < 114) {
+        session.onFinished = nextSurah;
+      }
       session.addListener(() => _changed(session));
       _saved = false;
+      _lastPage = null;
       _session = session;
       state = PageRecitation(
         page,
@@ -443,7 +474,8 @@ class PageRecitationController extends Notifier<PageRecitation?> {
     if (session != _session) return;
     final current = state;
     if (current == null || current.session != session) return;
-    if (session.result.isComplete) {
+    // Done once it stops listening: it may still go on into the next surah.
+    if (session.result.isComplete && !session.isListening) {
       _save();
       if (current.portion case (final plan, final index)
           when ref
@@ -453,7 +485,11 @@ class PageRecitationController extends Notifier<PageRecitation?> {
       }
     }
     _keepPlace(current);
-    state = current.copyWith(version: current.version + 1);
+    state = current.copyWith(
+      version: current.version + 1,
+      lastPage: _lastPage,
+      wentOn: _lastPage != null,
+    );
   }
 
   /// Remembers where to go on reciting from: the next ayah, or the next

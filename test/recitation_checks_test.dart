@@ -342,6 +342,12 @@ void main() {
       await page().start(1);
       mic.say(_fatiha);
       final state = c.read(pageRecitationProvider)!;
+      // It listens a little longer, in case the reciter goes on into the
+      // next surah.
+      expect(state.session.isListening, isTrue);
+      await Future<void>.delayed(
+        RecitationSession.goOnDelay + const Duration(milliseconds: 100),
+      );
       expect(state.session.isListening, isFalse);
       page().close();
       final history = c.read(recitationHistoryProvider);
