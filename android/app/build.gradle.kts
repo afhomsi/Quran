@@ -36,6 +36,14 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
+    // Store the native code compressed in the APK, so the download is about
+    // half the size. Android unpacks it once when the app is installed.
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
 }
 
 kotlin {
