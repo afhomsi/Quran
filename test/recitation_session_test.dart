@@ -100,6 +100,47 @@ void main() {
     expect(worst, lessThan(50000));
   });
 
+  test(
+    'keeps up while the recognizer rewrites words it heard long ago',
+    () async {
+      final surahs = parseSurahs(File(quranAssetPath).readAsStringSync());
+      final baqarah = surahs[1].ayahs;
+      final listener = _FakeListener();
+      final session = RecitationSession(
+        listener: listener,
+        expected: wordsOfSurah(2, baqarah),
+        surahName: (s) => surahs[s - 1].name,
+      );
+      final mistakes = <Mistake>[];
+      session.onMistake = mistakes.add;
+      await session.start();
+
+      // Reciting fast without a pause: one listening session, and the
+      // recognizer spells its first word one way, then another, each time.
+      final words = baqarah.take(40).join(' ').split(' ');
+      final watch = Stopwatch()..start();
+      var worst = 0;
+      for (var k = 1; k <= words.length; k++) {
+        final heard = [...words.take(k)];
+        if (k.isOdd) heard[0] = 'الف';
+        final before = watch.elapsedMicroseconds;
+        listener.say(heard.join(' '), isFinal: false);
+        worst = max(worst, watch.elapsedMicroseconds - before);
+        // What is settled stays close behind what is heard.
+        expect(
+          session.settledResult.progress,
+          greaterThan(k - 40),
+          reason: 'after $k words',
+        );
+      }
+
+      expect(session.result.progress, greaterThan(words.length));
+      expect(mistakes, hasLength(1));
+      // The words compared again stay few, however long the session.
+      expect(worst, lessThan(50000));
+    },
+  );
+
   group('a mistake', () {
     late List<String> ayahs;
     late _FakeListener listener;

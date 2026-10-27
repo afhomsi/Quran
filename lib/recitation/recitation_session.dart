@@ -225,19 +225,29 @@ class RecitationSession extends ChangeNotifier {
   /// Words this far from the end of a result may still change.
   static const _liveWords = 8;
 
+  /// Words further than this from the end are settled even when the
+  /// recognizer still changes them, so the words open to compare stay
+  /// few however long the reciter recites without a pause.
+  static const _maxLiveWords = 3 * _liveWords;
+
   /// Settles the start of the session's text once enough words of it came
   /// back unchanged in two results in a row, keeping the last
-  /// [_liveWords] open.
+  /// [_liveWords] open. Only the words after those settled already are
+  /// compared: a recognizer that rewrites a word it heard long ago must
+  /// not keep the rest open.
   void _freezeStable(String text) {
     final words = _wordsOf(text);
-    var same = 0;
+    var same = _frozen;
     while (same < words.length &&
         same < _lastHeard.length &&
         words[same] == _lastHeard[same]) {
       same++;
     }
     _lastHeard = words;
-    final upTo = min(same, words.length - _liveWords);
+    final upTo = max(
+      min(same, words.length - _liveWords),
+      words.length - _maxLiveWords,
+    );
     if (upTo - _frozen < _liveWords) return;
     _settle(words.sublist(_frozen, upTo).join(' '));
     _frozen = upTo;
