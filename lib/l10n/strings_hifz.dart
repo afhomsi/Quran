@@ -140,6 +140,37 @@ extension HifzStrings on S {
     'মাইক্রোফোন চাপুন, তারপর মুখস্থ থেকে পৃষ্ঠাটি পড়ুন।',
     'مائیکروفون دبائیں، پھر صفحہ زبانی پڑھیں۔',
   );
+  // Reciting from anywhere: the app finds the place.
+  String get autoRecite => _(
+    'تسميع تلقائي: اقرأ من أي موضع',
+    'Auto recite: start anywhere',
+    'স্বয়ংক্রিয় তিলাওয়াত: যেকোনো জায়গা থেকে পড়ুন',
+    'خودکار تسمیع: کہیں سے بھی پڑھیں',
+  );
+  String get autoReciteHelp => _(
+    'لا تختر سورة ولا صفحة: ابدأ القراءة ولو من وسط السورة، فيعرف التطبيق موضعك ويفتح الصفحة ويتابعك.',
+    'No need to choose a surah or page: start reciting, even mid-surah, and the app finds the place, opens the page and follows you.',
+    'সূরা বা পৃষ্ঠা বাছতে হবে না: সূরার মাঝখান থেকেও পড়া শুরু করুন, অ্যাপ জায়গাটি খুঁজে পৃষ্ঠা খুলে আপনাকে অনুসরণ করবে।',
+    'سورت یا صفحہ چننے کی ضرورت نہیں: سورت کے درمیان سے بھی پڑھنا شروع کریں، ایپ جگہ ڈھونڈ کر صفحہ کھولے گی اور ساتھ چلے گی۔',
+  );
+  String get autoReciteSearching => _(
+    'ابدأ القراءة من أي موضع… أبحث عن موضعك في القرآن',
+    'Start reciting anywhere… finding your place in the Quran',
+    'যেকোনো জায়গা থেকে পড়া শুরু করুন… কুরআনে আপনার জায়গা খুঁজছি',
+    'کہیں سے بھی پڑھنا شروع کریں… قرآن میں آپ کی جگہ ڈھونڈ رہا ہوں',
+  );
+  String get autoReciteKeepGoing => _(
+    'تابع القراءة، أحتاج كلمات أكثر لأعرف الموضع',
+    'Keep reciting; a few more words are needed to find the place',
+    'পড়তে থাকুন; জায়গা খুঁজতে আরও কিছু শব্দ দরকার',
+    'پڑھتے رہیں؛ جگہ ڈھونڈنے کے لیے کچھ اور الفاظ چاہییں',
+  );
+  String get autoRecitePaused => _(
+    'اضغط الميكروفون ثم اقرأ من أي موضع.',
+    'Press the microphone, then recite from anywhere.',
+    'মাইক্রোফোন চাপুন, তারপর যেকোনো জায়গা থেকে পড়ুন।',
+    'مائیکروفون دبائیں، پھر کہیں سے بھی پڑھیں۔',
+  );
   // Reciting without internet.
   String get offlineRecitation => _(
     'التسميع بدون إنترنت',

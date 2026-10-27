@@ -32,7 +32,13 @@ class PageRecitation {
     this.portion,
     this.hideText = true,
     this.wentOn = false,
+    this.startWord = 0,
   }) : lastPage = lastPage ?? page;
+
+  /// The words of the ayah [from] before the one the reciter started at,
+  /// when reciting started part way through it: they show, and are not
+  /// recited.
+  final int startWord;
 
   /// Whether the reciter went on past the end of the surah into the next.
   final bool wentOn;
@@ -67,7 +73,7 @@ class PageRecitation {
   /// [RecitationSession.settledResult].
   (AyahRef, int) get settledWord => _wordAt(session.settledResult);
 
-  static (AyahRef, int) _wordAt(RecitationResult result) {
+  (AyahRef, int) _wordAt(RecitationResult result) {
     final words = result.words;
     var k = result.end;
     while (k < words.length && words[k].word.kind != WordKind.ayah) {
@@ -84,7 +90,8 @@ class PageRecitation {
         words[k - position].surah == w.surah) {
       position++;
     }
-    return (AyahRef(w.surah, w.ayah), position);
+    final ayah = AyahRef(w.surah, w.ayah);
+    return (ayah, ayah == from ? startWord + position : position);
   }
 
   /// The page to show while reciting: the one with the next word to
@@ -127,6 +134,7 @@ class PageRecitation {
     portion: portion,
     hideText: hideText ?? this.hideText,
     wentOn: wentOn ?? this.wentOn,
+    startWord: startWord,
   );
 
   /// How many words of each ayah show while the text is hidden: those up
@@ -134,7 +142,9 @@ class PageRecitation {
   /// its end shows all its words, whatever the count, so a word printed
   /// apart on the page does not stay hidden.
   Map<AyahRef, int> get recitedWords {
-    final counts = <AyahRef, int>{};
+    final counts = <AyahRef, int>{
+      if (from case final from? when startWord > 0) from: startWord,
+    };
     final unfinished = <AyahRef>{};
     final hints = session.hints;
     _forEachAyahWord((ayah, position, w, i) {
@@ -185,7 +195,11 @@ class PageRecitation {
       final w = words[i];
       if (w.word.kind != WordKind.ayah) continue;
       final ayah = AyahRef(w.surah, w.ayah);
-      position = ayah == last ? position + 1 : 1;
+      position = ayah == last
+          ? position + 1
+          : ayah == from
+          ? startWord + 1
+          : 1;
       last = ayah;
       f(ayah, position, w, i);
     }
@@ -302,6 +316,7 @@ class PageRecitationController extends Notifier<PageRecitation?> {
         mode: current.session.mode,
         listen: false,
         restart: true,
+        startWord: current.startWord,
       );
     });
     return null;
@@ -349,6 +364,27 @@ class PageRecitationController extends Notifier<PageRecitation?> {
   bool isListeningTo(int page) =>
       state?.covers(page) == true && state!.session.isListening;
 
+  /// Recites from word [position] of [ayah] on, where the reciter was
+  /// found reciting; [listener] is the one that heard them, still
+  /// listening, so the words said so far are compared too.
+  Future<void> startAt(
+    AyahRef ayah, {
+    int position = 1,
+    RecitationMode mode = RecitationMode.strict,
+    SpeechListener? listener,
+  }) async {
+    final mushaf = ref.read(mushafProvider).value;
+    if (mushaf == null) return;
+    await _start(
+      mushaf.pageOf(ayah),
+      from: ayah,
+      startWord: position - 1,
+      mode: mode,
+      listener: listener,
+      restart: true,
+    );
+  }
+
   /// Goes on reciting from where reciting last stopped.
   Future<void> resume({RecitationMode mode = RecitationMode.strict}) async {
     final mushaf = ref.read(mushafProvider).value;
@@ -365,6 +401,8 @@ class PageRecitationController extends Notifier<PageRecitation?> {
     RecitationMode mode = RecitationMode.strict,
     bool listen = true,
     bool restart = false,
+    int startWord = 0,
+    SpeechListener? listener,
   }) async {
     final mushaf = ref.read(mushafProvider).value;
     final surahs = ref.read(surahsProvider).value;
@@ -384,14 +422,18 @@ class PageRecitationController extends Notifier<PageRecitation?> {
           AyahRef(surah, surahs[surah - 1].ayahs.length),
         );
       }
+      var expected = wordsOfPages(
+        [for (var p = page; p <= lastPage; p++) mushaf.page(p)],
+        surahs,
+        from: from,
+        until: until,
+      );
+      if (from != null && startWord > 0) {
+        expected = _withoutStart(expected, from, startWord);
+      }
       final session = RecitationSession(
-        listener: ref.read(speechListenerProvider),
-        expected: wordsOfPages(
-          [for (var p = page; p <= lastPage; p++) mushaf.page(p)],
-          surahs,
-          from: from,
-          until: until,
-        ),
+        listener: listener ?? ref.read(speechListenerProvider),
+        expected: expected,
         surahName: (s) => surahs[s - 1].name,
         mode: mode,
       )..onMistake = (_) => ref.read(mistakeAlertProvider)();
@@ -424,9 +466,27 @@ class PageRecitationController extends Notifier<PageRecitation?> {
         from: from,
         until: until,
         portion: portion,
+        startWord: startWord,
       );
     }
     if (listen) await toggleListening();
+  }
+
+  /// [words] without the first [count] words of the ayah [from], and its
+  /// basmala, for reciting from part way through it.
+  static List<ExpectedWord> _withoutStart(
+    List<ExpectedWord> words,
+    AyahRef from,
+    int count,
+  ) {
+    var left = count;
+    return [
+      for (final w in words)
+        if (w.surah != from.surah ||
+            !(w.kind == WordKind.basmala ||
+                (w.kind == WordKind.ayah && w.ayah == from.ayah && left-- > 0)))
+          w,
+    ];
   }
 
   /// Hides the words not recited yet, or shows the whole page.
