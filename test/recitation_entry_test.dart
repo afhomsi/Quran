@@ -309,6 +309,22 @@ void main() {
       expect(container.read(pageRecitationProvider)!.session.mistakes, isEmpty);
     });
 
+    testWidgets('reciting fast without a pause turns it too', (tester) async {
+      final listener = FakeListener();
+      await recite(tester, listener);
+      // One listening session, the recognizer spelling its first word one
+      // way, then another, as it goes.
+      final words = '${ayat(1, 5)} ${ayat(6, 7)}'.split(' ');
+      for (var k = 1; k <= words.length; k++) {
+        final heard = [...words.take(k)];
+        if (k.isOdd) heard[0] = 'الف';
+        listener.say(heard.join(' '));
+        await tester.pump(const Duration(milliseconds: 200));
+      }
+      await tester.pumpAndSettle();
+      expect(shownPage(tester), 3);
+    });
+
     testWidgets('a pause half way through the page does not turn it', (
       tester,
     ) async {
