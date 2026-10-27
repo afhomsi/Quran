@@ -279,9 +279,17 @@ RecitationResult alignRecitation(
     hRaw.add(w);
   }
   final n = expected.length, m = h.length;
-  int skipCost(int i) => expected[i].optional ? 0 : 1;
+  // Costs are in tenths. An extra word costs a little less than a wrong
+  // one, so when the reciter goes back after a slip, the slip is taken
+  // for extra words rather than for words recited right before it said
+  // wrong. Words before [start] were recited already: going back, the
+  // words said again are taken for them only where they fit, so a slip or
+  // a misheard word does not undo ayat recited right.
+  const wordCost = 10, extraCost = 9, goBackCost = 10;
+  int skipCost(int i) =>
+      expected[i].optional ? 0 : (i < start ? 2 * wordCost : wordCost);
+  int wrongCost(int i) => i < start ? 2 * wordCost : wordCost;
   const unreachable = 1 << 30;
-  const goBackCost = 2;
 
   // cost[j][i]: best cost of having said heard[0, j) and being about to
   // recite expected[i]. step[j][i] is how that state was reached, and
@@ -296,14 +304,16 @@ RecitationResult alignRecitation(
     } else {
       final prev = cost[j - 1];
       for (var i = 0; i <= n; i++) {
-        if (prev[i] + 1 < c[i]) {
-          c[i] = prev[i] + 1;
+        if (prev[i] + extraCost < c[i]) {
+          c[i] = prev[i] + extraCost;
           s[i] = _Step.extra;
         }
         if (i > 0) {
           final d =
               prev[i - 1] +
-              (wordsMatch(expected[i - 1].key, h[j - 1], mode) ? 0 : 1);
+              (wordsMatch(expected[i - 1].key, h[j - 1], mode)
+                  ? 0
+                  : wrongCost(i - 1));
           if (d <= c[i]) {
             c[i] = d;
             s[i] = _Step.word;
@@ -338,11 +348,16 @@ RecitationResult alignRecitation(
     skipForward();
   }
 
-  // Everything heard is used; on a tie the later end wins, so a wrong last
-  // word is reported as wrong rather than as extra.
-  var end = 0;
+  // Everything heard is used; the later end wins also over one costing
+  // an extra word less, so a wrong last word is reported as wrong rather
+  // than as extra.
+  var best = 0;
   for (var i = 1; i <= n; i++) {
-    if (cost[m][i] <= cost[m][end]) end = i;
+    if (cost[m][i] < cost[m][best]) best = i;
+  }
+  var end = 0;
+  for (var i = 0; i <= n; i++) {
+    if (cost[m][i] <= cost[m][best] + wordCost - extraCost) end = i;
   }
   // Optional words not said yet are still ahead, not passed: a reciter who
   // ends a surah says the basmala of the next one after a pause, and that
