@@ -83,6 +83,7 @@ class RecitationResult {
     required this.words,
     this.extrasAtEnd = const [],
     this.endAt,
+    this.heardMatched = 0,
   });
 
   final List<WordResult> words;
@@ -92,6 +93,10 @@ class RecitationResult {
 
   /// Where the alignment ended, when it was told; see [end].
   final int? endAt;
+
+  /// How many of the words heard come up to the last one that matched a
+  /// word to recite; the words after it matched nothing.
+  final int heardMatched;
 
   /// Index of the word the reciter is about to say. Usually [progress],
   /// but earlier after going back to recite some words again.
@@ -272,11 +277,13 @@ RecitationResult alignRecitation(
 }) {
   final h = <String>[];
   final hRaw = <String>[];
-  for (final w in heard) {
-    final k = normalizeWord(w);
-    if (k.isEmpty) continue;
-    h.add(k);
-    hRaw.add(w);
+  final hAt = <int>[];
+  for (var k = 0; k < heard.length; k++) {
+    final key = normalizeWord(heard[k]);
+    if (key.isEmpty) continue;
+    h.add(key);
+    hRaw.add(heard[k]);
+    hAt.add(k);
   }
   final n = expected.length, m = h.length;
   // Costs are in tenths. An extra word costs a little less than a wrong
@@ -285,7 +292,13 @@ RecitationResult alignRecitation(
   // wrong. Words before [start] were recited already: going back, the
   // words said again are taken for them only where they fit, so a slip or
   // a misheard word does not undo ayat recited right.
+  //
+  // Leaving out a run of words costs at most [jumpCost], so a reciter
+  // found again a few words later is followed from there however many
+  // words were lost before: the recognizer may miss words, as when it
+  // restarts, and the reciter must not be left behind waiting for them.
   const wordCost = 10, extraCost = 9, goBackCost = 10;
+  const jumpCost = 3 * wordCost;
   int skipCost(int i) =>
       expected[i].optional ? 0 : (i < start ? 2 * wordCost : wordCost);
   int wrongCost(int i) => i < start ? 2 * wordCost : wordCost;
@@ -322,11 +335,21 @@ RecitationResult alignRecitation(
       }
     }
     void skipForward() {
+      var jumpBest = unreachable, jumpAt = 0;
       for (var i = 1; i <= n; i++) {
+        if (i - 1 >= start && c[i - 1] < jumpBest) {
+          jumpBest = c[i - 1];
+          jumpAt = i - 1;
+        }
         final d = c[i - 1] + skipCost(i - 1);
         if (d < c[i]) {
           c[i] = d;
           s[i] = _Step.skip;
+        }
+        if (jumpBest + jumpCost < c[i]) {
+          c[i] = jumpBest + jumpCost;
+          s[i] = _Step.jump;
+          from[j][i] = jumpAt;
         }
       }
     }
@@ -375,12 +398,17 @@ RecitationResult alignRecitation(
   final extras = List.generate(n + 1, (_) => <String>[]);
   final attemptOf = List.filled(n + 1, -1);
   var attempt = 0;
+  var heardMatched = 0;
   var i = end, j = m;
   while (true) {
     switch (step[j][i]) {
       case _Step.none:
         break;
       case _Step.word:
+        if (heardMatched == 0 &&
+            wordsMatch(expected[i - 1].key, h[j - 1], mode)) {
+          heardMatched = hAt[j - 1] + 1;
+        }
         if (attemptOf[i - 1] < 0) {
           attemptOf[i - 1] = attempt;
           final e = expected[i - 1];
@@ -405,6 +433,14 @@ RecitationResult alignRecitation(
           if (!expected[i - 1].optional) status[i - 1] = WordStatus.skipped;
         }
         i--;
+        continue;
+      case _Step.jump:
+        for (var k = i - 1; k >= from[j][i]; k--) {
+          if (attemptOf[k] >= 0) continue;
+          attemptOf[k] = attempt;
+          if (!expected[k].optional) status[k] = WordStatus.skipped;
+        }
+        i = from[j][i];
         continue;
       case _Step.extra:
         if (attemptOf[i] == attempt || (attempt == 0 && i == end)) {
@@ -463,7 +499,8 @@ RecitationResult alignRecitation(
     ],
     extrasAtEnd: extras[n],
     endAt: end,
+    heardMatched: heardMatched,
   );
 }
 
-enum _Step { none, word, skip, extra, back }
+enum _Step { none, word, skip, jump, extra, back }

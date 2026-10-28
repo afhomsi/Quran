@@ -137,4 +137,35 @@ void main() {
     final next = alignRecitation(expected, ['بسم'], start: r.end);
     expect(next.words.where((w) => w.isMistake), isEmpty);
   });
+
+  test('follows the reciter found again after many words were lost', () {
+    // The recognizer lost ayat 2 to 5, as when it restarts, and the
+    // reciter went on. The words heard are found where they are, not left
+    // as extra words before ayah 2.
+    final heard = words('اهدنا الصراط المستقيم صراط الذين');
+    final r = alignRecitation(expected, heard, start: o + 4);
+    final at = r.words.indexWhere((w) => w.ayah == 6);
+    expect(r.end, at + 5);
+    for (var k = at; k < at + 5; k++) {
+      expect(r.words[k].status, WordStatus.correct);
+    }
+    expect(r.words[at].extrasBefore, isEmpty);
+  });
+
+  test('a few words heard alone do not move the reciter far ahead', () {
+    final r = alignRecitation(expected, words('الرحمن الرحيم'), start: o + 4);
+    // The first ayah ends with them; the third is not jumped to.
+    expect(
+      r.words.where((w) => w.ayah >= 3 && w.status != WordStatus.pending),
+      isEmpty,
+    );
+  });
+
+  test('still finds a word the reciter added', () {
+    final r = alignRecitation(
+      expected,
+      words('بسم الله الرحمن الرحيم و الحمد لله رب العالمين'),
+    );
+    expect(r.mistakeCount, 1);
+  });
 }

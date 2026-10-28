@@ -446,8 +446,12 @@ void main() {
         ].join(' '),
         isFinal: true,
       );
+      // Listening starts again after the final result.
+      await tester.pump(const Duration(milliseconds: 400));
       await tester.pumpAndSettle();
-      expectRecitedRight(tester, 4, extraBefore: (const AyahRef(2, 4), 3));
+      // So many words that are not in the ayah are taken for talking, the
+      // reciter's own or someone else's, not for a mistake.
+      expectRecitedRight(tester, 4);
     });
 
     testWidgets('a wrong word, then reciting the ayah again', (tester) async {

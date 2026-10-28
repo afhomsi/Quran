@@ -260,12 +260,24 @@ class RecitationSession extends ChangeNotifier {
         words[same] == _lastHeard[same]) {
       same++;
     }
-    _lastHeard = words;
-    final upTo = max(
+    // A result much shorter than the last but starting the same may be
+    // the start of a new segment; the last is kept to tell.
+    if (!_mayStartSegment(words)) _lastHeard = words;
+    var upTo = max(
       min(same, words.length - _liveWords),
       words.length - _maxLiveWords,
     );
     if (upTo - _frozen < _liveWords) return;
+    // Words after the last one found in the text may be someone else
+    // speaking, or the start of a word the next result completes; they
+    // stay open to be compared with the words that follow them.
+    final forced = words.length - _maxLiveWords;
+    final (_, sub) = _alignFromPos(
+      words.sublist(_frozen, upTo).join(' '),
+      settled: true,
+    );
+    upTo = max(_frozen + sub.heardMatched, forced);
+    if (upTo <= _frozen) return;
     _settle(words.sublist(_frozen, upTo).join(' '));
     _frozen = upTo;
   }
@@ -274,16 +286,31 @@ class RecitationSession extends ChangeNotifier {
   /// within one listening session: the next results hold only the words
   /// said since. What was heard before is then kept, and the new words are
   /// compared from where it ended, so the ayat recited do not hide again.
+  ///
+  /// A new start is a result much shorter than the last one that differs
+  /// from its start. One that starts the same, as a new segment beginning
+  /// with the same word does, is not taken for one until it differs: a
+  /// recognizer taking back words it guessed ahead also sends one.
   void _startSegmentIfNew(List<String> words) {
     final last = _lastHeard;
-    if (words.isEmpty ||
-        last.length - words.length < _newSegmentShorterBy ||
-        words.first == last.first) {
+    if (words.isEmpty || last.length - words.length < _newSegmentShorterBy) {
       return;
     }
+    if (_mayStartSegment(words)) return;
     _settle(last.skip(_frozen).join(' '));
     _frozen = 0;
     _lastHeard = const [];
+  }
+
+  /// Whether [words], much shorter than the last result, start the same
+  /// way, so they may be a correction of it or a new segment.
+  bool _mayStartSegment(List<String> words) {
+    final last = _lastHeard;
+    if (last.length - words.length < _newSegmentShorterBy) return false;
+    for (var i = 0; i < words.length; i++) {
+      if (words[i] != last[i]) return false;
+    }
+    return true;
   }
 
   /// How many words shorter than the last result a new one starting with
@@ -294,10 +321,21 @@ class RecitationSession extends ChangeNotifier {
   void _commit() {
     _sessionId++;
     _quiet?.cancel();
-    final text = _current;
+    var text = _current;
     _current = '';
     _frozen = 0;
     _lastHeard = const [];
+    // Many words after the last one found in the text are someone else
+    // speaking once the reciter stopped; they are not compared, so they
+    // do not take the place of the next word to recite.
+    final words = _wordsOf(text);
+    if (words.isNotEmpty && _pos < expected.length) {
+      final (from, sub) = _alignFromPos(text, settled: true);
+      final reachedEnd = from + sub.words.length == expected.length;
+      if (!reachedEnd && words.length - sub.heardMatched >= sideSpeechWords) {
+        text = words.take(sub.heardMatched).join(' ');
+      }
+    }
     _settle(text);
   }
 
@@ -415,7 +453,10 @@ class RecitationSession extends ChangeNotifier {
         word: before.word,
         status: before.status,
         heard: before.heard,
-        extrasBefore: [...before.extrasBefore, ...now.extrasBefore],
+        extrasBefore: _withoutSideSpeech([
+          ...before.extrasBefore,
+          ...now.extrasBefore,
+        ]),
         wrongHarakat: before.wrongHarakat,
       );
     }
@@ -423,12 +464,23 @@ class RecitationSession extends ChangeNotifier {
       word: now.word,
       status: now.status,
       heard: now.heard,
-      extrasBefore: before.status == WordStatus.pending
-          ? [...before.extrasBefore, ...now.extrasBefore]
-          : now.extrasBefore,
+      extrasBefore: _withoutSideSpeech(
+        before.status == WordStatus.pending
+            ? [...before.extrasBefore, ...now.extrasBefore]
+            : now.extrasBefore,
+      ),
       wrongHarakat: now.wrongHarakat,
     );
   }
+
+  /// How many extra words in a row are taken for someone else speaking
+  /// near the reciter rather than for words the reciter added.
+  static const sideSpeechWords = 3;
+
+  /// Extra words said between two words, unless they are so many they
+  /// are someone else speaking, which is not the reciter's mistake.
+  static List<String> _withoutSideSpeech(List<String> extras) =>
+      extras.length >= sideSpeechWords ? const [] : extras;
 
   void _onSessionDone() {
     _commit();
@@ -511,7 +563,9 @@ class RecitationSession extends ChangeNotifier {
     final leftOut = _ayatLeftOut(words);
     for (var i = 0; i < words.length; i++) {
       final w = words[i];
-      if (w.extrasBefore.isNotEmpty) {
+      // Extra words before a word not recited yet may be the start of
+      // someone else speaking; they count once the reciter goes on.
+      if (w.extrasBefore.isNotEmpty && w.status != WordStatus.pending) {
         _alert(
           'extra:$i:${w.extrasBefore.join(' ')}',
           Mistake(
