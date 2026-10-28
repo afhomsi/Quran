@@ -10,6 +10,7 @@ import '../audio/reciters_screen.dart';
 import '../notes/notes_screen.dart';
 import '../profile/profile_screen.dart';
 import '../recitation/recitation_picker.dart';
+import '../hifz_exam/hifz_exam_screen.dart';
 import '../self_test/self_test_screen.dart';
 import '../settings/settings_screen.dart';
 import 'sources_screen.dart';
@@ -39,6 +40,12 @@ class MoreScreen extends ConsumerWidget {
         label: t.selfTest,
         color: const Color(0xFF7B4FD6),
         onTap: () => push(const SelfTestScreen()),
+      ),
+      _MoreTile(
+        icon: Icons.quiz_rounded,
+        label: t.hifzExam,
+        color: const Color(0xFFB8860B),
+        onTap: () => push(const HifzExamScreen()),
       ),
       _MoreTile(
         icon: Icons.mic_rounded,

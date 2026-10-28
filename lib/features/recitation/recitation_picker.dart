@@ -8,6 +8,7 @@ import '../../l10n/strings.dart';
 import '../../recitation/auto_recitation.dart';
 import '../../recitation/page_recitation.dart';
 import '../../recitation/recitation_matcher.dart';
+import '../hifz_exam/hifz_exam_screen.dart';
 import '../shell/navigation.dart';
 import 'offline_model_tile.dart';
 import 'recitation_mode.dart';
@@ -96,6 +97,20 @@ class _RecitationPicker extends ConsumerWidget {
             title: Text(t.autoRecite),
             subtitle: Text(t.autoReciteHelp),
             onTap: () => open(_autoRecitation),
+          ),
+          ListTile(
+            leading: Icon(
+              Icons.quiz_rounded,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            title: Text(t.hifzExam),
+            subtitle: Text(t.hifzExamHelp),
+            onTap: () {
+              final navigator = Navigator.of(context)..pop();
+              navigator.push(
+                MaterialPageRoute(builder: (_) => const HifzExamScreen()),
+              );
+            },
           ),
           if (resumeFrom != null) ...[
             ListTile(

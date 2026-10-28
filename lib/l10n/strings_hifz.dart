@@ -208,4 +208,65 @@ extension HifzStrings on S {
     'ফোন থেকে তিলাওয়াত মডেল মুছবেন? তিলাওয়াত যাচাই আবার ইন্টারনেটে চলবে।',
     'فون سے تلاوت کا ماڈل حذف کریں؟ تسمیع پھر انٹرنیٹ سے چلے گی۔',
   );
+
+  // The hifz exam: reciting ayat of a surah picked at random.
+  String get hifzExam =>
+      _('اختبار الحفاظ', 'Hifz exam', 'হাফেজ পরীক্ষা', 'حفاظ کا امتحان');
+  String get hifzExamHelp => _(
+    'اختر سورة، فيختار التطبيق آيات عشوائية منها (نحو ${n(10)}٪ من آياتها) ويطلب منك تسميعها من حفظك.',
+    'Choose a surah; the app picks ayat from it at random (about ${n(10)}% of its ayat) and asks you to recite them from memory.',
+    'একটি সূরা বাছুন; অ্যাপ তা থেকে এলোমেলোভাবে আয়াত (প্রায় ${n(10)}%) বেছে মুখস্থ থেকে পড়তে বলবে।',
+    'سورت چنیں؛ ایپ اس میں سے بے ترتیب آیات (تقریباً ${n(10)}٪) چن کر زبانی سنانے کو کہے گی۔',
+  );
+  String get hifzExamLongOnly => _(
+    'تظهر هنا السور الأطول من صفحة واحدة فقط.',
+    'Only surahs longer than one page are listed.',
+    'শুধু এক পৃষ্ঠার চেয়ে লম্বা সূরাগুলো এখানে আছে।',
+    'یہاں صرف ایک صفحے سے لمبی سورتیں ہیں۔',
+  );
+  String examSummary(Surah s, int questions, int ayat) => _(
+    'سورة ${surahName(s)}: ${n(questions)} ${questions == 1 ? 'سؤال' : 'أسئلة'}، ${n(ayat)} آية',
+    'Surah ${surahName(s)}: ${n(questions)} ${questions == 1 ? 'question' : 'questions'}, ${n(ayat)} ayat',
+    'সূরা ${surahName(s)}: ${n(questions)}টি প্রশ্ন, ${n(ayat)} আয়াত',
+    'سورہ ${surahName(s)}: ${n(questions)} سوال، ${n(ayat)} آیات',
+  );
+  String reciteRange(Surah s, int from, int to) => from == to
+      ? _(
+          'سمّع الآية ${n(from)} من سورة ${surahName(s)}',
+          'Recite ayah ${n(from)} of ${surahName(s)}',
+          'সূরা ${surahName(s)}-এর ${n(from)} নং আয়াত পড়ুন',
+          'سورہ ${surahName(s)} کی آیت ${n(from)} سنائیں',
+        )
+      : _(
+          'سمّع الآيات من ${n(from)} إلى ${n(to)} من سورة ${surahName(s)}',
+          'Recite ayat ${n(from)} to ${n(to)} of ${surahName(s)}',
+          'সূরা ${surahName(s)}-এর ${n(from)} থেকে ${n(to)} নং আয়াত পড়ুন',
+          'سورہ ${surahName(s)} کی آیات ${n(from)} سے ${n(to)} تک سنائیں',
+        );
+  String examRangeTitle(Surah s, int from, int to) => _(
+    'اختبار: ${surahName(s)} ${n(from)}–${n(to)}',
+    'Exam: ${surahName(s)} ${n(from)}–${n(to)}',
+    'পরীক্ষা: ${surahName(s)} ${n(from)}–${n(to)}',
+    'امتحان: ${surahName(s)} ${n(from)}–${n(to)}',
+  );
+  String get nextQuestion =>
+      _('السؤال التالي', 'Next question', 'পরবর্তী প্রশ্ন', 'اگلا سوال');
+  String get examResults => _('النتيجة', 'Results', 'ফলাফল', 'نتیجہ');
+  String get notRecitedYet => _(
+    'لم تُسمَّع بعد',
+    'Not recited yet',
+    'এখনো পড়া হয়নি',
+    'ابھی نہیں سنائی',
+  );
+  String get noMistakes =>
+      _('بلا أخطاء', 'No mistakes', 'কোনো ভুল নেই', 'کوئی غلطی نہیں');
+  String examMistakes(int count) => _(
+    '${n(count)} ${count == 1 ? 'خطأ' : 'أخطاء'}',
+    '${n(count)} ${count == 1 ? 'mistake' : 'mistakes'}',
+    '${n(count)}টি ভুল',
+    '${n(count)} ${count == 1 ? 'غلطی' : 'غلطیاں'}',
+  );
+  String get reciteAgain =>
+      _('سمّع مرة أخرى', 'Recite again', 'আবার পড়ুন', 'دوبارہ سنائیں');
+  String get examRecite => _('سمّع', 'Recite', 'পড়ুন', 'سنائیں');
 }
