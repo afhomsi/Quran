@@ -100,6 +100,43 @@ void main() {
     expect(worst, lessThan(50000));
   });
 
+  test('keeps what was recited when the recognizer starts over after a '
+      'pause', () async {
+    // Google's recognizer on Android may start over after a pause within
+    // one listening session: its results then hold only the words said
+    // since. The ayat recited before must not hide again.
+    final surahs = parseSurahs(File(quranAssetPath).readAsStringSync());
+    final mushaf = parseMushaf(File(mushafLayoutAssetPath).readAsStringSync());
+    final listener = _FakeListener();
+    final session = RecitationSession(
+      listener: listener,
+      expected: wordsOfPages([
+        for (var p = 2; p <= 4; p++) mushaf.page(p),
+      ], surahs),
+      surahName: (s) => surahs[s - 1].name,
+    );
+    final mistakes = <Mistake>[];
+    session.onMistake = mistakes.add;
+    await session.start();
+    final recitation = PageRecitation(2, session, 0, lastPage: 4);
+
+    final baqarah = surahs[1].ayahs;
+    var shown = 0;
+    for (var a = 0; a < 12; a += 2) {
+      final segment = '${baqarah[a]} ${baqarah[a + 1]}'.split(' ');
+      for (var k = 1; k <= segment.length; k++) {
+        listener.say(segment.take(k).join(' '), isFinal: false);
+        final now = recitation.recitedWords.values
+            .where((n) => n == PageRecitation.allWords)
+            .length;
+        expect(now, greaterThanOrEqualTo(shown), reason: 'ayah ${a + 1}');
+        shown = now;
+      }
+    }
+    expect(shown, greaterThanOrEqualTo(11));
+    expect(mistakes, isEmpty);
+  });
+
   test(
     'keeps up while the recognizer rewrites words it heard long ago',
     () async {

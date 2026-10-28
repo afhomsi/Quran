@@ -201,8 +201,9 @@ class RecitationSession extends ChangeNotifier {
         onResult: (text, isFinal) {
           if (id != _sessionId) return;
           if (!heardHarakat && hasHarakat(text)) heardHarakat = true;
-          if (!isFinal) _freezeStable(text);
           final words = _wordsOf(text);
+          _startSegmentIfNew(words);
+          if (!isFinal) _freezeStable(text);
           _current = words.skip(_frozen).join(' ');
           if (isFinal) _commit();
           _update();
@@ -268,6 +269,26 @@ class RecitationSession extends ChangeNotifier {
     _settle(words.sublist(_frozen, upTo).join(' '));
     _frozen = upTo;
   }
+
+  /// Some recognizers, as Google's on Android, start over after a pause
+  /// within one listening session: the next results hold only the words
+  /// said since. What was heard before is then kept, and the new words are
+  /// compared from where it ended, so the ayat recited do not hide again.
+  void _startSegmentIfNew(List<String> words) {
+    final last = _lastHeard;
+    if (words.isEmpty ||
+        last.length - words.length < _newSegmentShorterBy ||
+        words.first == last.first) {
+      return;
+    }
+    _settle(last.skip(_frozen).join(' '));
+    _frozen = 0;
+    _lastHeard = const [];
+  }
+
+  /// How many words shorter than the last result a new one starting with
+  /// another word must be to be taken for a new start, not a correction.
+  static const _newSegmentShorterBy = 3;
 
   /// Keeps the current session's text and ignores anything it still sends.
   void _commit() {
