@@ -343,6 +343,9 @@ class PageRecitationController extends Notifier<PageRecitation?> {
   /// the page; see [_moveToPlaceRecited].
   bool _findPlace = false;
 
+  /// How much was recited before looking for the place recited.
+  int _progressWhenSearching = 0;
+
   /// Where the recitation ends now that it went on into a next surah.
   int? _lastPage;
 
@@ -505,6 +508,7 @@ class PageRecitationController extends Notifier<PageRecitation?> {
     SpeechListener? listener,
     ExamRun? exam,
     bool findPlace = false,
+    bool hideText = true,
   }) async {
     final mushaf = ref.read(mushafProvider).value;
     final surahs = ref.read(surahsProvider).value;
@@ -535,25 +539,22 @@ class PageRecitationController extends Notifier<PageRecitation?> {
       }
       // Reciting another place than the page open moves the recitation
       // there, so the listener is one that can be handed over.
-      if (findPlace) {
+      if ((findPlace || (exam == null && portion == null)) &&
+          listener is! HandoverListener) {
         listener = HandoverListener(
           listener ?? ref.read(speechListenerProvider),
         );
         ref.read(quranFinderProvider);
       }
       _findPlace = findPlace;
+      _progressWhenSearching = 0;
       final session = RecitationSession(
         listener: listener ?? ref.read(speechListenerProvider),
         expected: expected,
         surahName: (s) => surahs[s - 1].name,
         mode: mode,
       );
-      session.onMistake = (_) {
-        // Words not on this page at all may be another place recited,
-        // where the recitation is about to move.
-        if (_findPlace && _rightWords(session) == 0) return;
-        ref.read(mistakeAlertProvider)();
-      };
+      session.onMistake = (_) => ref.read(mistakeAlertProvider)();
       // Reciting on past the end of the surah goes on into the next one,
       // as in juz 'Amma, where a page holds several short surahs.
       List<ExpectedWord> nextSurah() {
@@ -585,9 +586,10 @@ class PageRecitationController extends Notifier<PageRecitation?> {
         portion: portion,
         startWord: startWord,
         exam: exam,
+        hideText: hideText,
       );
     }
-    if (listen) await toggleListening();
+    if (listen) await _listen();
   }
 
   /// [words] without the first [count] words of the ayah [from], and its
@@ -614,9 +616,40 @@ class PageRecitationController extends Notifier<PageRecitation?> {
     state = current.copyWith(hideText: !current.hideText);
   }
 
+  /// Starts or stops listening, from the recitation bar. Started again
+  /// once the reciter has gone to a page the recitation does not cover,
+  /// as another surah, it recites that page instead; and on any page, what
+  /// is recited is looked for again in the whole Quran, in case it is
+  /// another place.
+  Future<void> toggleListening() async {
+    final current = state;
+    if (current == null) return;
+    final session = current.session;
+    if (session.isListening) return session.stop();
+    if (current.exam == null && current.portion == null) {
+      final shown = ref.read(lastPageProvider);
+      if (shown != null && !current.covers(shown)) {
+        return _start(
+          shown,
+          mode: session.mode,
+          restart: true,
+          findPlace: true,
+          hideText: current.hideText,
+        );
+      }
+      final listener = session.listener;
+      if (listener is HandoverListener) {
+        listener.clearHeard();
+        _findPlace = true;
+        _progressWhenSearching = session.result.progress;
+      }
+    }
+    await _listen();
+  }
+
   /// Starts or stops listening. The recitation audio is paused first, so
   /// the microphone does not hear it.
-  Future<void> toggleListening() async {
+  Future<void> _listen() async {
     final session = state?.session;
     if (session == null) return;
     if (session.isListening) return session.stop();
@@ -688,41 +721,38 @@ class PageRecitationController extends Notifier<PageRecitation?> {
     );
   }
 
-  static int _rightWords(RecitationSession session) => session.result.words
-      .where(
-        (w) => w.word.kind == WordKind.ayah && w.status == WordStatus.correct,
-      )
-      .length;
-
   /// How far after the word the reciter is at a place found is still
   /// the place being recited.
   static const _nearWords = 60;
 
-  /// Words recited right before the page counts as the place recited.
-  static const _rightToStay = 3;
-
   /// When what the reciter says is not on the page open but is found
   /// elsewhere in the Quran, as when another surah is recited, starts the
   /// recitation there with the same listening, so the mushaf goes there.
-  /// Returns whether it moved.
+  /// It looks until the words heard are found, here or elsewhere; a
+  /// count of words recited right does not tell, as common words such as
+  /// «الله» or «من» are found right on any page. Returns whether it moved.
   bool _moveToPlaceRecited(RecitationSession session) {
-    if (_rightWords(session) >= _rightToStay) {
-      _findPlace = false;
-      return false;
-    }
     final listener = session.listener;
     final finder = ref.read(quranFinderProvider).value;
     if (listener is! HandoverListener || finder == null) return false;
-    final found = finder.find(listener.heard);
-    if (found == null) return false;
+    final heard = listener.heard;
+    final found = finder.find(heard);
+    if (found == null) {
+      // Enough words to tell, and still not found: the page it is.
+      if (heard.length >= QuranFinder.maxWords) _stayOnPage();
+      return false;
+    }
     // Near where the reciter is expected, the recitation follows by itself.
     final at = session.expected.indexWhere(
       (w) => w.surah == found.ayah.surah && w.ayah == found.ayah.ayah,
     );
-    if (at >= 0 && at <= session.result.end + _nearWords) return false;
+    if (at >= 0 && at <= session.result.end + _nearWords) {
+      _stayOnPage();
+      return false;
+    }
     _findPlace = false;
     // What was heard belongs to the place found, not to this page.
-    _saved = true;
+    if (_progressWhenSearching == 0) _saved = true;
     listener.handOverFrom(found.heardStart);
     final mode = session.mode;
     // Not while the session is still telling its listeners.
@@ -736,6 +766,9 @@ class PageRecitationController extends Notifier<PageRecitation?> {
     );
     return true;
   }
+
+  /// Stops looking for the place recited.
+  void _stayOnPage() => _findPlace = false;
 
   /// Remembers where to go on reciting from: the next ayah, or the next
   /// surah once this one is recited to its end.
