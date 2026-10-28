@@ -111,6 +111,51 @@ void main() {
     expect(find.text('سورة البقرة'), findsOneWidget);
   });
 
+  testWidgets('a long press or the arrow offers listening and the exam', (
+    tester,
+  ) async {
+    final listener = FakeListener();
+    await _pump(
+      tester,
+      const MaterialApp(
+        home: Directionality(
+          textDirection: TextDirection.rtl,
+          child: MushafScreen(initialPage: 2),
+        ),
+      ),
+      listener: listener,
+    );
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(MushafScreen)),
+    );
+
+    await tester.longPress(find.widgetWithText(FilledButton, 'تسميع'));
+    await tester.pumpAndSettle();
+    expect(find.text('استماع'), findsOneWidget);
+    expect(find.text('اختبار'), findsOneWidget);
+    expect(listener.listening, isFalse);
+    await tester.tap(find.text('استماع'));
+    await tester.pumpAndSettle();
+    // The repeat sheet of the page's ayat.
+    expect(find.byType(BottomSheet), findsOneWidget);
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pumpAndSettle();
+
+    // The arrow opens the same menu; the exam is on Al-Baqarah.
+    await tester.tap(
+      find.byTooltip('المزيد: استماع أو اختبار (أو اضغط مطوّلاً على تسميع)'),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('اختبار'));
+    await tester.pumpAndSettle();
+    final recitation = container.read(pageRecitationProvider)!;
+    expect(recitation.exam, isNotNull);
+    expect(recitation.from!.surah, 2);
+    expect(listener.listening, isTrue);
+    container.read(pageRecitationProvider.notifier).close();
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('the page is recited in place, like listening', (tester) async {
     final listener = FakeListener();
     await _pump(
@@ -124,8 +169,9 @@ void main() {
       listener: listener,
     );
 
-    // The recite button sits beside the page number, next to listen.
-    expect(find.widgetWithText(FilledButton, 'استماع'), findsOneWidget);
+    // One button beside the page number: a tap recites; listening is in
+    // its menu.
+    expect(find.text('استماع'), findsNothing);
     await tester.tap(find.widgetWithText(FilledButton, 'تسميع'));
     await tester.pumpAndSettle();
     expect(find.byType(MushafScreen), findsOneWidget);

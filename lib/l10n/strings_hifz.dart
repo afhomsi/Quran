@@ -212,6 +212,13 @@ extension HifzStrings on S {
   // The hifz exam: reciting ayat of a surah picked at random.
   String get hifzExam =>
       _('اختبار الحفاظ', 'Hifz exam', 'হাফেজ পরীক্ষা', 'حفاظ کا امتحان');
+  String get exam => _('اختبار', 'Exam', 'পরীক্ষা', 'امتحان');
+  String get reciteMore => _(
+    'المزيد: استماع أو اختبار (أو اضغط مطوّلاً على تسميع)',
+    'More: listen or exam (or long-press Recite)',
+    'আরও: শুনুন বা পরীক্ষা (অথবা তিলাওয়াত যাচাই চেপে ধরুন)',
+    'مزید: سنیں یا امتحان (یا تسمیع کو دیر تک دبائیں)',
+  );
   String get hifzExamHelp => _(
     'اختر سورة، فيختار التطبيق آيات عشوائية منها (نحو ${n(10)}٪ من آياتها) ويطلب منك تسميعها من حفظك.',
     'Choose a surah; the app picks ayat from it at random (about ${n(10)}% of its ayat) and asks you to recite them from memory.',
