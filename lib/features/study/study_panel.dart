@@ -69,10 +69,7 @@ class _StudyPanelState extends ConsumerState<StudyPanel> {
 
   StudyRequest get _request => (
     tab: _tab,
-    // Both books of qira'at are shown together until one is chosen.
-    book: _choosesBook && _tab != StudyTab.qiraat
-        ? _books[_tab] ?? _tab.books.first
-        : _books[_tab],
+    book: _choosesBook ? _books[_tab] ?? _tab.books.first : _books[_tab],
     ayah: _ayah,
     word: _word,
   );

@@ -33,10 +33,8 @@ final contentSources = <ContentSource>[
         '(creativecommons.org/licenses/by-nd/4.0), from '
         'github.com/yamanamr/quran-tafsir-jami-wajiz. Kept in the app word '
         'for word, unchanged, and read without internet.\n'
-        "Al-Jalalayn, as-Sa'di, Ibn Kathir, al-Baghawi, at-Tabari, an-Nashr "
-        "of Ibn al-Jazari and ad-Durr al-Masun of as-Samin al-Halabi: "
-        'classical works in the public domain, via spa5k/tafsir_api (MIT). '
-        'Al-Jalalayn is kept in the app and read without internet.',
+        'Al-Jalalayn: a classical work in the public domain, via '
+        'spa5k/tafsir_api (MIT). Kept in the app and read without internet.',
   ),
   (
     title: (t) => t.sourceTranslation,

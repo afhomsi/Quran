@@ -17,17 +17,13 @@ enum StudyTab {
   stats(StudyPart.surah, []),
   translations(StudyPart.page, [StudyBook.english]),
   // The tafsir comes first, so an ayah opens on it.
-  tafsir(StudyPart.ayah, StudyBook.tafsirs),
+  tafsir(StudyPart.ayah, [StudyBook.jamiWajiz]),
   mukhtasar(StudyPart.ayah, [StudyBook.jalalayn]),
   tajweed(StudyPart.ayah, []),
-  qiraat(StudyPart.ayah, [StudyBook.nashr]),
-  irab(StudyPart.ayah, [StudyBook.samin]),
   translation(StudyPart.ayah, [StudyBook.english]),
   // Al-Jalalayn explains the ayah word by word.
   wordMeaning(StudyPart.word, [StudyBook.jalalayn]),
-  wordTajweed(StudyPart.word, []),
-  wordQiraat(StudyPart.word, [StudyBook.nashr]),
-  wordIrab(StudyPart.word, [StudyBook.samin]);
+  wordTajweed(StudyPart.word, []);
 
   const StudyTab(this.part, this.books);
 
@@ -42,9 +38,6 @@ enum StudyTab {
     translations => t.translations,
     mukhtasar => t.mukhtasar,
     tafsir => t.tafsir,
-    qiraat || wordQiraat => t.qiraat,
-    irab => t.irabAyah,
-    wordIrab => t.irab,
     translation => t.translation,
     wordMeaning => t.meaning,
     tajweed || wordTajweed => t.tajweedTab,
@@ -126,7 +119,7 @@ final studyContentProvider =
         case StudyTab.tajweed || StudyTab.wordTajweed:
           // Shown by TajweedView from the bundled rules.
           return [];
-        case StudyTab.wordMeaning || StudyTab.wordQiraat || StudyTab.wordIrab:
+        case StudyTab.wordMeaning:
           return onWord();
         default:
           final text = await repo.text(books.first, r.ayah);

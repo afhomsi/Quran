@@ -14,9 +14,6 @@ import 'package:hifz/data/quran_repository.dart';
 import 'package:hifz/data/quran_search.dart';
 import 'package:hifz/data/reading_state.dart';
 import 'package:hifz/data/study.dart';
-import 'package:hifz/data/study_cache.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:hifz/features/mushaf/mushaf_page_view.dart';
 import 'package:hifz/features/study/study_panel.dart';
 import 'package:hifz/features/study/word_card.dart';
@@ -24,15 +21,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fake_player.dart';
 import 'quran_search_test.dart' show loadSearchIndex;
-
-/// Keeps nothing, so no files are written in tests.
-class _NoCache extends StudyCache {
-  @override
-  Future<String?> read(String key) async => null;
-
-  @override
-  Future<void> write(String key, String text) async {}
-}
 
 /// Made once, as it takes a moment.
 final _searchIndex = loadSearchIndex();
@@ -56,13 +44,9 @@ Future<(ProviderContainer, FakePlayer)> _start(WidgetTester tester) async {
         ayahPlayerProvider.overrideWithValue(player),
         audioStoreProvider.overrideWithValue(AudioStore.none()),
         screenWakeProvider.overrideWithValue((on) async {}),
-        // The books say nothing, without going to the internet.
+        // The books say nothing.
         studyRepositoryProvider.overrideWithValue(
-          StudyRepository(
-            client: MockClient((_) async => http.Response('', 404)),
-            cache: _NoCache(),
-            loadBook: (_) async => [],
-          ),
+          StudyRepository(loadBook: (_) async => []),
         ),
       ],
       child: const HifzApp(),
@@ -119,7 +103,13 @@ void main() {
     await _tap(tester, _inCard('التفسير'));
     expect(find.byType(StudyPanel), findsOneWidget);
     // The ayah opens on the tafsir, in the book kept in the app.
-    expect(_inPanel('الجامع الوجيز'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(StudyPanel),
+        matching: find.textContaining('الجامع الوجيز'),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('marks and colors an ayah and lists it in my marks', (
