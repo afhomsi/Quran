@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../audio/ayah_audio.dart';
 import '../../audio/heard_ayat.dart';
+import '../../data/hifz_exam.dart';
 import '../../data/khatma.dart';
 import '../../data/marks.dart';
 import '../../data/mushaf_models.dart';
@@ -19,6 +21,7 @@ import '../../l10n/strings.dart';
 import '../../recitation/auto_recitation.dart';
 import '../../recitation/page_recitation.dart';
 import '../hifz_exam/exam_stop.dart';
+import '../hifz_exam/hifz_exam_screen.dart';
 import '../../settings/app_settings.dart';
 import '../audio/audio_bar.dart';
 import '../audio/repeat_sheet.dart';
@@ -41,8 +44,8 @@ import '../../data/mushaf_text.dart';
 /// Swipeable 604-page mushaf. Remembers the last page read.
 ///
 /// The top bar has a menu, night mode, a clock, a switch to plain text and
-/// ayah search. Listening and reciting have their own buttons beside the
-/// page number. The audio player sits under the page while it is open, and
+/// ayah search. Beside the page number, one button recites the page; its
+/// long press or arrow offers listening and the hifz exam. The audio player sits under the page while it is open, and
 /// the page follows the ayah being recited. Reciting the page also happens
 /// here, from a bar under the page, with each recited ayah colored green or
 /// red on the page.
@@ -447,6 +450,7 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
                               onRecite: settings.hideRecitationButton
                                   ? null
                                   : _recite,
+                              onExam: _exam,
                             ),
                             Directionality(
                               textDirection: appDirection,
@@ -514,6 +518,33 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
         ),
       ],
     );
+  }
+
+  /// Starts a hifz exam on the surah of the open page, or on the first
+  /// surah on it long enough for one; otherwise lets the reciter choose a
+  /// surah.
+  Future<void> _exam() async {
+    final mushaf = ref.read(mushafProvider).value;
+    if (mushaf == null) return;
+    final page = mushaf.page(_page);
+    final surah = {
+      page.firstAyah.surah,
+      for (final line in page.lines.whereType<SurahNameLine>()) line.surah,
+    }.where((s) => examAllowed(mushaf, s)).firstOrNull;
+    if (surah == null) {
+      await Navigator.of(
+        context,
+      ).push(MaterialPageRoute<void>(builder: (_) => const HifzExamScreen()));
+      return;
+    }
+    final mode = await chooseRecitationMode(context);
+    if (mode == null || !mounted) return;
+    await ref
+        .read(pageRecitationProvider.notifier)
+        .startExam(
+          pickExam(surah, ayahCounts[surah - 1], Random()),
+          mode: mode,
+        );
   }
 
   /// Recites the open page from its top. When a surah starts part way
@@ -1442,6 +1473,7 @@ class _PageBar extends StatelessWidget {
     this.onNext,
     required this.onListen,
     this.onRecite,
+    required this.onExam,
   });
 
   /// The page number, or the two numbers of facing pages.
@@ -1453,8 +1485,10 @@ class _PageBar extends StatelessWidget {
   final VoidCallback? onNext;
   final VoidCallback onListen;
 
-  /// Null when the recitation button is hidden in the settings.
+  /// Null when the recitation button is hidden in the settings; then
+  /// the button listens instead, and there is no exam.
   final VoidCallback? onRecite;
+  final VoidCallback onExam;
 
   @override
   Widget build(BuildContext context) {
@@ -1472,31 +1506,25 @@ class _PageBar extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
           child: Row(
             children: [
-              // Listening and reciting sit side by side, the page buttons
-              // at the other end.
-              // On a narrow phone the pair shrinks rather than overflow.
+              // One button: a tap recites, the main thing the app is for;
+              // a long press, or its arrow, offers listening and the exam.
+              // The page buttons sit at the other end.
+              // On a narrow phone it shrinks rather than overflow.
               Expanded(
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: AlignmentDirectional.centerStart,
-                  child: Row(
-                    children: [
-                      _ActionButton(
-                        icon: Icons.headphones_rounded,
-                        label: t.listen,
-                        onPressed: onListen,
-                        filled: true,
-                      ),
-                      if (onRecite != null) ...[
-                        const SizedBox(width: 6),
-                        _ActionButton(
-                          icon: Icons.mic_rounded,
-                          label: t.recite,
-                          onPressed: onRecite!,
+                  child: onRecite == null
+                      ? _ActionButton(
+                          icon: Icons.headphones_rounded,
+                          label: t.listen,
+                          onPressed: onListen,
+                        )
+                      : _ReciteButton(
+                          onRecite: onRecite!,
+                          onListen: onListen,
+                          onExam: onExam,
                         ),
-                      ],
-                    ],
-                  ),
                 ),
               ),
               IconButton(
@@ -1546,41 +1574,111 @@ class _PageBar extends StatelessWidget {
   }
 }
 
-/// One of the listen and recite buttons of the page bar: listening is
-/// filled, reciting tonal, so the pair reads as two related actions.
+/// A pill button of the page bar.
 class _ActionButton extends StatelessWidget {
   const _ActionButton({
     required this.icon,
     required this.label,
     required this.onPressed,
-    this.filled = false,
+    this.onLongPress,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback onPressed;
-  final bool filled;
+  final VoidCallback? onLongPress;
 
   @override
-  Widget build(BuildContext context) {
-    final style = FilledButton.styleFrom(
+  Widget build(BuildContext context) => FilledButton.icon(
+    style: FilledButton.styleFrom(
       padding: const EdgeInsets.symmetric(horizontal: 14),
       visualDensity: VisualDensity.compact,
       shape: const StadiumBorder(),
+    ),
+    icon: Icon(icon, size: 20),
+    label: Text(label),
+    onPressed: onPressed,
+    onLongPress: onLongPress,
+  );
+}
+
+/// The page bar's one action button: a tap recites the page; a long
+/// press, or the arrow beside it, opens a small menu above it to listen
+/// or to take the hifz exam. The arrow is always there, so the menu can
+/// be found without knowing about the long press.
+class _ReciteButton extends StatefulWidget {
+  const _ReciteButton({
+    required this.onRecite,
+    required this.onListen,
+    required this.onExam,
+  });
+
+  final VoidCallback onRecite;
+  final VoidCallback onListen;
+  final VoidCallback onExam;
+
+  @override
+  State<_ReciteButton> createState() => _ReciteButtonState();
+}
+
+class _ReciteButtonState extends State<_ReciteButton> {
+  static const _menuHeight = 2 * 48.0 + 16;
+
+  final _menu = MenuController();
+
+  void _open() {
+    HapticFeedback.selectionClick();
+    _menu.open();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = S.of(context);
+    return MenuAnchor(
+      controller: _menu,
+      // Opens upwards, over the page, since the bar is at the bottom:
+      // the menu's two items and padding stand above the button's top.
+      alignmentOffset: const Offset(0, -_menuHeight - 8),
+      style: MenuStyle(
+        alignment: AlignmentDirectional.topStart,
+        shape: WidgetStatePropertyAll(
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        ),
+      ),
+      menuChildren: [
+        MenuItemButton(
+          leadingIcon: const Icon(Icons.headphones_rounded),
+          onPressed: widget.onListen,
+          child: Text(t.listen),
+        ),
+        MenuItemButton(
+          leadingIcon: const Icon(Icons.quiz_rounded),
+          onPressed: widget.onExam,
+          child: Text(t.exam),
+        ),
+      ],
+      builder: (context, controller, _) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _ActionButton(
+            icon: Icons.mic_rounded,
+            label: t.recite,
+            onPressed: widget.onRecite,
+            onLongPress: _open,
+          ),
+          const SizedBox(width: 4),
+          IconButton.filledTonal(
+            tooltip: t.reciteMore,
+            visualDensity: VisualDensity.compact,
+            icon: Icon(
+              controller.isOpen
+                  ? Icons.keyboard_arrow_down_rounded
+                  : Icons.keyboard_arrow_up_rounded,
+            ),
+            onPressed: () => controller.isOpen ? controller.close() : _open(),
+          ),
+        ],
+      ),
     );
-    final iconWidget = Icon(icon, size: 20);
-    return filled
-        ? FilledButton.icon(
-            style: style,
-            icon: iconWidget,
-            label: Text(label),
-            onPressed: onPressed,
-          )
-        : FilledButton.tonalIcon(
-            style: style,
-            icon: iconWidget,
-            label: Text(label),
-            onPressed: onPressed,
-          );
   }
 }
