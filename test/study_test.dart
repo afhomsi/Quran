@@ -65,25 +65,6 @@ void main() {
     expect(distinctTexts(['a', 'a', '', 'b', 'a ']), ['a', 'b']);
   });
 
-  test('books are read from GitHub and its mirror', () {
-    final urls = StudyBook.jalalayn.urls(const AyahRef(5, 18));
-    expect(
-      urls.first.toString(),
-      'https://raw.githubusercontent.com/spa5k/tafsir_api/main/tafsir/'
-      'ar-tafsir-al-jalalayn/5/18.json',
-    );
-    expect(
-      urls.last.toString(),
-      'https://cdn.jsdelivr.net/gh/spa5k/tafsir_api@main/tafsir/'
-      'ar-tafsir-al-jalalayn/5/18.json',
-    );
-    expect(
-      StudyBook.english.urls(const AyahRef(1, 2)).first.toString(),
-      'https://raw.githubusercontent.com/fawazahmed0/quran-api/1/editions/'
-      'eng-mohammedmarmadu/1/2.json',
-    );
-  });
-
   test('al-Jami\' al-Wajiz is in the app, on every ayah', () {
     final book = readBundledBook(File(jamiWajizAssetPath).readAsBytesSync());
     final surahs = parseSurahs(File(quranAssetPath).readAsStringSync());

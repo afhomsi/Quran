@@ -13,10 +13,7 @@ import 'package:hifz/data/quran_repository.dart';
 import 'package:hifz/data/reading_state.dart';
 import 'package:hifz/data/recitation_history.dart';
 import 'package:hifz/data/study.dart';
-import 'package:hifz/data/study_cache.dart';
 import 'package:hifz/settings/app_settings.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fake_player.dart';
@@ -263,86 +260,17 @@ void main() {
     });
   });
 
-  group('books from the internet', () {
-    StudyRepository repo(http.Response Function(http.Request) answer) =>
-        StudyRepository(
-          client: MockClient((r) async => answer(r)),
-          cache: _MemoryCache(),
-        );
-
-    const ayah = AyahRef(1, 1);
-
-    test('reads a book only over HTTPS', () {
-      for (final book in StudyBook.values) {
-        for (final url in book.urls(const AyahRef(2, 255))) {
-          expect(url.scheme, 'https');
-        }
-      }
-    });
-
-    test('an answer that is too big is refused and not kept', () async {
-      var calls = 0;
-      final r = repo((_) {
-        calls++;
-        return http.Response.bytes(
-          utf8.encode(jsonEncode({'text': 'ا' * maxStudyResponseBytes})),
-          200,
-        );
-      });
-      await expectLater(
-        r.text(StudyBook.saadi, ayah),
-        throwsA(isA<StudyFetchError>()),
-      );
-      // Both mirrors were tried; nothing was kept, so it is asked again.
-      expect(calls, 2);
-      await expectLater(
-        r.text(StudyBook.saadi, ayah),
-        throwsA(isA<StudyFetchError>()),
-      );
-      expect(calls, 4);
-    });
-
-    test('an answer that is not a book text is refused', () async {
-      for (final body in ['[1,2]', '"text"', '{"text": 5}', '<html>']) {
-        final r = repo((_) => http.Response(body, 200));
-        await expectLater(
-          r.text(StudyBook.saadi, ayah),
-          throwsA(isA<StudyFetchError>()),
-          reason: body,
-        );
-      }
-    });
-
-    test('a book kept in the app is read without the internet', () async {
-      var calls = 0;
-      final r = StudyRepository(
-        client: MockClient((_) async {
-          calls++;
-          throw const SocketException('offline');
-        }),
-        cache: _MemoryCache(),
-        loadBook: (path) async => readBundledBook(File(path).readAsBytesSync()),
-      );
-      expect(
-        await r.text(StudyBook.jamiWajiz, const AyahRef(2, 255)),
-        contains('الحي'),
-      );
-      expect(await r.text(StudyBook.jalalayn, const AyahRef(1, 2)), isNotEmpty);
-      expect(await r.text(StudyBook.english, const AyahRef(1, 1)), isNotEmpty);
-      expect(await r.text(StudyBook.jamiWajiz, const AyahRef(1, 99)), '');
-      expect(calls, 0);
-    });
-
-    test('a good answer is read and kept', () async {
-      var calls = 0;
-      final r = repo((_) {
-        calls++;
-        return http.Response.bytes(utf8.encode('{"text": " تفسير "}'), 200);
-      });
-      expect(await r.text(StudyBook.saadi, ayah), 'تفسير');
-      expect(await r.text(StudyBook.saadi, ayah), 'تفسير');
-      expect(calls, 1);
-    });
+  test('the study books are read from the app, without internet', () async {
+    final r = StudyRepository(
+      loadBook: (path) async => readBundledBook(File(path).readAsBytesSync()),
+    );
+    expect(
+      await r.text(StudyBook.jamiWajiz, const AyahRef(2, 255)),
+      contains('الحي'),
+    );
+    expect(await r.text(StudyBook.jalalayn, const AyahRef(1, 2)), isNotEmpty);
+    expect(await r.text(StudyBook.english, const AyahRef(1, 1)), isNotEmpty);
+    expect(await r.text(StudyBook.jamiWajiz, const AyahRef(1, 99)), '');
   });
 
   group('the app as installed', () {
@@ -427,15 +355,4 @@ void main() {
       expect(found, isEmpty);
     });
   });
-}
-
-/// Keeps texts in memory instead of in the app's folder.
-class _MemoryCache implements StudyCache {
-  final _texts = <String, String>{};
-
-  @override
-  Future<String?> read(String key) async => _texts[key];
-
-  @override
-  Future<void> write(String key, String text) async => _texts[key] = text;
 }

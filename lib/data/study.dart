@@ -4,66 +4,30 @@ import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:http/http.dart' as http;
 
 import 'arabic_search.dart';
 import 'mushaf_models.dart';
-import 'study_cache.dart';
 
-/// The books the study panel reads from: tafsir, qira'at, i'rab and a
-/// translation. Only open books are used: classical works, whose authors
-/// died long ago, Pickthall's English translation (1930), and al-Jami'
-/// al-Wajiz, whose author shares it under CC BY-ND 4.0.
-///
-/// The books with an [asset] are kept in the app and read without
-/// internet. The others come per ayah from the open tafsir_api collection
-/// on GitHub (github.com/spa5k/tafsir_api) and the quran-api translations
-/// (github.com/fawazahmed0/quran-api), and are kept on the device once read.
+/// The books the study panel reads from: two tafsirs and a translation,
+/// all kept in the app and read without internet. Only open books are
+/// used: al-Jalalayn, a classical work whose authors died long ago,
+/// Pickthall's English translation (1930), and al-Jami' al-Wajiz, whose
+/// author shares it under CC BY-ND 4.0.
 enum StudyBook {
-  jamiWajiz('ar-tafsir-al-jami-al-wajiz', asset: jamiWajizAssetPath),
-  jalalayn(
-    'ar-tafsir-al-jalalayn',
-    splitAtQuotes: true,
-    asset: 'assets/search/jalalayn.json.gz',
-  ),
-  saadi('ar-tafseer-al-saddi'),
-  ibnKathir('ar-tafsir-ibn-kathir'),
-  baghawi('ar-tafsir-al-baghawi'),
-  tabari('ar-tafsir-al-tabari'),
-  nashr('al-nashr-li-ibn-al-jazari'),
-  samin('al-dur-al-masun-lil-samin-al-halabi', splitAtQuotes: true),
-  english('eng-mohammedmarmadu', asset: 'assets/search/pickthall.json.gz');
+  jamiWajiz(jamiWajizAssetPath),
+  jalalayn('assets/search/jalalayn.json.gz', splitAtQuotes: true),
+  english('assets/search/pickthall.json.gz');
 
-  const StudyBook(this.slug, {this.splitAtQuotes = false, this.asset});
-
-  final String slug;
+  const StudyBook(this.asset, {this.splitAtQuotes = false});
 
   /// The book's file in the app, a gzipped list of surahs, each a list of
-  /// ayah texts; null when it is read from the internet.
-  final String? asset;
+  /// ayah texts.
+  final String asset;
 
   /// The book explains the ayah piece by piece in one paragraph, each piece
   /// after the words it quotes, so a word's part starts at its quote.
   final bool splitAtQuotes;
-
-  /// The tafsir tab's books, the one kept in the app first.
-  static const tafsirs = [jamiWajiz, saadi, ibnKathir, baghawi, tabari];
-
-  /// Where the text of [ayah] can be read, mirrors first.
-  List<Uri> urls(AyahRef ayah) {
-    final (repo, version, folder) = this == english
-        ? ('fawazahmed0/quran-api', '1', 'editions')
-        : ('spa5k/tafsir_api', 'main', 'tafsir');
-    final file = '$folder/$slug/${ayah.surah}/${ayah.ayah}.json';
-    return [
-      Uri.parse('https://raw.githubusercontent.com/$repo/$version/$file'),
-      Uri.parse('https://cdn.jsdelivr.net/gh/$repo@$version/$file'),
-    ];
-  }
 }
-
-/// The largest answer read for one ayah of one book, in bytes.
-const maxStudyResponseBytes = 2 * 1024 * 1024;
 
 const jamiWajizAssetPath = 'assets/tafsir/jami_wajiz.json.gz';
 
@@ -82,87 +46,23 @@ Future<List<List<String>>> _loadBook(String path) async {
   return compute(readBundledBook, data.buffer.asUint8List());
 }
 
-/// Fetches study texts and keeps them, in memory and on the device.
+/// Reads the books kept in the app, each once.
 class StudyRepository {
-  StudyRepository({
-    http.Client? client,
-    StudyCache? cache,
-    Future<List<List<String>>> Function(String asset)? loadBook,
-  }) : _client = client ?? http.Client(),
-       _cache = cache ?? StudyCache(),
-       _load = loadBook ?? _loadBook;
+  StudyRepository({Future<List<List<String>>> Function(String asset)? loadBook})
+    : _load = loadBook ?? _loadBook;
 
-  final http.Client _client;
-  final StudyCache _cache;
   final Future<List<List<String>>> Function(String asset) _load;
-  final _memory = <String, String>{};
-  final _bundled = <String, Future<List<List<String>>>>{};
+  final _books = <String, Future<List<List<String>>>>{};
 
   /// The text [book] gives for [ayah], or '' when the book says nothing on
-  /// it. Throws when it cannot be fetched, e.g. without internet.
+  /// it.
   Future<String> text(StudyBook book, AyahRef ayah) async {
-    if (book.asset case final asset?) {
-      final surahs = await (_bundled[asset] ??= _load(asset));
-      if (ayah.surah < 1 || ayah.surah > surahs.length) return '';
-      final ayat = surahs[ayah.surah - 1];
-      if (ayah.ayah < 1 || ayah.ayah > ayat.length) return '';
-      return ayat[ayah.ayah - 1].trim();
-    }
-    final key = '${book.slug}/${ayah.surah}/${ayah.ayah}';
-    if (_memory[key] case final text?) return text;
-    var text = await _cache.read(key);
-    if (text == null) {
-      text = await _fetch(book, ayah);
-      await _cache.write(key, text);
-    }
-    return _memory[key] = text;
+    final surahs = await (_books[book.asset] ??= _load(book.asset));
+    if (ayah.surah < 1 || ayah.surah > surahs.length) return '';
+    final ayat = surahs[ayah.surah - 1];
+    if (ayah.ayah < 1 || ayah.ayah > ayat.length) return '';
+    return ayat[ayah.ayah - 1].trim();
   }
-
-  Future<String> _fetch(StudyBook book, AyahRef ayah) async {
-    Object? error;
-    for (final url in book.urls(ayah)) {
-      try {
-        final response = await _client
-            .get(url)
-            .timeout(const Duration(seconds: 20));
-        // Books skip the ayat they have nothing on.
-        if (response.statusCode == 404) return '';
-        if (response.statusCode != 200) {
-          error = 'HTTP ${response.statusCode}';
-          continue;
-        }
-        // The longest tafsir of one ayah is well under this; a bigger
-        // answer is not the book's and is not kept on the device.
-        if (response.bodyBytes.length > maxStudyResponseBytes) {
-          error = 'Too large';
-          continue;
-        }
-        final json = jsonDecode(utf8.decode(response.bodyBytes));
-        if (json is! Map) {
-          error = 'Not a study text';
-          continue;
-        }
-        final text = json['text'] ?? '';
-        if (text is! String) {
-          error = 'Not a study text';
-          continue;
-        }
-        return text.trim();
-      } catch (e) {
-        error = e;
-      }
-    }
-    throw StudyFetchError(error);
-  }
-}
-
-class StudyFetchError implements Exception {
-  StudyFetchError(this.cause);
-
-  final Object? cause;
-
-  @override
-  String toString() => 'StudyFetchError: $cause';
 }
 
 final studyRepositoryProvider = Provider<StudyRepository>(

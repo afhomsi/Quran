@@ -310,7 +310,7 @@ class StudyContentView extends ConsumerWidget {
               ),
             ),
           // The book is named under its text, as its licence asks.
-          if (!compact && book != null && request.book != null)
+          if (!compact && book != null)
             Text(
               t.source(book),
               style: theme.textTheme.bodySmall!.copyWith(

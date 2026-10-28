@@ -1,7 +1,6 @@
 part of 'strings.dart';
 
-/// Texts of the word card and the study panel: tafsir, qira'at, i'rab and
-/// translation.
+/// Texts of the word card and the study panel: tafsir and translation.
 extension StudyStrings on S {
   // The four parts of the study panel.
   String get surahSciences =>
@@ -16,10 +15,6 @@ extension StudyStrings on S {
   String get translations => _('الترجمات', 'Translation', 'অনুবাদ', 'تراجم');
   String get mukhtasar => _('المختصر', 'Brief', 'সংক্ষিপ্ত', 'مختصر');
   String get tafsir => _('التفسير', 'Tafsir', 'তাফসীর', 'تفسیر');
-  String get qiraat => _('القراءات', "Qira'at", 'কিরাআত', 'قراءات');
-  String get irabAyah =>
-      _('إعراب الآية', "I'rab of the ayah", 'আয়াতের ই‘রাব', 'آیت کا اعراب');
-  String get irab => _('الإعراب', "I'rab", 'ই‘রাব', 'اعراب');
   String get translation => _('الترجمة', 'Translation', 'অনুবাদ', 'ترجمہ');
   String get meaning => _('المعنى', 'Meaning', 'অর্থ', 'معنی');
 
@@ -35,27 +30,6 @@ extension StudyStrings on S {
       'Tafsir al-Jalalayn',
       'তাফসীরে জালালাইন',
       'تفسیر جلالین',
-    ),
-    StudyBook.saadi => _('السعدي', "As-Sa'di", 'আস-সা‘দী', 'السعدی'),
-    StudyBook.ibnKathir => _(
-      'ابن كثير',
-      'Ibn Kathir',
-      'ইবনে কাসীর',
-      'ابن کثیر',
-    ),
-    StudyBook.baghawi => _('البغوي', 'Al-Baghawi', 'আল-বাগাভী', 'البغوی'),
-    StudyBook.tabari => _('الطبري', 'At-Tabari', 'আত-তাবারী', 'الطبری'),
-    StudyBook.nashr => _(
-      'النشر لابن الجزري',
-      'An-Nashr (Ibn al-Jazari)',
-      'আন-নাশর',
-      'النشر لابن الجزری',
-    ),
-    StudyBook.samin => _(
-      'الدر المصون للسمين الحلبي',
-      'Ad-Durr al-Masun (as-Samin al-Halabi)',
-      'আদ-দুররুল মাসূন',
-      'الدر المصون للسمین الحلبی',
     ),
     StudyBook.english => _('ترجمة بكثال', 'Pickthall', 'পিকথল', 'پکتھال'),
   };
@@ -124,11 +98,10 @@ extension StudyStrings on S {
     'ماخذ: ${bookCredit(book)}',
   );
   String get studyLoadError => _(
-    'تعذر تحميل المحتوى. يحتاج اتصالًا بالإنترنت أول مرة، ثم يُحفظ على الجهاز.',
-    'Could not load. It needs internet the first time, then it is kept on '
-        'the device.',
-    'লোড করা যায়নি। প্রথমবার ইন্টারনেট লাগে, পরে ডিভাইসে থাকে।',
-    'لوڈ نہیں ہو سکا۔ پہلی بار انٹرنیٹ چاہیے، پھر آلے پر محفوظ رہتا ہے۔',
+    'تعذر تحميل المحتوى.',
+    'Could not load.',
+    'লোড করা যায়নি।',
+    'لوڈ نہیں ہو سکا۔',
   );
   String get retry =>
       _('إعادة المحاولة', 'Try again', 'আবার চেষ্টা করুন', 'دوبارہ کوشش');

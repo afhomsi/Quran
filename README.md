@@ -58,10 +58,8 @@ The pages are drawn with the DigitalKhatt New Madina font
 Font License 1.1, see `assets/fonts/LICENSE-madina.txt`). The tajweed
 colours are worked out by the app from the text (`lib/data/tajweed.dart`).
 
-The study panel reads, per ayah and only when opened, books that are free
-of copyright: the classical tafsirs of al-Jalalayn, as-Sa'di, Ibn Kathir,
-al-Baghawi and at-Tabari, an-Nashr of Ibn al-Jazari for the qira'at and
-ad-Durr al-Masun of as-Samin al-Halabi for the i'rab, from
+The study panel reads books kept in the app, without internet: al-Jami'
+al-Wajiz (CC BY-ND 4.0), the classical tafsir of al-Jalalayn from
 [spa5k/tafsir_api](https://github.com/spa5k/tafsir_api), and Pickthall's
 English translation (1930) from
 [fawazahmed0/quran-api](https://github.com/fawazahmed0/quran-api). The app's
