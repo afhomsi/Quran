@@ -128,14 +128,14 @@ void main() {
     await tester.tap(find.text('السؤال 1 من 10'));
     await tester.pumpAndSettle();
     expect(
-      find.text('اختبار: البقرة ${(exam[0].from)}–${(exam[0].to)}'),
+      find.text('البقرة ${(exam[0].from)}–${(exam[0].to)}'),
       findsOneWidget,
     );
     await recite(exam[0]);
     await tester.tap(find.text('السؤال التالي'));
     await tester.pumpAndSettle();
     expect(
-      find.text('اختبار: البقرة ${(exam[1].from)}–${(exam[1].to)}'),
+      find.text('البقرة ${(exam[1].from)}–${(exam[1].to)}'),
       findsOneWidget,
     );
     // The second with a wrong last word, then back to the exam.

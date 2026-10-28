@@ -243,12 +243,8 @@ extension HifzStrings on S {
           'সূরা ${surahName(s)}-এর ${n(from)} থেকে ${n(to)} নং আয়াত পড়ুন',
           'سورہ ${surahName(s)} کی آیات ${n(from)} سے ${n(to)} تک سنائیں',
         );
-  String examRangeTitle(Surah s, int from, int to) => _(
-    'اختبار: ${surahName(s)} ${n(from)}–${n(to)}',
-    'Exam: ${surahName(s)} ${n(from)}–${n(to)}',
-    'পরীক্ষা: ${surahName(s)} ${n(from)}–${n(to)}',
-    'امتحان: ${surahName(s)} ${n(from)}–${n(to)}',
-  );
+  String examRangeTitle(Surah s, int from, int to) =>
+      '${surahName(s)} ${n(from)}–${n(to)}';
   String get nextQuestion =>
       _('السؤال التالي', 'Next question', 'পরবর্তী প্রশ্ন', 'اگلا سوال');
   String get examResults => _('النتيجة', 'Results', 'ফলাফল', 'نتیجہ');
