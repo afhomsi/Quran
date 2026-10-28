@@ -6,6 +6,7 @@ import '../../l10n/strings.dart';
 import '../../recitation/page_recitation.dart';
 import '../../recitation/session_record.dart';
 import '../audio/repeat_sheet.dart';
+import '../hifz_exam/exam_stop.dart';
 import '../../recitation/recitation_matcher.dart';
 import '../../recitation/recitation_session.dart';
 import 'offline_model_tile.dart';
@@ -68,11 +69,18 @@ class RecitationBar extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (recitation.exam != null) ExamPrompt(recitation: recitation),
           Row(
             children: [
               Expanded(
                 child: Text(
-                  '$title · ${session.mode == RecitationMode.lenient ? t.lenientShort : t.strictShort} · $status',
+                  [
+                    if (recitation.exam == null) title,
+                    session.mode == RecitationMode.lenient
+                        ? t.lenientShort
+                        : t.strictShort,
+                    status,
+                  ].join(' · '),
                   style: textTheme.labelMedium,
                   textAlign: TextAlign.center,
                   maxLines: 2,
@@ -105,6 +113,7 @@ class RecitationBar extends ConsumerWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
+          const ExamNextButton(),
           const OfflineModelTile(onlyToDownload: true),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,

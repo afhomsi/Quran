@@ -18,6 +18,7 @@ import '../../data/tajweed.dart';
 import '../../l10n/strings.dart';
 import '../../recitation/auto_recitation.dart';
 import '../../recitation/page_recitation.dart';
+import '../hifz_exam/exam_stop.dart';
 import '../../settings/app_settings.dart';
 import '../audio/audio_bar.dart';
 import '../audio/repeat_sheet.dart';
@@ -276,7 +277,14 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
             : null,
       ),
       (_, session) {
-        if (session != null) showMistakesReport(context, session);
+        if (session == null) return;
+        // In the hifz exam, a popup says to stop and goes on to the next
+        // question instead.
+        if (ref.read(pageRecitationProvider)?.exam != null) {
+          showExamStop(context, ref);
+        } else {
+          showMistakesReport(context, session);
+        }
       },
     );
     if (mushaf == null || surahs == null) {
