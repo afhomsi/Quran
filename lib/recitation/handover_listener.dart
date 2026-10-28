@@ -47,6 +47,12 @@ class HandoverListener implements SpeechListener {
   List<String> get heard => [..._done, ..._lastWords];
   final _done = <String>[];
 
+  /// Forgets the words heard so far, to look for a place from now on.
+  void clearHeard() {
+    _done.clear();
+    _lastWords = const [];
+  }
+
   bool _handingOver = false;
 
   @override

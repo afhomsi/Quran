@@ -13,6 +13,7 @@ import 'package:hifz/data/reading_state.dart';
 import 'package:hifz/data/recitation_history.dart';
 import 'package:hifz/features/mushaf/mushaf_page_view.dart';
 import 'package:hifz/features/mushaf/mushaf_screen.dart';
+import 'package:hifz/features/shell/navigation.dart';
 import 'package:hifz/recitation/alert_sound.dart';
 import 'package:hifz/recitation/auto_recitation.dart';
 import 'package:hifz/recitation/handover_listener.dart';
@@ -306,6 +307,99 @@ void main() {
       expect(now.ayahStates[const AyahRef(36, 13)], AyahRecitation.correct);
       // Nothing of Al-Fatiha was kept as recited.
       expect(container.read(recitationHistoryProvider), isEmpty);
+      await tester.tap(find.byTooltip('إغلاق التسميع'));
+      await tester.pumpAndSettle();
+    });
+
+    /// What Google's recognizer writes: no harakat, and the words come
+    /// one more in each partial result.
+    String plain(String w) =>
+        w.replaceAll(RegExp('[\u064B-\u065F\u0670\u06D6-\u06ED\u0640]'), '');
+    Future<void> sayWordByWord(
+      WidgetTester tester,
+      FakeListener listener,
+      List<String> words,
+    ) async {
+      for (var n = 1; n <= words.length; n++) {
+        listener.say(words.take(n).map(plain).join(' '));
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+      await tester.pumpAndSettle();
+    }
+
+    for (final (page, ayah) in [
+      (50, const AyahRef(18, 10)),
+      (2, const AyahRef(36, 12)),
+      (300, const AyahRef(2, 255)),
+      (440, const AyahRef(67, 2)),
+    ]) {
+      testWidgets('page $page open, reciting $ayah word by word moves there', (
+        tester,
+      ) async {
+        final listener = FakeListener();
+        final container = await _pump(tester, listener);
+        await container.read(pageRecitationProvider.notifier).start(page);
+        await tester.pumpAndSettle();
+        await sayWordByWord(tester, listener, [
+          ..._ayah(ayah.surah, ayah.ayah),
+          ..._ayah(ayah.surah, ayah.ayah + 1),
+        ]);
+        final recitation = container.read(pageRecitationProvider)!;
+        expect(recitation.from, ayah);
+        expect(recitation.session.mistakes, isEmpty);
+        expect(
+          recitation.ayahStates[AyahRef(ayah.surah, ayah.ayah + 1)],
+          AyahRecitation.correct,
+        );
+        expect(
+          tester
+              .widget<MushafPageView>(find.byType(MushafPageView))
+              .page
+              .number,
+          _mushaf.pageOf(ayah),
+        );
+        await tester.tap(find.byTooltip('إغلاق التسميع'));
+        await tester.pumpAndSettle();
+      });
+    }
+
+    testWidgets('stopped, then started again on another surah', (tester) async {
+      final listener = FakeListener();
+      final container = await _pump(tester, listener);
+      final controller = container.read(pageRecitationProvider.notifier);
+      await controller.start(1);
+      await tester.pumpAndSettle();
+      await sayWordByWord(tester, listener, _surahs[0].ayahs[1].split(' '));
+      // Stopped with the microphone of the recitation bar.
+      await tester.tap(find.byTooltip('إيقاف'));
+      await tester.pumpAndSettle();
+      expect(
+        container.read(pageRecitationProvider)!.session.isListening,
+        isFalse,
+      );
+
+      // Another surah is opened, and the same microphone pressed again.
+      container.read(mushafJumpProvider.notifier).jump(293);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('ابدأ التسميع'));
+      await tester.pumpAndSettle();
+      var recitation = container.read(pageRecitationProvider)!;
+      expect(recitation.covers(293), isTrue);
+      expect(recitation.hideText, isTrue);
+      expect(recitation.session.isListening, isTrue);
+      final shown = tester.widget<MushafPageView>(find.byType(MushafPageView));
+      expect(shown.page.number, 293);
+      expect(shown.recitedWords, isNotNull);
+
+      // And reciting yet another surah from there moves on to it.
+      await sayWordByWord(tester, listener, [
+        ..._ayah(36, 12),
+        ..._ayah(36, 13),
+      ]);
+      recitation = container.read(pageRecitationProvider)!;
+      expect(recitation.from, const AyahRef(36, 12));
+      expect(recitation.hideText, isTrue);
+      expect(recitation.session.mistakes, isEmpty);
       await tester.tap(find.byTooltip('إغلاق التسميع'));
       await tester.pumpAndSettle();
     });
