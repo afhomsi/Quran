@@ -10,10 +10,12 @@ import 'package:hifz/data/mushaf_models.dart';
 import 'package:hifz/data/mushaf_repository.dart';
 import 'package:hifz/data/quran_repository.dart';
 import 'package:hifz/data/reading_state.dart';
+import 'package:hifz/data/recitation_history.dart';
 import 'package:hifz/features/mushaf/mushaf_page_view.dart';
 import 'package:hifz/features/mushaf/mushaf_screen.dart';
 import 'package:hifz/recitation/alert_sound.dart';
 import 'package:hifz/recitation/auto_recitation.dart';
+import 'package:hifz/recitation/handover_listener.dart';
 import 'package:hifz/recitation/page_recitation.dart';
 import 'package:hifz/recitation/quran_finder.dart';
 import 'package:hifz/recitation/speech_listener.dart';
@@ -275,6 +277,56 @@ void main() {
         expect(heard.last, 'وكل شيء');
       },
     );
+
+    testWidgets('reciting another surah from the page goes there', (
+      tester,
+    ) async {
+      final listener = FakeListener();
+      final container = await _pump(tester, listener);
+      // Al-Fatiha is open, and Ya-Sin is recited.
+      await container.read(pageRecitationProvider.notifier).start(1);
+      await tester.pumpAndSettle();
+      final ayah = _ayah(36, 12);
+      listener.say(ayah.take(8).join(' '));
+      await tester.pumpAndSettle();
+      final recitation = container.read(pageRecitationProvider)!;
+      expect(recitation.from, const AyahRef(36, 12));
+      expect(recitation.session.isListening, isTrue);
+      expect(recitation.session.mistakes, isEmpty);
+      expect(recitation.currentWord, (const AyahRef(36, 12), 9));
+      expect(
+        tester.widget<MushafPageView>(find.byType(MushafPageView)).page.number,
+        _mushaf.pageOf(const AyahRef(36, 12)),
+      );
+      // The same listening goes on there.
+      listener.say([...ayah, ..._ayah(36, 13)].join(' '));
+      await tester.pumpAndSettle();
+      final now = container.read(pageRecitationProvider)!;
+      expect(now.session.mistakes, isEmpty);
+      expect(now.ayahStates[const AyahRef(36, 13)], AyahRecitation.correct);
+      // Nothing of Al-Fatiha was kept as recited.
+      expect(container.read(recitationHistoryProvider), isEmpty);
+      await tester.tap(find.byTooltip('إغلاق التسميع'));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('reciting the page open stays on it', (tester) async {
+      final listener = FakeListener();
+      final container = await _pump(tester, listener);
+      await container.read(pageRecitationProvider.notifier).start(1);
+      await tester.pumpAndSettle();
+      final recitation = container.read(pageRecitationProvider)!;
+      listener.say(_surahs[0].ayahs.take(4).join(' '));
+      await tester.pumpAndSettle();
+      expect(
+        container.read(pageRecitationProvider)!.session,
+        same(recitation.session),
+      );
+      expect(recitation.from, isNull);
+      expect(recitation.session.mistakes, isEmpty);
+      await tester.tap(find.byTooltip('إغلاق التسميع'));
+      await tester.pumpAndSettle();
+    });
 
     testWidgets('starts from the recitation picker', (tester) async {
       final listener = FakeListener();

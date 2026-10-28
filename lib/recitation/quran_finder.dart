@@ -1,5 +1,8 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../data/mushaf_models.dart';
 import '../data/quran_models.dart';
+import '../data/quran_repository.dart';
 import 'arabic_normalizer.dart';
 import 'recitation_matcher.dart';
 
@@ -162,3 +165,8 @@ class QuranFinder {
     return phrase.length;
   }
 }
+
+/// The whole Quran indexed for [QuranFinder.find], made once.
+final quranFinderProvider = FutureProvider<QuranFinder>(
+  (ref) async => QuranFinder(await ref.watch(surahsProvider.future)),
+);

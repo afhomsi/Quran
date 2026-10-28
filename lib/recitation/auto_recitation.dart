@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../audio/ayah_audio.dart';
-import '../data/quran_repository.dart';
+import 'handover_listener.dart';
 import 'page_recitation.dart';
 import 'quran_finder.dart';
 import 'recitation_matcher.dart';
@@ -29,10 +29,6 @@ class AutoRecitation {
   /// Message to show when the microphone or recognizer cannot be used.
   final String? error;
 }
-
-final quranFinderProvider = FutureProvider<QuranFinder>(
-  (ref) async => QuranFinder(await ref.watch(surahsProvider.future)),
-);
 
 /// Listens until the place recited is found, then hands the same
 /// listening on to the page recitation, so no word said meanwhile is lost.
@@ -259,113 +255,3 @@ final autoRecitationProvider =
     NotifierProvider<AutoRecitationController, AutoRecitation?>(
       AutoRecitationController.new,
     );
-
-/// Passes a listener on from one user to the next while it is listening:
-/// the next one gets the words heard so far in the listening session, as
-/// if it had listened from the start, less words handed over to skip.
-class HandoverListener implements SpeechListener {
-  HandoverListener(this.inner);
-
-  final SpeechListener inner;
-  bool _initialized = false;
-
-  /// Whether a session of [inner] is going on.
-  bool _listening = false;
-  String _lastText = '';
-  void Function(String message)? _onError;
-  void Function()? _onDone;
-  void Function(String text, bool isFinal)? _onResult;
-
-  /// Words to put before what the session still listening hears.
-  String _carry = '';
-
-  /// Words at the start of the session still listening to leave out.
-  int _skip = 0;
-
-  /// What the next user gets: [carry] first, then what the session going
-  /// on hears without its first [skip] words.
-  void handOver(String carry, int skip) {
-    _carry = carry;
-    _skip = skip;
-    _onResult = null;
-  }
-
-  @override
-  Future<bool> initialize({
-    required void Function(String message) onError,
-    required void Function() onDone,
-  }) async {
-    _onError = onError;
-    _onDone = onDone;
-    if (_initialized) return true;
-    _initialized = await inner.initialize(
-      onError: (message) => _onError?.call(message),
-      onDone: () {
-        _listening = false;
-        _onDone?.call();
-      },
-    );
-    return _initialized;
-  }
-
-  @override
-  Future<void> listen({
-    required void Function(String text, bool isFinal) onResult,
-  }) async {
-    _onResult = onResult;
-    if (_listening) {
-      // Taking over a session going on: what it heard so far comes first.
-      if (_lastText.isNotEmpty || _carry.isNotEmpty) _forward(_lastText, false);
-      return;
-    }
-    _listening = true;
-    _lastText = '';
-    _lastWords = const [];
-    await inner.listen(
-      onResult: (text, isFinal) {
-        _lastText = text;
-        if (isFinal) _listening = false;
-        _forward(text, isFinal);
-      },
-    );
-  }
-
-  /// The words of the last result of the session going on.
-  List<String> _lastWords = const [];
-
-  void _forward(String text, bool isFinal) {
-    final words = [
-      for (final w in text.trim().split(RegExp(r'\s+')))
-        if (w.isNotEmpty) w,
-    ];
-    // Google's recognizer may start its text over after a pause in the
-    // same session; what it sends then holds only new words, so nothing
-    // handed over belongs before them.
-    if (words.length + 3 <= _lastWords.length &&
-        (words.isEmpty || words.first != _lastWords.first)) {
-      _carry = '';
-      _skip = 0;
-    }
-    _lastWords = isFinal ? const [] : words;
-    final out = [
-      if (_carry.isNotEmpty) _carry,
-      ...words.skip(_skip < words.length ? _skip : words.length),
-    ].join(' ');
-    if (isFinal) {
-      _carry = '';
-      _skip = 0;
-      _lastText = '';
-    }
-    _onResult?.call(out, isFinal);
-  }
-
-  @override
-  Future<void> stop() {
-    _listening = false;
-    _lastText = '';
-    _lastWords = const [];
-    _carry = '';
-    _skip = 0;
-    return inner.stop();
-  }
-}
