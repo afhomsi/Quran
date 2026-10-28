@@ -193,18 +193,15 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     listener.say('رب الناس', isFinal: true);
     await tester.pump();
-    // Only the word recited wrongly stays hidden; the rest of its ayah
-    // shows and the microphone keeps listening.
+    // The ayah stops showing at the word recited wrongly, which is not
+    // coloured, and the microphone keeps listening.
     expect(container.read(pageRecitationProvider)!.recitedWords, {
       const AyahRef(1, 1): PageRecitation.allWords,
-      const AyahRef(1, 2): PageRecitation.allWords,
-    });
-    expect(container.read(pageRecitationProvider)!.wrongWords, {
-      (const AyahRef(1, 2), 4),
+      const AyahRef(1, 2): 3,
     });
     expect(
-      tester.widget<MushafPageView>(find.byType(MushafPageView)).wrongWords,
-      {(const AyahRef(1, 2), 4)},
+      tester.widget<MushafPageView>(find.byType(MushafPageView)).wordColors,
+      isEmpty,
     );
     expect(listener.listening, isTrue);
 
@@ -216,6 +213,11 @@ void main() {
     expect(find.textContaining('خطأ في الآية 2'), findsOneWidget);
     final states = container.read(pageRecitationProvider)!.ayahStates;
     expect(states.values, [AyahRecitation.correct, AyahRecitation.mistake]);
+    // With the ayat shown, the words recited are coloured.
+    expect(
+      tester.widget<MushafPageView>(find.byType(MushafPageView)).wordColors,
+      isNotEmpty,
+    );
 
     // Listening after reciting shows the whole text, even with the
     // recitation hiding it.
@@ -407,7 +409,7 @@ void main() {
     });
   });
 
-  group('a mistake hides and colours only the wrong word', () {
+  group('a mistake stops showing the ayat, with no colours', () {
     // Al-Baqarah 1 to 5 are on page 2.
     final baqarah = parseSurahs(
       File(quranAssetPath).readAsStringSync(),
@@ -438,28 +440,14 @@ void main() {
     MushafPageView shown(WidgetTester tester) =>
         tester.widget<MushafPageView>(find.byType(MushafPageView));
 
-    /// Ayat 1 to [ayat] show, green, except the word [extraBefore] that
-    /// extra words were said before, which shows red where they were.
-    void expectRecitedRight(
-      WidgetTester tester,
-      int ayat, {
-      (AyahRef, int)? extraBefore,
-    }) {
+    /// Ayat 1 to [ayat] show, plain, with no colour.
+    void expectRecitedRight(WidgetTester tester, int ayat) {
       final page = shown(tester);
       for (var a = 1; a <= ayat; a++) {
-        final ayah = AyahRef(2, a);
-        expect(page.recitedWords![ayah], PageRecitation.allWords);
-        expect(page.wrongWords.where((w) => w.$1 == ayah), isEmpty);
-        for (final w in page.page.words) {
-          if (w.ayah == ayah &&
-              !w.isAyahEnd &&
-              (ayah, w.position) != extraBefore) {
-            // Green, not red.
-            final colour = page.wordColors[(ayah, w.position)]!;
-            expect(colour.g, greaterThan(colour.r), reason: '$ayah');
-          }
-        }
+        expect(page.recitedWords![AyahRef(2, a)], PageRecitation.allWords);
       }
+      expect(page.wordColors, isEmpty);
+      expect(page.harakatWords, isEmpty);
     }
 
     testWidgets('a wrong word leaves the ayat before it as recited', (
@@ -469,8 +457,26 @@ void main() {
       listener.say(([...ayah4]..[4] = 'كتب').join(' '));
       await tester.pumpAndSettle();
       expectRecitedRight(tester, 3);
-      expect(shown(tester).wrongWords, {(const AyahRef(2, 4), 5)});
-      expect(shown(tester).recitedWords![const AyahRef(2, 4)], isNonZero);
+      // Ayah 4 shows up to the wrong word and stops there, though the
+      // reciter went on.
+      expect(shown(tester).recitedWords![const AyahRef(2, 4)], 4);
+      expect(shown(tester).recitedWords![const AyahRef(2, 5)], isNull);
+    });
+
+    testWidgets('the help button shows the word the ayat stopped at', (
+      tester,
+    ) async {
+      final listener = await recite(tester);
+      listener.say(([...ayah4]..[4] = 'كتب').join(' '));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('مساعدة'));
+      await tester.pump();
+      // The word is shown, so the ayat show on past it.
+      expect(
+        shown(tester).recitedWords![const AyahRef(2, 4)],
+        PageRecitation.allWords,
+      );
+      expect(shown(tester).wordColors, isEmpty);
     });
 
     testWidgets('a slip, then going back, does not undo what was recited', (
@@ -504,7 +510,7 @@ void main() {
       final listener = await recite(tester);
       listener.say([...ayah4.take(4), 'كتب', ...ayah4].join(' '));
       await tester.pumpAndSettle();
-      expectRecitedRight(tester, 4, extraBefore: (const AyahRef(2, 4), 1));
+      expectRecitedRight(tester, 4);
     });
   });
 
@@ -896,9 +902,8 @@ void _modeTests() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('a wrong haraka shows in orange and in the report', (
-    tester,
-  ) async {
+  testWidgets('a wrong haraka stops the hidden ayat, and shows in orange '
+      'with the ayat shown and in the report', (tester) async {
     final listener = FakeListener();
     await _pump(
       tester,
@@ -926,8 +931,12 @@ void _modeTests() {
     expect(recitation.ayahStates[const AyahRef(1, 3)], AyahRecitation.correct);
     expect(recitation.harakatWords, {(const AyahRef(1, 2), 1)});
     expect(recitation.wrongWords, isEmpty);
-    final view = tester.widget<MushafPageView>(find.byType(MushafPageView));
-    expect(view.harakatWords, {(const AyahRef(1, 2), 1)});
+    // Hidden, the ayat stop showing at it, with no colour.
+    var view = tester.widget<MushafPageView>(find.byType(MushafPageView));
+    expect(view.harakatWords, isEmpty);
+    expect(view.wordColors, isEmpty);
+    expect(view.recitedWords![const AyahRef(1, 2)], isNull);
+    expect(view.recitedWords![const AyahRef(1, 3)], isNull);
 
     // The report lists it with the harakat mistakes.
     expect(_inSheet('تقرير الأخطاء'), findsOneWidget);
@@ -942,6 +951,11 @@ void _modeTests() {
     );
     await tester.tapAt(const Offset(10, 10));
     await tester.pumpAndSettle();
+    // Shown, it is orange.
+    await tester.tap(find.text('إظهار الآيات'));
+    await tester.pump();
+    view = tester.widget<MushafPageView>(find.byType(MushafPageView));
+    expect(view.harakatWords, {(const AyahRef(1, 2), 1)});
     await tester.tap(find.byTooltip('إغلاق التسميع'));
     await tester.pumpAndSettle();
   });

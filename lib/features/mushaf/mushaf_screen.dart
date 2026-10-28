@@ -253,7 +253,7 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
     });
     // The pages turn with the reciter, as they do when listening, once
     // the page shown is recited to its end.
-    ref.listen(pageRecitationProvider.select((r) => r?.settledWord), (_, _) {
+    ref.listen(pageRecitationProvider.select((r) => r?.followedWord), (_, _) {
       final m = ref.read(mushafProvider).value;
       final recitation = ref.read(pageRecitationProvider);
       if (recitation == null || m == null) return;
@@ -764,10 +764,12 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
       highlights: {
         for (final e in highlights.entries) e.key: highlightColors[e.value],
       },
-      // Each word recited shows green, or red when said wrong.
+      // Each word recited shows green, or red when said wrong, while the
+      // ayat show; hidden, they show plain as recited and stop at a
+      // mistake instead.
       wordColors: {
-        if (recitation?.covers(page) == true)
-          for (final e in recitation!.wordStates.entries)
+        if (recitation?.covers(page) == true && !recitation!.hideText)
+          for (final e in recitation.wordStates.entries)
             e.key: switch (e.value) {
               AyahRecitation.mistake => _mistakeColor,
               AyahRecitation.harakat => _harakatColor,
@@ -796,8 +798,8 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
       wrongWords: !audio.visible && recitation?.covers(page) == true
           ? recitation!.wrongWords
           : const {},
-      harakatWords: recitation?.covers(page) == true
-          ? recitation!.harakatWords
+      harakatWords: recitation?.covers(page) == true && !recitation!.hideText
+          ? recitation.harakatWords
           : const {},
       bookmarks: [
         for (final kind in MarkerKind.values)
