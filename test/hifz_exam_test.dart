@@ -11,8 +11,10 @@ import 'package:hifz/data/mushaf_models.dart';
 import 'package:hifz/data/mushaf_repository.dart';
 import 'package:hifz/data/quran_repository.dart';
 import 'package:hifz/data/reading_state.dart';
-import 'package:hifz/features/hifz_exam/hifz_exam_screen.dart';
-import 'package:hifz/features/recitation/recitation_mode.dart';
+import 'package:hifz/features/hifz_exam/exam_stop.dart';
+import 'package:hifz/features/mushaf/mushaf_screen.dart';
+import 'package:hifz/recitation/page_recitation.dart';
+import 'package:hifz/recitation/recitation_matcher.dart';
 import 'package:hifz/recitation/alert_sound.dart';
 import 'package:hifz/recitation/speech_listener.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -53,7 +55,8 @@ void main() {
         final exam = pickExam(s, count, Random(seed));
         final total = exam.fold(0, (sum, q) => sum + q.ayahCount);
         expect(total, max(2, (count * 0.1).round()), reason: 'surah $s');
-        var last = 0;
+        var last = 1; // Never the first ayah: one shows before.
+
         for (final q in exam) {
           expect(q.surah, s);
           expect(q.from, greaterThan(last), reason: '$exam');
@@ -69,7 +72,9 @@ void main() {
     expect(baqarah.fold(0, (sum, q) => sum + q.ayahCount), 29);
   });
 
-  testWidgets('recites each group in turn and gives the score', (tester) async {
+  testWidgets('recites each question in the mushaf, stops and goes on', (
+    tester,
+  ) async {
     SharedPreferences.setMockInitialValues({
       'settings': '{"askRecitationMode":false}',
     });
@@ -86,65 +91,92 @@ void main() {
           ayahPlayerProvider.overrideWithValue(FakePlayer()),
           audioStoreProvider.overrideWithValue(AudioStore.none()),
         ],
-        child: MaterialApp(
+        child: const MaterialApp(
           home: Directionality(
             textDirection: TextDirection.rtl,
-            child: HifzExamScreen(random: Random(7)),
+            child: MushafScreen(initialPage: 1),
           ),
         ),
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('الفاتحة'), findsNothing);
-    await tester.tap(find.text('البقرة'));
-    await tester.pumpAndSettle();
-
-    final exam = pickExam(2, 286, Random(7));
-    expect(find.text('سورة البقرة: 10 أسئلة، 29 آية'), findsOneWidget);
-    expect(
-      find.text(
-        'سمّع الآيات من ${(exam[0].from)} إلى ${(exam[0].to)} من سورة البقرة',
-      ),
-      findsOneWidget,
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(MushafScreen)),
     );
+    final controller = container.read(pageRecitationProvider.notifier);
+    String ayat(int from, int to) =>
+        [for (var a = from; a <= to; a++) _surahs[1].ayahs[a - 1]].join(' ');
 
-    Future<void> recite(ExamQuestion q, {String? wrongEnd}) async {
-      await tester.tap(find.text('ابدأ التسميع'));
-      await tester.pumpAndSettle();
-      final words = [
-        for (var a = q.from; a <= q.to; a++) _surahs[1].ayahs[a - 1],
-      ].join(' ').split(' ');
-      if (wrongEnd != null) words[words.length - 1] = wrongEnd;
-      listener.say(words.join(' '), isFinal: true);
-      await tester.pumpAndSettle();
-      // Reciting to the end stops listening.
-      expect(find.text('إيقاف'), findsNothing);
-      // The report opens at the end; close it.
-      Navigator.of(tester.element(find.byType(MistakesReport))).pop();
-      await tester.pumpAndSettle();
-    }
+    await controller.startExam(const [
+      ExamQuestion(2, 6, 7),
+      ExamQuestion(2, 30, 31),
+      ExamQuestion(2, 40, 41),
+    ]);
+    await tester.pumpAndSettle();
+    var recitation = container.read(pageRecitationProvider)!;
+    expect(recitation.from, const AyahRef(2, 6));
+    expect(recitation.until, const AyahRef(2, 8));
+    expect(listener.listening, isTrue);
+    // Only ayat 6 and 7 are recited; the ayat before them show.
+    expect(
+      {
+        for (final w in recitation.session.expected)
+          if (w.kind == WordKind.ayah) w.ayah,
+      },
+      {6, 7},
+    );
+    expect(find.text('سمّع الآيات من 6 إلى 7 من سورة البقرة'), findsOneWidget);
+    expect(find.textContaining('السؤال 1 من 3'), findsOneWidget);
 
-    // The first question, recited right, then on to the second.
-    await tester.tap(find.text('السؤال 1 من 10'));
-    await tester.pumpAndSettle();
-    expect(
-      find.text('البقرة ${(exam[0].from)}–${(exam[0].to)}'),
-      findsOneWidget,
-    );
-    await recite(exam[0]);
-    await tester.tap(find.text('السؤال التالي'));
-    await tester.pumpAndSettle();
-    expect(
-      find.text('البقرة ${(exam[1].from)}–${(exam[1].to)}'),
-      findsOneWidget,
-    );
-    // The second with a wrong last word, then back to the exam.
-    await recite(exam[1], wrongEnd: 'الناس');
-    await tester.pageBack();
-    await tester.pumpAndSettle();
+    // Recited to the end: stop, and on to the next one.
+    listener.say(ayat(6, 7), isFinal: true);
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('توقف'), findsOneWidget);
     expect(find.text('بلا أخطاء'), findsOneWidget);
+    expect(
+      find.text('السؤال 2 من 3: سمّع الآيات من 30 إلى 31 من سورة البقرة'),
+      findsOneWidget,
+    );
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.text('السؤال التالي'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    recitation = container.read(pageRecitationProvider)!;
+    expect(recitation.from, const AyahRef(2, 30));
+    expect(recitation.exam!.index, 1);
+    expect(listener.listening, isTrue);
+
+    // A mistake; the popup goes on by itself after a few seconds.
+    final words = ayat(30, 31).split(' ');
+    words[words.length - 1] = 'الناس';
+    listener.say(words.join(' '), isFinal: true);
+    await tester.pump();
+    await tester.pump();
     expect(find.text('1 خطأ'), findsOneWidget);
-    expect(find.text('لم تُسمَّع بعد'), findsWidgets);
-    expect(find.text('السؤال 3 من 10'), findsOneWidget);
+    await tester.pump(examNextDelay);
+    await tester.pumpAndSettle();
+    expect(find.text('توقف'), findsNothing);
+    expect(container.read(pageRecitationProvider)!.from, const AyahRef(2, 40));
+
+    // The last one ends with the result.
+    listener.say(ayat(40, 41), isFinal: true);
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('انتهى الاختبار'), findsOneWidget);
+    expect(find.text('النتيجة: 2 من 3'), findsOneWidget);
+    expect(find.textContaining('البقرة 30–31 (1 خطأ)'), findsOneWidget);
+
+    // A new exam asks other ayat of the same surah.
+    await tester.tap(find.text('اختبار جديد'));
+    await tester.pumpAndSettle();
+    recitation = container.read(pageRecitationProvider)!;
+    expect(recitation.exam!.index, 0);
+    expect(recitation.exam!.questions, hasLength(10));
+    await tester.tap(find.byTooltip('إغلاق التسميع'));
+    await tester.pumpAndSettle();
   });
 }

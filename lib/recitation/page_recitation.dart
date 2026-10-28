@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../audio/ayah_audio.dart';
+import '../data/hifz_exam.dart';
 import '../data/khatma.dart';
 import '../data/mushaf_models.dart';
 import '../data/mushaf_repository.dart';
@@ -33,7 +34,11 @@ class PageRecitation {
     this.hideText = true,
     this.wentOn = false,
     this.startWord = 0,
+    this.exam,
   }) : lastPage = lastPage ?? page;
+
+  /// The hifz exam this recites a question of, if any.
+  final ExamRun? exam;
 
   /// The words of the ayah [from] before the one the reciter started at,
   /// when reciting started part way through it: they show, and are not
@@ -124,6 +129,7 @@ class PageRecitation {
     bool? hideText,
     int? lastPage,
     bool? wentOn,
+    ExamRun? exam,
   }) => PageRecitation(
     page,
     session,
@@ -135,6 +141,7 @@ class PageRecitation {
     hideText: hideText ?? this.hideText,
     wentOn: wentOn ?? this.wentOn,
     startWord: startWord,
+    exam: exam ?? this.exam,
   );
 
   /// How many words of each ayah show while the text is hidden: those up
@@ -317,6 +324,7 @@ class PageRecitationController extends Notifier<PageRecitation?> {
         listen: false,
         restart: true,
         startWord: current.startWord,
+        exam: current.exam,
       );
     });
     return null;
@@ -385,6 +393,39 @@ class PageRecitationController extends Notifier<PageRecitation?> {
     );
   }
 
+  /// Starts the hifz [exam]: each question is recited in the mushaf from
+  /// its first ayah, with the ayat before it showing, and stops at its
+  /// end; see [nextQuestion].
+  Future<void> startExam(
+    List<ExamQuestion> exam, {
+    RecitationMode mode = RecitationMode.strict,
+  }) => _startQuestion(ExamRun(exam), mode);
+
+  /// Goes on to the next question of the exam.
+  Future<void> nextQuestion() async {
+    final current = state;
+    final exam = current?.exam;
+    if (current == null || exam == null || exam.isLast) return;
+    await _startQuestion(exam.next(), current.session.mode);
+  }
+
+  Future<void> _startQuestion(ExamRun exam, RecitationMode mode) async {
+    final mushaf = ref.read(mushafProvider).value;
+    if (mushaf == null) return;
+    final q = exam.current;
+    final from = AyahRef(q.surah, q.from);
+    await _start(
+      mushaf.pageOf(from),
+      from: from,
+      until: q.to < ayahCounts[q.surah - 1]
+          ? AyahRef(q.surah, q.to + 1)
+          : AyahRef(q.surah + 1, 1),
+      mode: mode,
+      restart: true,
+      exam: exam,
+    );
+  }
+
   /// Goes on reciting from where reciting last stopped.
   Future<void> resume({RecitationMode mode = RecitationMode.strict}) async {
     final mushaf = ref.read(mushafProvider).value;
@@ -403,6 +444,7 @@ class PageRecitationController extends Notifier<PageRecitation?> {
     bool restart = false,
     int startWord = 0,
     SpeechListener? listener,
+    ExamRun? exam,
   }) async {
     final mushaf = ref.read(mushafProvider).value;
     final surahs = ref.read(surahsProvider).value;
@@ -410,7 +452,7 @@ class PageRecitationController extends Notifier<PageRecitation?> {
     if (restart || from != null || state?.covers(page) != true) {
       close();
       final int lastPage;
-      if (portion != null) {
+      if (portion != null || until != null) {
         lastPage = KhatmaPortion(
           day: 0,
           from: from ?? mushaf.page(page).firstAyah,
@@ -467,6 +509,7 @@ class PageRecitationController extends Notifier<PageRecitation?> {
         until: until,
         portion: portion,
         startWord: startWord,
+        exam: exam,
       );
     }
     if (listen) await toggleListening();
@@ -534,6 +577,18 @@ class PageRecitationController extends Notifier<PageRecitation?> {
     if (session != _session) return;
     final current = state;
     if (current == null || current.session != session) return;
+    final exam = current.exam;
+    if (exam != null) {
+      final answered = session.result.isComplete && !session.isListening;
+      state = current.copyWith(
+        version: current.version + 1,
+        exam: answered && !exam.answered
+            ? exam.answer(session.result.mistakeCount)
+            : null,
+      );
+      if (answered) _save();
+      return;
+    }
     // Done once it stops listening: it may still go on into the next surah.
     if (session.result.isComplete && !session.isListening) {
       _save();

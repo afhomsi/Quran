@@ -224,12 +224,6 @@ extension HifzStrings on S {
     'শুধু এক পৃষ্ঠার চেয়ে লম্বা সূরাগুলো এখানে আছে।',
     'یہاں صرف ایک صفحے سے لمبی سورتیں ہیں۔',
   );
-  String examSummary(Surah s, int questions, int ayat) => _(
-    'سورة ${surahName(s)}: ${n(questions)} ${questions == 1 ? 'سؤال' : 'أسئلة'}، ${n(ayat)} آية',
-    'Surah ${surahName(s)}: ${n(questions)} ${questions == 1 ? 'question' : 'questions'}, ${n(ayat)} ayat',
-    'সূরা ${surahName(s)}: ${n(questions)}টি প্রশ্ন, ${n(ayat)} আয়াত',
-    'سورہ ${surahName(s)}: ${n(questions)} سوال، ${n(ayat)} آیات',
-  );
   String reciteRange(Surah s, int from, int to) => from == to
       ? _(
           'سمّع الآية ${n(from)} من سورة ${surahName(s)}',
@@ -248,12 +242,6 @@ extension HifzStrings on S {
   String get nextQuestion =>
       _('السؤال التالي', 'Next question', 'পরবর্তী প্রশ্ন', 'اگلا سوال');
   String get examResults => _('النتيجة', 'Results', 'ফলাফল', 'نتیجہ');
-  String get notRecitedYet => _(
-    'لم تُسمَّع بعد',
-    'Not recited yet',
-    'এখনো পড়া হয়নি',
-    'ابھی نہیں سنائی',
-  );
   String get noMistakes =>
       _('بلا أخطاء', 'No mistakes', 'কোনো ভুল নেই', 'کوئی غلطی نہیں');
   String examMistakes(int count) => _(
@@ -262,7 +250,29 @@ extension HifzStrings on S {
     '${n(count)}টি ভুল',
     '${n(count)} ${count == 1 ? 'غلطی' : 'غلطیاں'}',
   );
-  String get reciteAgain =>
-      _('سمّع مرة أخرى', 'Recite again', 'আবার পড়ুন', 'دوبارہ سنائیں');
-  String get examRecite => _('سمّع', 'Recite', 'পড়ুন', 'سنائیں');
+  String get examStop => _('توقف', 'Stop', 'থামুন', 'رک جائیں');
+  String examNextIn(int seconds) => _(
+    'ننتقل إلى السؤال التالي بعد ${n(seconds)} ث',
+    'Next question in ${n(seconds)} s',
+    '${n(seconds)} সেকেন্ডে পরবর্তী প্রশ্ন',
+    '${n(seconds)} سیکنڈ میں اگلا سوال',
+  );
+  String get reviewMistakes =>
+      _('راجع أخطاءك', 'Look over mistakes', 'ভুলগুলো দেখুন', 'غلطیاں دیکھیں');
+  String get closeExam => _(
+    'إنهاء الاختبار',
+    'End the exam',
+    'পরীক্ষা শেষ করুন',
+    'امتحان ختم کریں',
+  );
+  String get examDone =>
+      _('انتهى الاختبار', 'Exam finished', 'পরীক্ষা শেষ', 'امتحان ختم ہو گیا');
+  String get notRecited =>
+      _('لم تُسمَّع', 'Not recited', 'পড়া হয়নি', 'نہیں سنائی');
+  String examCue(String words) => _(
+    'ابدأ بعد: «… $words»',
+    'Start after: «… $words»',
+    'এরপর শুরু করুন: «… $words»',
+    'اس کے بعد شروع کریں: «… $words»',
+  );
 }

@@ -28,50 +28,17 @@ class RecitationScreen extends ConsumerWidget {
     int this.surah, {
     super.key,
     this.mode = RecitationMode.strict,
-  }) : page = null,
-       from = null,
-       to = null,
-       title = null,
-       doneLabel = null,
-       onComplete = null;
+  }) : page = null;
 
   /// Recite the ayat on a page of the mushaf.
   const RecitationScreen.page(
     int this.page, {
     super.key,
     this.mode = RecitationMode.strict,
-  }) : surah = null,
-       from = null,
-       to = null,
-       title = null,
-       doneLabel = null,
-       onComplete = null;
-
-  /// Recite ayat [from] to [to] of a surah, as a question of the hifz
-  /// exam: [onComplete] gets the result each time they are recited to the
-  /// end, and [doneLabel] names the button that then goes back.
-  const RecitationScreen.range(
-    int this.surah,
-    int this.from,
-    int this.to, {
-    super.key,
-    this.mode = RecitationMode.strict,
-    this.title,
-    this.doneLabel,
-    this.onComplete,
-  }) : page = null;
+  }) : surah = null;
 
   final int? surah;
   final int? page;
-
-  /// The first and last ayah of [surah] to recite; all of it when null.
-  final int? from;
-  final int? to;
-
-  /// Shown at the top instead of the surah or page name.
-  final String? title;
-  final String? doneLabel;
-  final void Function(RecitationResult result)? onComplete;
 
   /// How strictly the recitation is checked.
   final RecitationMode mode;
@@ -85,20 +52,16 @@ class RecitationScreen extends ConsumerWidget {
     final t = S.of(context);
     return switch ((surahs, mushaf)) {
       (AsyncData(value: final s), null || AsyncData()) => _RecitationView(
-        key: ValueKey((surah, page, from, to, listener)),
-        title:
-            title ??
-            (surah != null
-                ? t.reciteSurahTitle(s[surah! - 1])
-                : t.recitePageTitle(page!)),
+        key: ValueKey((surah, page, listener)),
+        title: surah != null
+            ? t.reciteSurahTitle(s[surah! - 1])
+            : t.recitePageTitle(page!),
         words: wordsToRecite(_ayahs(s, mushaf?.value)),
         surah: surah,
         page: page,
         surahs: s,
         listener: listener,
         mode: mode,
-        doneLabel: doneLabel,
-        onComplete: onComplete,
       ),
       (AsyncError(:final error), _) ||
       (_, AsyncError(:final error)) => Scaffold(
@@ -115,7 +78,7 @@ class RecitationScreen extends ConsumerWidget {
   ) sync* {
     if (surah != null) {
       final ayahs = surahs[surah! - 1].ayahs;
-      for (var i = (from ?? 1) - 1; i < (to ?? ayahs.length); i++) {
+      for (var i = 0; i < ayahs.length; i++) {
         yield (surah!, i + 1, ayahs[i]);
       }
       return;
@@ -143,13 +106,9 @@ class _RecitationView extends ConsumerStatefulWidget {
     required this.surahs,
     required this.listener,
     required this.mode,
-    this.doneLabel,
-    this.onComplete,
   });
 
   final String title;
-  final String? doneLabel;
-  final void Function(RecitationResult result)? onComplete;
   final List<ExpectedWord> words;
   final int? surah;
   final int? page;
@@ -215,7 +174,6 @@ class _RecitationViewState extends ConsumerState<_RecitationView> {
     _save();
     if (_reported) return;
     _reported = true;
-    widget.onComplete?.call(_session.result);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) showMistakesReport(context, _session);
     });
@@ -381,15 +339,6 @@ class _RecitationViewState extends ConsumerState<_RecitationView> {
                   onPressed: _session.hint,
                   icon: const Icon(Icons.lightbulb_rounded),
                   label: Text(t.hint),
-                ),
-                const SizedBox(width: 12),
-              ],
-              if (widget.doneLabel != null && result.isComplete) ...[
-                FloatingActionButton.extended(
-                  heroTag: 'done',
-                  onPressed: () => Navigator.of(context).pop(true),
-                  icon: const Icon(Icons.arrow_forward_rounded),
-                  label: Text(widget.doneLabel!),
                 ),
                 const SizedBox(width: 12),
               ],
