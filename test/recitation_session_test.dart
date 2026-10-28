@@ -137,6 +137,87 @@ void main() {
     expect(mistakes, isEmpty);
   });
 
+  test('keeps following when the recognizer loses words and others speak '
+      'nearby', () async {
+    // Google's recognizer on Android starts over after each pause and
+    // loses the first words said while it does, and someone nearby speaks
+    // now and then. The page must keep up with the reciter to the end.
+    final surahs = parseSurahs(File(quranAssetPath).readAsStringSync());
+    final mushaf = parseMushaf(File(mushafLayoutAssetPath).readAsStringSync());
+    final listener = _FakeListener();
+    final session = RecitationSession(
+      listener: listener,
+      expected: wordsOfPages([
+        for (var p = 2; p <= 4; p++) mushaf.page(p),
+      ], surahs),
+      surahName: (s) => surahs[s - 1].name,
+    );
+    await session.start();
+    final recitation = PageRecitation(2, session, 0, lastPage: 4);
+    final lastAyah = mushaf.page(4).words.last.ayah;
+
+    final baqarah = surahs[1].ayahs;
+    var a = 0;
+    var segmentNo = 0;
+    while (a < lastAyah.ayah) {
+      var segment = [for (final t in baqarah.skip(a).take(2)) ...t.split(' ')];
+      // Words lost while the recognizer starts over; once, many of them.
+      if (segmentNo > 0) {
+        segment = segment.skip(segmentNo == 3 ? 10 : 4).toList();
+      }
+      if (segmentNo.isOdd) {
+        segment.insertAll(segment.length ~/ 2, 'يا ولد تعال هنا'.split(' '));
+      }
+      a += 2;
+      segmentNo++;
+      for (var k = 1; k <= segment.length; k++) {
+        final last = a >= lastAyah.ayah && k == segment.length;
+        listener.say(segment.take(k).join(' '), isFinal: last);
+      }
+    }
+
+    final shown = recitation.recitedWords;
+    for (var n = 1; n <= lastAyah.ayah; n++) {
+      expect(shown[AyahRef(2, n)], PageRecitation.allWords, reason: 'ayah $n');
+    }
+    // Only the words lost show as left out, not someone else speaking.
+    final extras = session.result.words.where((w) => w.extrasBefore.isNotEmpty);
+    expect(extras, isEmpty);
+  });
+
+  test('keeps what was recited when the recognizer starts over with the '
+      'same word', () async {
+    // Ayat 11, 13 and 14 of Al-Baqarah all start with «وإذا»: after a
+    // pause the recognizer's new results start like the old ones did.
+    final surahs = parseSurahs(File(quranAssetPath).readAsStringSync());
+    final baqarah = surahs[1].ayahs;
+    final listener = _FakeListener();
+    final session = RecitationSession(
+      listener: listener,
+      expected: wordsToRecite([
+        for (var a = 11; a <= 16; a++) (2, a, baqarah[a - 1]),
+      ]),
+      surahName: (s) => surahs[s - 1].name,
+    );
+    final mistakes = <Mistake>[];
+    session.onMistake = mistakes.add;
+    await session.start();
+
+    for (final segment in [
+      [11, 12],
+      [13],
+      [14, 15, 16],
+    ]) {
+      final words = [for (final a in segment) ...baqarah[a - 1].split(' ')];
+      for (var k = 1; k <= words.length; k++) {
+        listener.say(words.take(k).join(' '), isFinal: false);
+      }
+    }
+
+    expect(session.result.isComplete, isTrue);
+    expect(mistakes, isEmpty);
+  });
+
   test(
     'keeps up while the recognizer rewrites words it heard long ago',
     () async {
