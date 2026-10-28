@@ -16,10 +16,12 @@ import '../../data/quran_repository.dart';
 import '../../data/reading_state.dart';
 import '../../data/tajweed.dart';
 import '../../l10n/strings.dart';
+import '../../recitation/auto_recitation.dart';
 import '../../recitation/page_recitation.dart';
 import '../../settings/app_settings.dart';
 import '../audio/audio_bar.dart';
 import '../audio/repeat_sheet.dart';
+import '../recitation/auto_recitation_bar.dart';
 import '../recitation/recitation_bar.dart';
 import '../recitation/recitation_picker.dart';
 import '../recitation/recitation_mode.dart';
@@ -200,7 +202,8 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
     // While reciting, the pages turn with the reciter only.
     if (!settings.autoPageTurn ||
         _autoTurnPaused ||
-        ref.read(pageRecitationProvider) != null) {
+        ref.read(pageRecitationProvider) != null ||
+        ref.read(autoRecitationProvider) != null) {
       return;
     }
     _autoTurn = Timer(Duration(seconds: settings.autoPageSeconds), _nextPage);
@@ -217,6 +220,10 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
     );
     ref.listen(
       pageRecitationProvider.select((r) => r != null),
+      (_, _) => _scheduleAutoTurn(),
+    );
+    ref.listen(
+      autoRecitationProvider.select((r) => r != null),
       (_, _) => _scheduleAutoTurn(),
     );
     ref.listen(appTabProvider, (_, tab) {
@@ -247,7 +254,14 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
       final recitation = ref.read(pageRecitationProvider);
       if (recitation == null || m == null) return;
       final page = recitation.pageToShow(m);
-      if (page < _page || page >= _page + _step) _turnTo(page);
+      if (page >= _page && page < _page + _step) return;
+      // A recitation found far away, by reciting from anywhere, opens
+      // there at once.
+      if ((page - _page).abs() > 2 * _step && _controller.hasClients) {
+        _controller.jumpToPage(_indexOf(page));
+      } else {
+        _turnTo(page);
+      }
     });
     // The mistakes report, once the recitation is finished and stopped
     // listening, or once the reciter stops after going on from surah to
@@ -283,6 +297,7 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
     final appDirection = settings.language.direction;
     final bars = <Widget>[
       if (recitation != null) const RecitationBar(),
+      if (ref.watch(autoRecitationProvider) != null) const AutoRecitationBar(),
       if (audio.visible) const AudioBar(),
       if (ref.watch(pageNavigatorProvider))
         _PageNavigator(

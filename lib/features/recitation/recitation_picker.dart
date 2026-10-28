@@ -5,6 +5,7 @@ import '../../data/mushaf_repository.dart';
 import '../../data/quran_repository.dart';
 import '../../data/reading_state.dart';
 import '../../l10n/strings.dart';
+import '../../recitation/auto_recitation.dart';
 import '../../recitation/page_recitation.dart';
 import '../../recitation/recitation_matcher.dart';
 import '../shell/navigation.dart';
@@ -25,8 +26,22 @@ Future<void> resumeRecitation(BuildContext context) async {
   await container.read(pageRecitationProvider.notifier).resume(mode: mode);
 }
 
+/// Opens the mushaf and listens for where the reciter starts, anywhere in
+/// the Quran; the page found then opens and the reciting goes on there.
+Future<void> startAutoRecitation(BuildContext context) async {
+  final container = ProviderScope.containerOf(context, listen: false);
+  final mode = await chooseRecitationMode(context);
+  if (mode == null || !context.mounted) return;
+  container.read(appTabProvider.notifier).select(AppTab.mushaf);
+  Navigator.of(context).popUntil((route) => route.isFirst);
+  await container.read(autoRecitationProvider.notifier).start(mode: mode);
+}
+
 /// The recitation screen for a mode, as chosen in the picker.
 typedef _ScreenFor = Widget Function(RecitationMode mode);
+
+/// Picked in the picker for [startAutoRecitation]; it opens no screen.
+Widget _autoRecitation(RecitationMode mode) => const SizedBox();
 
 /// Asks what to recite and how strictly, and opens the recitation screen.
 ///
@@ -39,6 +54,7 @@ Future<void> showRecitationPicker(BuildContext context, {int? page}) async {
     builder: (_) => _RecitationPicker(page: page),
   );
   if (screen == null || !context.mounted) return;
+  if (identical(screen, _autoRecitation)) return startAutoRecitation(context);
   final mode = await chooseRecitationMode(context);
   if (mode == null || !context.mounted) return;
   Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen(mode)));
@@ -72,6 +88,15 @@ class _RecitationPicker extends ConsumerWidget {
       child: ListView(
         children: [
           const OfflineModelTile(),
+          ListTile(
+            leading: Icon(
+              Icons.travel_explore_rounded,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            title: Text(t.autoRecite),
+            subtitle: Text(t.autoReciteHelp),
+            onTap: () => open(_autoRecitation),
+          ),
           if (resumeFrom != null) ...[
             ListTile(
               leading: Icon(

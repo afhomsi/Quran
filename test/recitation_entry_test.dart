@@ -82,6 +82,8 @@ void main() {
           )
           .first,
     );
+    await tester.ensureVisible(_inSheet('الإخلاص'));
+    await tester.pumpAndSettle();
     await tester.tap(_inSheet('الإخلاص'));
     await tester.pumpAndSettle();
     expect(find.text('تسميع سورة الإخلاص'), findsOneWidget);
