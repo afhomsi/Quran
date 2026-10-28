@@ -176,10 +176,15 @@ void main() {
       }
     }
 
-    final shown = recitation.recitedWords;
+    // Each ayah is reached, though the words lost show as left out.
+    final reached = {
+      for (final w in session.result.words)
+        if (w.status != WordStatus.pending) w.ayah,
+    };
     for (var n = 1; n <= lastAyah.ayah; n++) {
-      expect(shown[AyahRef(2, n)], PageRecitation.allWords, reason: 'ayah $n');
+      expect(reached, contains(n), reason: 'ayah $n');
     }
+    expect(recitation.settledWord.$1, lastAyah);
     // Only the words lost show as left out, not someone else speaking.
     final extras = session.result.words.where((w) => w.extrasBefore.isNotEmpty);
     expect(extras, isEmpty);
@@ -338,19 +343,27 @@ void main() {
       await tester.pump(const Duration(milliseconds: 350));
     });
 
-    test('keeps only the wrong word hidden while it is not recited again', () {
+    test('stops showing the ayat at the wrong word until it is recited '
+        'again', () {
       final said = [
         ...withMistake(),
         ...ayahs[1].split(' ').skip(3),
         ...ayahs[2].split(' '),
       ];
       listener.say(said.join(' '));
-      final page = PageRecitation(2, session, 0);
-      expect(page.recitedWords[const AyahRef(2, 2)], PageRecitation.allWords);
-      expect(page.wrongWords, {(const AyahRef(2, 2), 3)});
-      expect(page.recitedWords[const AyahRef(2, 3)], PageRecitation.allWords);
+      var page = PageRecitation(2, session, 0);
+      expect(page.recitedWords[const AyahRef(2, 2)], 2);
+      expect(page.recitedWords[const AyahRef(2, 3)], isNull);
       expect(session.isListening, isTrue);
       expect(page.ayahStates[const AyahRef(2, 2)], AyahRecitation.mistake);
+    });
+
+    test('shows the ayah once recited again right', () {
+      final said = [...withMistake(), ...ayahs[1].split(' ').skip(3)];
+      listener.say([...said, ...ayahs[1].split(' ')].join(' '));
+      final page = PageRecitation(2, session, 0);
+      expect(page.stopIndex, isNull);
+      expect(page.recitedWords[const AyahRef(2, 2)], PageRecitation.allWords);
     });
 
     test('colours only the wrong word red, the words after it green', () {

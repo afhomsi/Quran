@@ -80,6 +80,21 @@ class PageRecitation {
   /// [RecitationSession.settledResult].
   (AyahRef, int) get settledWord => _wordAt(session.settledResult);
 
+  /// The word the page follows while reciting: the [settledWord], or
+  /// while the text is hidden the first word that stops showing the ayat
+  /// (see [stopIndex]) when it comes before it, so the page stays where
+  /// the mistake is to be put right.
+  (AyahRef, int) get followedWord {
+    if (hideText) {
+      final settled = session.settledResult;
+      final stop = _firstStop(settled.words);
+      if (stop != null && stop < settled.end) {
+        return _positionOf(settled.words, stop);
+      }
+    }
+    return settledWord;
+  }
+
   (AyahRef, int) _wordAt(RecitationResult result) {
     final words = result.words;
     var k = result.end;
@@ -89,6 +104,11 @@ class PageRecitation {
     if (k >= words.length) {
       k = words.lastIndexWhere((w) => w.word.kind == WordKind.ayah);
     }
+    return _positionOf(words, k);
+  }
+
+  /// The ayah and position in it of word [k] of [words].
+  (AyahRef, int) _positionOf(List<WordResult> words, int k) {
     final w = words[k];
     var position = 1;
     while (k - position >= 0 &&
@@ -106,7 +126,7 @@ class PageRecitation {
   /// the page shown is recited to its end, and not when the recognizer
   /// guesses words ahead of the reciter and then takes them back.
   int pageToShow(Mushaf mushaf) {
-    final (ayah, position) = settledWord;
+    final (ayah, position) = followedWord;
     var p = mushaf.pageOf(ayah);
     // An ayah may go on over the next page.
     while (p < lastPage &&
@@ -147,16 +167,23 @@ class PageRecitation {
   );
 
   /// How many words of each ayah show while the text is hidden: those up
-  /// to the last one recited, except the [wrongWords]. An ayah recited to
-  /// its end shows all its words, whatever the count, so a word printed
-  /// apart on the page does not stay hidden.
+  /// to the last one recited, stopping before the first word said wrong,
+  /// left out or with a wrong haraka (see [stopIndex]) until it is
+  /// recited again correctly. An ayah recited to its end shows all its
+  /// words, whatever the count, so a word printed apart on the page does
+  /// not stay hidden.
   Map<AyahRef, int> get recitedWords {
     final counts = <AyahRef, int>{
       if (from case final from? when startWord > 0) from: startWord,
     };
     final unfinished = <AyahRef>{};
     final hints = session.hints;
+    final stop = stopIndex;
     _forEachAyahWord((ayah, position, w, i) {
+      if (stop != null && i >= stop) {
+        unfinished.add(ayah);
+        return;
+      }
       if (w.status == WordStatus.pending) unfinished.add(ayah);
       // A word shown by a hint shows like one recited.
       if (w.status != WordStatus.pending || hints.contains(i)) {
@@ -167,6 +194,26 @@ class PageRecitation {
       for (final e in counts.entries)
         e.key: unfinished.contains(e.key) ? e.value : allWords,
     };
+  }
+
+  /// The first word said wrong, left out or with a wrong haraka and not
+  /// shown by a hint, as its index in the session's words: while the text
+  /// is hidden, no word from it on shows until it is recited again right.
+  int? get stopIndex => _firstStop(session.result.words);
+
+  int? _firstStop(List<WordResult> words) {
+    final hints = session.hints;
+    for (var i = 0; i < words.length; i++) {
+      final w = words[i];
+      if (w.word.kind == WordKind.ayah &&
+          (w.status == WordStatus.wrong ||
+              w.status == WordStatus.skipped ||
+              w.isHarakatMistake) &&
+          !hints.contains(i)) {
+        return i;
+      }
+    }
+    return null;
   }
 
   /// The words said with a wrong haraka, as their ayah and position:
@@ -579,8 +626,13 @@ class PageRecitationController extends Notifier<PageRecitation?> {
     await session.start();
   }
 
-  /// Shows the word the reciter is stuck on; see [RecitationSession.hint].
-  void hint() => state?.session.hint();
+  /// Shows the word the reciter is stuck on: the word the ayat stop
+  /// showing at, if any, else see [RecitationSession.hint].
+  void hint() {
+    final current = state;
+    if (current == null) return;
+    current.session.hint(at: current.hideText ? current.stopIndex : null);
+  }
 
   /// Keeps the try so far and recites the page again from the start.
   Future<void> restart() async {

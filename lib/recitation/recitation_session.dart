@@ -125,8 +125,13 @@ class RecitationSession extends ChangeNotifier {
   /// Shows a word the reciter is stuck on: the word just said wrong or
   /// left out when it is still hidden, else the next word to recite, even
   /// when it starts the next ayah. Each press shows one more word. Returns
-  /// false when nothing is left to show.
-  bool hint() {
+  /// false when nothing is left to show. [at] shows that word instead.
+  bool hint({int? at}) {
+    if (at != null && !_hints.contains(at)) {
+      _hints.add(at);
+      notifyListeners();
+      return true;
+    }
     final words = _result.words;
     final end = _result.end;
     var i = end - 1;
