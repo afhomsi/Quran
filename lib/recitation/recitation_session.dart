@@ -3,6 +3,8 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
+import 'arabic_normalizer.dart';
+import 'handover_listener.dart';
 import 'harakat.dart';
 import 'recitation_matcher.dart';
 import 'speech_listener.dart';
@@ -88,8 +90,10 @@ class RecitationSession extends ChangeNotifier {
 
   /// How long the last words may stay the same before a mistake in them
   /// is reported. Until then the recognizer may still correct them; after
-  /// it, the reciter has likely stopped at the mistake.
-  static const quietDelay = Duration(milliseconds: 1200);
+  /// it, the reciter has likely stopped at the mistake. A recognizer that
+  /// sends results seldom, as the offline model, waits longer; see
+  /// [quietDelayOf].
+  static const quietDelay = quickQuietDelay;
 
   /// How long to go on listening once all is recited, in case the reciter
   /// goes on into what [onFinished] gives.
@@ -184,7 +188,7 @@ class RecitationSession extends ChangeNotifier {
     _goOnTimer = null;
     _wantListening = false;
     _commit();
-    notifyListeners();
+    _update(settled: true);
     await listener.stop();
   }
 
@@ -201,6 +205,7 @@ class RecitationSession extends ChangeNotifier {
 
   Future<void> _listen() async {
     final id = ++_sessionId;
+    _startedAgain = true;
     try {
       await listener.listen(
         onResult: (text, isFinal) {
@@ -209,12 +214,13 @@ class RecitationSession extends ChangeNotifier {
           final words = _wordsOf(text);
           _startSegmentIfNew(words);
           if (!isFinal) _freezeStable(text);
-          _current = words.skip(_frozen).join(' ');
+          final kept = !isFinal && _isStartOfLast(words) ? _lastHeard : words;
+          _current = kept.skip(_frozen).join(' ');
           if (isFinal) _commit();
           _update();
           _quiet?.cancel();
           if (!isFinal) {
-            _quiet = Timer(quietDelay, () {
+            _quiet = Timer(quietDelayOf(listener), () {
               if (id == _sessionId) _update(settled: true);
             });
           }
@@ -265,9 +271,10 @@ class RecitationSession extends ChangeNotifier {
         words[same] == _lastHeard[same]) {
       same++;
     }
-    // A result much shorter than the last but starting the same may be
-    // the start of a new segment; the last is kept to tell.
-    if (!_mayStartSegment(words)) _lastHeard = words;
+    // A result shorter than the last and starting the same may be the
+    // start of a new segment; the last is kept to tell.
+    if (_isStartOfLast(words)) return;
+    _lastHeard = words;
     var upTo = max(
       min(same, words.length - _liveWords),
       words.length - _maxLiveWords,
@@ -292,35 +299,116 @@ class RecitationSession extends ChangeNotifier {
   /// said since. What was heard before is then kept, and the new words are
   /// compared from where it ended, so the ayat recited do not hide again.
   ///
-  /// A new start is a result much shorter than the last one that differs
-  /// from its start. One that starts the same, as a new segment beginning
-  /// with the same word does, is not taken for one until it differs: a
-  /// recognizer taking back words it guessed ahead also sends one.
+  /// A new start is a result shorter than the last one that differs from
+  /// its start (see [startsOver]): after a short ayah, as in juz 'Amma, the
+  /// last may be of two or three words. One that starts the same, as a new
+  /// segment beginning with the same word does, is not taken for one until
+  /// it differs: a recognizer taking back words it guessed ahead also
+  /// sends one.
   void _startSegmentIfNew(List<String> words) {
     final last = _lastHeard;
-    if (words.isEmpty || last.length - words.length < _newSegmentShorterBy) {
+    if (words.isEmpty ||
+        !startsOver(words, last) && !_afterOneWordAyah(words, last)) {
       return;
     }
-    if (_mayStartSegment(words)) return;
     _settle(last.skip(_frozen).join(' '));
     _frozen = 0;
     _lastHeard = const [];
+    _startedAgain = true;
   }
 
-  /// Whether [words], much shorter than the last result, start the same
-  /// way, so they may be a correction of it or a new segment.
-  bool _mayStartSegment(List<String> words) {
+  /// Whether one word heard after one other starts the text over: the
+  /// other is a whole ayah still to settle, as «عسق», and the word is one
+  /// of the first after it. A first word heard wrongly and then put right
+  /// is not taken for the start of new words.
+  bool _afterOneWordAyah(List<String> words, List<String> last) {
+    if (words.length != 1 || last.length != 1 || _frozen > 0) return false;
+    if (_pos >= expected.length) return false;
+    final ayah = expected[_pos];
+    if (!ayah.pause || !wordsMatch(ayah.key, normalizeWord(last.single))) {
+      return false;
+    }
+    final heard = normalizeWord(words.single);
+    for (var k = _pos + 1;
+        k < expected.length && k <= _pos + 1 + lostOnRestart;
+        k++) {
+      if (wordsMatch(expected[k].key, heard)) return true;
+    }
+    return false;
+  }
+
+  /// Whether the recognizer started listening again, or started its text
+  /// over, since the last words found in the text.
+  bool _startedAgain = false;
+
+  /// How many words may be lost when the recognizer starts again.
+  ///
+  /// Google's recognizer misses the first words said while it starts
+  /// listening again, after a pause or a listening session that ended.
+  /// Words left out just there are taken for recited, as the reciter
+  /// cannot be told apart from the recognizer, so they do not count as
+  /// mistakes or stop the ayat showing.
+  static const lostOnRestart = 2;
+
+  /// [sub], compared from [from], with the words left out at its start
+  /// taken for recited when the recognizer has just started again; see
+  /// [lostOnRestart].
+  RecitationResult _withLostWords(int from, RecitationResult sub) {
+    if (!_startedAgain) return sub;
+    final words = sub.words;
+    var k = _pos - from;
+    var lost = 0;
+    while (k < words.length &&
+        (words[k].status == WordStatus.skipped ||
+            (words[k].word.optional &&
+                words[k].status == WordStatus.pending))) {
+      if (words[k].status == WordStatus.skipped) lost++;
+      k++;
+    }
+    if (k >= words.length) return sub;
+    // The start of a word may be lost too, as «يا» of يَـٰٓأَيُّهَا.
+    final w = words[k];
+    var end = w.heard == null ? '' : normalizeWord(w.heard!);
+    if (end.startsWith('ا')) end = end.substring(1);
+    final cutWord =
+        w.status == WordStatus.wrong &&
+        w.extrasBefore.isEmpty &&
+        end.length >= 2 &&
+        w.word.key.endsWith(end);
+    if (cutWord) {
+      k++;
+    } else if (lost == 0 || w.status != WordStatus.correct) {
+      return sub;
+    }
+    if (lost > lostOnRestart) return sub;
+    final start = _pos - from;
+    return RecitationResult(
+      words: [
+        for (var i = 0; i < words.length; i++)
+          i >= start &&
+                  i < k &&
+                  (words[i].status == WordStatus.skipped ||
+                      words[i].status == WordStatus.wrong)
+              ? WordResult(word: words[i].word, status: WordStatus.correct)
+              : words[i],
+      ],
+      extrasAtEnd: sub.extrasAtEnd,
+      endAt: sub.endAt,
+      heardMatched: sub.heardMatched,
+    );
+  }
+
+  /// Whether [words] are the start of the last result, shorter: the
+  /// start of a new segment beginning with the same words, or the
+  /// recognizer taking back words. Until it tells, the last result stays.
+  bool _isStartOfLast(List<String> words) {
     final last = _lastHeard;
-    if (last.length - words.length < _newSegmentShorterBy) return false;
+    if (words.length >= last.length) return false;
     for (var i = 0; i < words.length; i++) {
       if (words[i] != last[i]) return false;
     }
     return true;
   }
-
-  /// How many words shorter than the last result a new one starting with
-  /// another word must be to be taken for a new start, not a correction.
-  static const _newSegmentShorterBy = 3;
 
   /// Keeps the current session's text and ignores anything it still sends.
   void _commit() {
@@ -348,7 +436,10 @@ class RecitationSession extends ChangeNotifier {
   void _settle(String text) {
     text = text.trim();
     if (text.isEmpty) return;
-    final (from, sub) = _alignFromPos(text, settled: true);
+    // Anything said once all is recited goes on into what comes next,
+    // also words that would fit the last ayat recited again.
+    if (_pos >= expected.length) _goOn();
+    var (from, sub) = _alignFromPos(text, settled: true);
     // Words said past the end are the start of what comes next.
     if (from + sub.words.length == expected.length &&
         sub.extrasAtEnd.isNotEmpty &&
@@ -356,6 +447,8 @@ class RecitationSession extends ChangeNotifier {
       return _settle(text);
     }
     _committed.add(text);
+    sub = _withLostWords(from, sub);
+    if (sub.heardMatched > 0) _startedAgain = false;
     _base = _overlay(_base, from, sub);
     if (from + sub.words.length == expected.length) {
       _extrasAtEnd.addAll(sub.extrasAtEnd);
@@ -428,6 +521,7 @@ class RecitationSession extends ChangeNotifier {
       settled: settled,
       start: _pos - from,
       mode: mode,
+      lostAtStart: _startedAgain ? lostOnRestart : 0,
     );
     if (end < expected.length && sub.extrasAtEnd.isNotEmpty) {
       // Left over past a window that is not the end of the text. The window
@@ -488,6 +582,7 @@ class RecitationSession extends ChangeNotifier {
       extras.length >= sideSpeechWords ? const [] : extras;
 
   void _onSessionDone() {
+    if (_disposed) return;
     _commit();
     _update();
     _restart();
@@ -540,11 +635,14 @@ class RecitationSession extends ChangeNotifier {
     var words = _base;
     var extrasAtEnd = _extrasAtEnd;
     if (_current.trim().isNotEmpty) {
-      final (from, sub) = _alignFromPos(_current, settled: settled);
+      if (_pos >= expected.length) _goOn();
+      var (from, sub) = _alignFromPos(_current, settled: settled);
+      sub = _withLostWords(from, sub);
       words = _overlay(_base, from, sub);
       if (from + sub.words.length == expected.length) {
         extrasAtEnd = [..._extrasAtEnd, ...sub.extrasAtEnd];
       }
+      if (!settled) words = _keepHeardRight(words);
     }
     _result = RecitationResult(words: words, extrasAtEnd: extrasAtEnd);
     if (_result.isComplete && _heardPastEnd() && _goOn()) {
@@ -559,12 +657,37 @@ class RecitationSession extends ChangeNotifier {
         _goOnTimer ??= Timer(goOnDelay, _finish);
       }
     }
-    _reportMistakes();
+    // The recognizer may still change its last words, also some before
+    // the last one it got right; only mistakes in the words settled are
+    // told, or in all once it has sent nothing new for a while.
+    _reportMistakes(
+      settled
+          ? _result
+          : RecitationResult(words: _base, extrasAtEnd: _extrasAtEnd),
+    );
     notifyListeners();
   }
 
-  void _reportMistakes() {
-    final words = _result.words;
+  /// A word heard right that the recognizer's last words, still open,
+  /// now make wrong or left out, stays right until they are settled: the
+  /// recognizer often writes a word one way and then back again, and an
+  /// ayah shown must not hide again for that.
+  List<WordResult> _keepHeardRight(List<WordResult> words) {
+    final before = _result.words;
+    return [
+      for (var i = 0; i < words.length; i++)
+        i < before.length &&
+                before[i].status == WordStatus.correct &&
+                (words[i].status == WordStatus.wrong ||
+                    words[i].status == WordStatus.skipped) &&
+                !_base[i].isMistake
+            ? before[i]
+            : words[i],
+    ];
+  }
+
+  void _reportMistakes(RecitationResult result) {
+    final words = result.words;
     final leftOut = _ayatLeftOut(words);
     for (var i = 0; i < words.length; i++) {
       final w = words[i];
@@ -612,12 +735,12 @@ class RecitationSession extends ChangeNotifier {
         );
       }
     }
-    if (_result.extrasAtEnd.isNotEmpty) {
+    if (result.extrasAtEnd.isNotEmpty) {
       _alert(
-        'end:${_result.extrasAtEnd.join(' ')}',
+        'end:${result.extrasAtEnd.join(' ')}',
         Mistake(
           words.length - 1,
-          'كلمات زائدة بعد النهاية: «${_result.extrasAtEnd.join(' ')}»',
+          'كلمات زائدة بعد النهاية: «${result.extrasAtEnd.join(' ')}»',
         ),
       );
     }
@@ -651,8 +774,11 @@ class RecitationSession extends ChangeNotifier {
     onMistake?.call(mistake);
   }
 
+  bool _disposed = false;
+
   @override
   void dispose() {
+    _disposed = true;
     _quiet?.cancel();
     _goOnTimer?.cancel();
     _wantListening = false;

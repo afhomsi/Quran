@@ -141,6 +141,8 @@ class ExpectedWord {
 
 const _basmala = 'بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ';
 const _istiadha = 'أعوذ بالله من الشيطان الرجيم';
+final _basmalaKeys = normalizeWords(_basmala);
+final _istiadhaKeys = normalizeWords(_istiadha);
 
 List<String> _split(String text) => [
   for (final w in text.split(RegExp(r'\s+')))
@@ -264,6 +266,10 @@ bool _withinOneEdit(String a, String b) {
 /// recited word are held back, and so are harakat mistakes in the words
 /// from [start] on.
 ///
+/// [lostAtStart] words from [start] on may have been lost by the
+/// recognizer, as when it starts listening again: they are left out more
+/// readily.
+///
 /// In [RecitationMode.strict] the harakat of words said right are
 /// compared too, when the recognizer writes them. In
 /// [RecitationMode.lenient] words are matched more loosely and extra
@@ -274,6 +280,7 @@ RecitationResult alignRecitation(
   bool settled = true,
   int start = 0,
   RecitationMode mode = RecitationMode.strict,
+  int lostAtStart = 0,
 }) {
   final h = <String>[];
   final hRaw = <String>[];
@@ -285,7 +292,42 @@ RecitationResult alignRecitation(
     hRaw.add(heard[k]);
     hAt.add(k);
   }
+  // Plain spelling writes some words of the mushaf as two, as the call
+  // «يا أيها» for يَـٰٓأَيُّهَا, and a few the other way round: such a pair
+  // matches as one word, when the letters are the same.
+  // A pair spelled together loses no letter; one that does, as «قل لا»
+  // becoming «قلا», is not taken for one word.
+  String? pair(String a, String b, String keyA, String keyB) {
+    final key = normalizeWord(a + b);
+    return key == keyA || key == keyB ? null : key;
+  }
+
+  final pairHeard = [
+    for (var j = 1; j < h.length; j++)
+      pair(hRaw[j - 1], hRaw[j], h[j - 1], h[j]),
+  ];
+  final pairExpected = [
+    for (var i = 1; i < expected.length; i++)
+      pair(
+        expected[i - 1].text,
+        expected[i].text,
+        expected[i - 1].key,
+        expected[i].key,
+      ),
+  ];
   final n = expected.length, m = h.length;
+  // The basmala or isti'adha said after the last word is the start of
+  // what comes next; it is not taken for words before said again.
+  final opening = List.filled(m, false);
+  for (final phrase in [_basmalaKeys, _istiadhaKeys]) {
+    for (var j = 0; j + phrase.length <= m; j++) {
+      var k = 0;
+      while (k < phrase.length && h[j + k] == phrase[k]) {
+        k++;
+      }
+      if (k == phrase.length) opening.fillRange(j, j + k, true);
+    }
+  }
   // Costs are in tenths. An extra word costs a little less than a wrong
   // one, so when the reciter goes back after a slip, the slip is taken
   // for extra words rather than for words recited right before it said
@@ -298,6 +340,11 @@ RecitationResult alignRecitation(
   // words were lost before: the recognizer may miss words, as when it
   // restarts, and the reciter must not be left behind waiting for them.
   const wordCost = 10, extraCost = 9, goBackCost = 10;
+  // The first [lostAtStart] words may have been said while the recognizer
+  // was not listening: leaving them out before anything heard costs
+  // less than a wrong word, but not less than a wrong word taken for an
+  // extra one.
+  const lostCost = 4;
   const jumpCost = 3 * wordCost;
   int skipCost(int i) =>
       expected[i].optional ? 0 : (i < start ? 2 * wordCost : wordCost);
@@ -317,8 +364,9 @@ RecitationResult alignRecitation(
     } else {
       final prev = cost[j - 1];
       for (var i = 0; i <= n; i++) {
-        if (prev[i] + extraCost < c[i]) {
-          c[i] = prev[i] + extraCost;
+        final extra = i == n && opening[j - 1] ? 1 : extraCost;
+        if (prev[i] + extra < c[i]) {
+          c[i] = prev[i] + extra;
           s[i] = _Step.extra;
         }
         if (i > 0) {
@@ -331,6 +379,19 @@ RecitationResult alignRecitation(
             c[i] = d;
             s[i] = _Step.word;
           }
+          if (j > 1 &&
+              cost[j - 2][i - 1] < c[i] &&
+              expected[i - 1].key == pairHeard[j - 2]) {
+            c[i] = cost[j - 2][i - 1];
+            s[i] = _Step.pairHeard;
+          }
+          if (i > 1 &&
+              !expected[i - 2].optional &&
+              prev[i - 2] < c[i] &&
+              pairExpected[i - 2] == h[j - 1]) {
+            c[i] = prev[i - 2];
+            s[i] = _Step.pairExpected;
+          }
         }
       }
     }
@@ -341,7 +402,11 @@ RecitationResult alignRecitation(
           jumpBest = c[i - 1];
           jumpAt = i - 1;
         }
-        final d = c[i - 1] + skipCost(i - 1);
+        final d =
+            c[i - 1] +
+            (j == 0 && i - 1 - start < lostAtStart && !expected[i - 1].optional
+                ? lostCost
+                : skipCost(i - 1));
         if (d < c[i]) {
           c[i] = d;
           s[i] = _Step.skip;
@@ -355,10 +420,12 @@ RecitationResult alignRecitation(
     }
 
     skipForward();
-    // Going back to any earlier word, from the best state after it.
+    // Going back to any earlier word, from the best state after it; not
+    // to the basmala or isti'adha: the basmala of the next surah said
+    // after the last ayah is not the one before the surah said again.
     var best = unreachable, bestAt = n;
     for (var k = n; k >= 0; k--) {
-      if (best + goBackCost < c[k]) {
+      if (best + goBackCost < c[k] && (k == n || !expected[k].optional)) {
         c[k] = best + goBackCost;
         s[k] = _Step.back;
         from[j][k] = bestAt;
@@ -425,6 +492,25 @@ RecitationResult alignRecitation(
           }
         }
         i--;
+        j--;
+        continue;
+      case _Step.pairHeard:
+        if (heardMatched == 0) heardMatched = hAt[j - 1] + 1;
+        if (attemptOf[i - 1] < 0) {
+          attemptOf[i - 1] = attempt;
+          status[i - 1] = WordStatus.correct;
+        }
+        i--;
+        j -= 2;
+        continue;
+      case _Step.pairExpected:
+        if (heardMatched == 0) heardMatched = hAt[j - 1] + 1;
+        for (final k in [i - 1, i - 2]) {
+          if (attemptOf[k] >= 0) continue;
+          attemptOf[k] = attempt;
+          status[k] = WordStatus.correct;
+        }
+        i -= 2;
         j--;
         continue;
       case _Step.skip:
@@ -503,4 +589,17 @@ RecitationResult alignRecitation(
   );
 }
 
-enum _Step { none, word, skip, jump, extra, back }
+enum _Step {
+  none,
+  word,
+
+  /// Two words heard for one word to recite.
+  pairHeard,
+
+  /// One word heard for two words to recite.
+  pairExpected,
+  skip,
+  jump,
+  extra,
+  back,
+}

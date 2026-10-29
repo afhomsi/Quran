@@ -155,10 +155,11 @@ void main() {
       session.onMistake = alerts.add;
       await session.start();
       const wrong = 'بسم الله الرحمن الرحيم الحمد لله رب الناس الرحمن الرحيم';
+      // The alert waits for the words to settle, at the end of the text.
       mic
         ..say(wrong)
         ..say('$wrong مالك')
-        ..say('$wrong مالك يوم');
+        ..say('$wrong مالك يوم', isFinal: true);
       expect(alerts, hasLength(1));
       expect(alerts.single.message, contains('«الناس»'));
       expect(alerts.single.message, contains('الآية 2'));
@@ -302,7 +303,10 @@ void main() {
 
     test('colors each ayah right or wrong once it is reached', () async {
       await page().start(1);
-      mic.say('بسم الله الرحمن الرحيم الحمد لله رب الناس الرحمن');
+      mic.say(
+        'بسم الله الرحمن الرحيم الحمد لله رب الناس الرحمن',
+        isFinal: true,
+      );
       final states = c.read(pageRecitationProvider)!.ayahStates;
       expect(states[const AyahRef(1, 1)], AyahRecitation.correct);
       expect(states[const AyahRef(1, 2)], AyahRecitation.mistake);

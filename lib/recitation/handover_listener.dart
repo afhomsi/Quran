@@ -1,12 +1,52 @@
+import 'arabic_normalizer.dart';
+import 'recitation_matcher.dart';
 import 'speech_listener.dart';
+
+/// Whether a recognizer's result [words] starts its text over, after the
+/// result [last] of the same listening session, as Google's recognizer on
+/// Android does after a pause: it is shorter, not the start of it and
+/// shares less than half of it, or as long or shorter, of two words or
+/// more, and none of its words is like the one in its place, as after an
+/// ayah of two words. A recognizer that writes all again, as the offline
+/// model, may send a shorter text that differs only at its end.
+bool startsOver(List<String> words, List<String> last) {
+  if (words.length > last.length) return false;
+  if (words.isEmpty) return last.length >= 3;
+  var allOther = true;
+  var same = 0;
+  while (same < words.length && words[same] == last[same]) {
+    same++;
+  }
+  for (var i = 0; i < words.length; i++) {
+    if (_alike(words[i], last[i])) allOther = false;
+  }
+  if (words.length < last.length &&
+      same < words.length &&
+      2 * same < last.length) {
+    return true;
+  }
+  return allOther && words.length >= 2;
+}
+
+/// Whether two words heard may be the same word written two ways, or
+/// one of them cut short.
+bool _alike(String a, String b) {
+  final x = normalizeWord(a), y = normalizeWord(b);
+  return x.startsWith(y) ||
+      y.startsWith(x) ||
+      wordsMatch(x, y, RecitationMode.lenient);
+}
 
 /// Passes a listener on from one user to the next while it is listening:
 /// the next one gets the words heard so far in the listening session, as
 /// if it had listened from the start, less words handed over to skip.
-class HandoverListener implements SpeechListener {
+class HandoverListener implements SpeechListener, SlowResults {
   HandoverListener(this.inner);
 
   final SpeechListener inner;
+
+  @override
+  Duration get quietDelay => quietDelayOf(inner);
   bool _initialized = false;
 
   /// Whether a session of [inner] is going on.
@@ -79,9 +119,18 @@ class HandoverListener implements SpeechListener {
     required void Function(String text, bool isFinal) onResult,
   }) async {
     _onResult = onResult;
+    if (_carry.isNotEmpty) {
+      // Words of listening sessions that ended come first, as one that
+      // ended too: the recognizer started again after them and may have
+      // lost words there, which must not be taken for the reciter's.
+      final carry = _carry;
+      _carry = '';
+      onResult(carry, true);
+      return;
+    }
     if (_listening) {
       // Taking over a session going on: what it heard so far comes first.
-      if (_lastText.isNotEmpty || _carry.isNotEmpty) _forward(_lastText, false);
+      if (_lastText.isNotEmpty) _forward(_lastText, false);
       return;
     }
     _listening = true;
@@ -107,8 +156,7 @@ class HandoverListener implements SpeechListener {
     // Google's recognizer may start its text over after a pause in the
     // same session; what it sends then holds only new words, so nothing
     // handed over belongs before them.
-    if (words.length + 3 <= _lastWords.length &&
-        (words.isEmpty || words.first != _lastWords.first)) {
+    if (startsOver(words, _lastWords)) {
       _carry = '';
       _skip = 0;
       _done.addAll(_lastWords);
