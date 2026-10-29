@@ -516,6 +516,7 @@ class PageRecitationController extends Notifier<PageRecitation?> {
     if (restart || from != null || state?.covers(page) != true) {
       close();
       final int lastPage;
+      var stopAt = until;
       if (portion != null || until != null) {
         lastPage = KhatmaPortion(
           day: 0,
@@ -527,12 +528,17 @@ class PageRecitationController extends Notifier<PageRecitation?> {
         lastPage = mushaf.pageOf(
           AyahRef(surah, surahs[surah - 1].ayahs.length),
         );
+        // The last page may hold the start of the next surah too; it is
+        // recited on into, whole, once the reciter goes on. Ending part
+        // way through it, the words said after its end would be taken
+        // for ayat before it said again, where they are alike.
+        if (surah < 114) stopAt = AyahRef(surah + 1, 1);
       }
       var expected = wordsOfPages(
         [for (var p = page; p <= lastPage; p++) mushaf.page(p)],
         surahs,
         from: from,
-        until: until,
+        until: stopAt,
       );
       if (from != null && startWord > 0) {
         expected = _withoutStart(expected, from, startWord);
@@ -555,22 +561,32 @@ class PageRecitationController extends Notifier<PageRecitation?> {
         mode: mode,
       );
       session.onMistake = (_) => ref.read(mistakeAlertProvider)();
-      // Reciting on past the end of the surah goes on into the next one,
+      // Reciting on past the end goes on: into the rest of the surah when
+      // the last page ends part way through one, as when a surah starts
+      // on the page where the one recited ends, else into the next surah,
       // as in juz 'Amma, where a page holds several short surahs.
-      List<ExpectedWord> nextSurah() {
-        final surah = session.expected.last.surah;
+      List<ExpectedWord> goOn() {
+        final last = session.expected.last;
+        final count = surahs[last.surah - 1].ayahs.length;
+        final surah = last.ayah < count ? last.surah : last.surah + 1;
+        final from = surah == last.surah ? last.ayah + 1 : 1;
+        final ayahs = surahs[surah - 1].ayahs;
         // An-Nas is the last; nothing to go on to after it.
-        if (surah + 1 == 114) session.onFinished = null;
-        final ayahs = surahs[surah].ayahs;
-        _lastPage = mushaf.pageOf(AyahRef(surah + 1, ayahs.length));
+        if (surah == 114) session.onFinished = null;
+        _lastPage = mushaf.pageOf(AyahRef(surah, ayahs.length));
         return [
-          for (final w in wordsOfSurah(surah + 1, ayahs))
+          for (final w in wordsToRecite([
+            for (var a = from; a <= ayahs.length; a++)
+              (surah, a, ayahs[a - 1]),
+          ]))
             if (w.kind != WordKind.istiadha) w,
         ];
       }
 
-      if (until == null && session.expected.last.surah < 114) {
-        session.onFinished = nextSurah;
+      final last = session.expected.last;
+      if (until == null &&
+          (last.surah < 114 || last.ayah < surahs[113].ayahs.length)) {
+        session.onFinished = goOn;
       }
       session.addListener(() => _changed(session));
       _saved = false;

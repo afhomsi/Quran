@@ -136,8 +136,7 @@ class AutoRecitationController extends Notifier<AutoRecitation?> {
           ];
           // Google's recognizer may start its text over after a pause in
           // the same session: the words before are kept.
-          if (words.length + 3 <= _current.length &&
-              (words.isEmpty || words.first != _current.first)) {
+          if (startsOver(words, _current)) {
             _commit();
           }
           _current = words;

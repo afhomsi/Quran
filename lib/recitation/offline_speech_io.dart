@@ -9,6 +9,7 @@ import 'package:record/record.dart';
 import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa;
 
 import 'speech_listener.dart';
+import 'speech_pieces.dart';
 
 /// Where the model files are published, by .github/workflows/speech-model.yml.
 const _release =
@@ -112,8 +113,17 @@ DisposableSpeechListener createOfflineSpeechListener() =>
 /// reported as a final result. While a long piece is still being recited,
 /// what has been said so far is transcribed every few seconds as a partial
 /// result, so mistakes show up without waiting for the pause.
-class OfflineSpeechListener implements DisposableSpeechListener {
+class OfflineSpeechListener implements DisposableSpeechListener, SlowResults {
   final _recorder = AudioRecorder();
+
+  /// When the last result came, to tell how often they come.
+  DateTime? _lastResult;
+  Duration _quietDelay = const Duration(seconds: 4);
+
+  /// Partial results come every 2.5 s of speech at least, more on a slow
+  /// phone: the reciter has stopped only after longer than that.
+  @override
+  Duration get quietDelay => _quietDelay;
   StreamSubscription<Uint8List>? _mic;
   Future<void>? _starting;
   ReceivePort? _inbox;
@@ -201,6 +211,17 @@ class OfflineSpeechListener implements DisposableSpeechListener {
   /// Passes a result to the current session. A final result ends the
   /// session, so anything after it waits for the next one.
   void _deliver(String text, bool isFinal) {
+    final now = DateTime.now();
+    final last = _lastResult;
+    _lastResult = isFinal ? null : now;
+    if (last != null && !isFinal) {
+      final gap = now.difference(last) * 3 ~/ 2;
+      _quietDelay = gap < const Duration(seconds: 4)
+          ? const Duration(seconds: 4)
+          : (gap > const Duration(seconds: 10)
+                ? const Duration(seconds: 10)
+                : gap);
+    }
     final onResult = _onResult;
     if (onResult == null) {
       if (_pending.isNotEmpty && !_pending.last.$2) _pending.removeLast();
@@ -267,6 +288,10 @@ Float32List _toSamples(Uint8List bytes) {
 /// the model keeps up with the reciter.
 const _partialEvery = 2.5;
 
+/// The longest piece of speech without a pause given to Whisper, in
+/// seconds.
+const _maxSpeech = 20.0;
+
 /// Audio kept from just before the detector notices speech, so the first
 /// letters are not cut off.
 const _lead = 0.5;
@@ -288,7 +313,7 @@ void _worker((SendPort, String) args) {
           minSilenceDuration: 0.5,
           // Whisper hears up to 30 s at a time; a longer piece without a
           // pause is cut here, which may split a word.
-          maxSpeechDuration: 20,
+          maxSpeechDuration: _maxSpeech,
         ),
         sampleRate: _sampleRate,
         debug: false,
@@ -320,6 +345,7 @@ void _worker((SendPort, String) args) {
 
   final window = vad.config.sileroVad.windowSize;
   var leftover = Float32List(0);
+  final pieces = SpeechPieces((text, isFinal) => out.send([text, isFinal]));
   // The speech being recited, from shortly before the detector noticed it.
   final speech = <Float32List>[];
   var speechLength = 0;
@@ -369,7 +395,10 @@ void _worker((SendPort, String) args) {
       while (!vad.isEmpty()) {
         final segment = vad.front();
         vad.pop();
-        out.send([transcribe(segment.samples), true]);
+        // A piece as long as the detector lets one be was cut without a
+        // pause, maybe in the middle of a word.
+        final cut = segment.samples.length >= (_maxSpeech - 1) * _sampleRate;
+        pieces.piece(transcribe(segment.samples), cut: cut);
         clearSpeech();
       }
     }
@@ -387,8 +416,7 @@ void _worker((SendPort, String) args) {
       // The last word may be cut off in the middle; it comes with the next
       // result.
       final words = transcribe(joined).split(' ');
-      final text = words.take(words.length - 1).join(' ');
-      if (text.isNotEmpty) out.send([text, false]);
+      pieces.partial(words.take(words.length - 1).join(' '));
       // Twice the time it took, in samples, so at most half the time goes
       // to partial results.
       final took = clock.elapsedMilliseconds * _sampleRate ~/ 500;
@@ -406,6 +434,7 @@ void _worker((SendPort, String) args) {
           leftover = Float32List(0);
           recent.clear();
           clearSpeech();
+          pieces.reset();
           out.send('reset');
         case 'close':
           inbox.close();

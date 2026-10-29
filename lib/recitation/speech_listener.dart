@@ -25,6 +25,23 @@ abstract class SpeechListener {
   Future<void> stop();
 }
 
+/// How long a recognizer that sends a result for every word or so may
+/// send nothing new before the reciter has likely stopped.
+const quickQuietDelay = Duration(milliseconds: 1200);
+
+/// A recognizer that sends its results seldom, as one transcribing what
+/// was said every few seconds.
+abstract interface class SlowResults {
+  /// How long it may send nothing new while the reciter goes on.
+  Duration get quietDelay;
+}
+
+/// How long [listener] may send nothing new while the reciter goes on.
+Duration quietDelayOf(SpeechListener listener) => switch (listener) {
+  final SlowResults slow => slow.quietDelay,
+  _ => quickQuietDelay,
+};
+
 /// A listener that holds resources until it is disposed.
 abstract class DisposableSpeechListener implements SpeechListener {
   Future<void> dispose();
