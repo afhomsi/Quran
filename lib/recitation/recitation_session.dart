@@ -329,9 +329,11 @@ class RecitationSession extends ChangeNotifier {
       return false;
     }
     final heard = normalizeWord(words.single);
-    for (var k = _pos + 1;
-        k < expected.length && k <= _pos + 1 + lostOnRestart;
-        k++) {
+    for (
+      var k = _pos + 1;
+      k < expected.length && k <= _pos + 1 + lostOnRestart;
+      k++
+    ) {
       if (wordsMatch(expected[k].key, heard)) return true;
     }
     return false;

@@ -142,10 +142,10 @@ Future<List<String>> _recite(
       print(
         '${e.at} ${e.isFinal ? 'FINAL' : ''} [${e.text}] spoken ${e.spoken} '
         '${r == null ? '' : 'settled ${r.settledWord} page ${r.pageToShow(_mushaf)} '
-            'expected to ${r.session.expected.last.surah}:${r.session.expected.last.ayah} '
-            'mistakes ${r.session.mistakes.length} '
-            'shown ${[for (final e in r.recitedWords.entries) '${e.key.ayah}:${e.value == PageRecitation.allWords ? 'all' : e.value}'].join(',')} '
-            'stop ${r.stopIndex}'}',
+                  'expected to ${r.session.expected.last.surah}:${r.session.expected.last.ayah} '
+                  'mistakes ${r.session.mistakes.length} '
+                  'shown ${[for (final e in r.recitedWords.entries) '${e.key.ayah}:${e.value == PageRecitation.allWords ? 'all' : e.value}'].join(',')} '
+                  'stop ${r.stopIndex}'}',
       );
     }
     if (r == null) continue;
@@ -215,9 +215,7 @@ Future<List<String>> _recite(
     final end = r.pageToShow(_mushaf);
     if (end != _endPage[last] &&
         !(end == _endPage[last]! + 1 && _mushaf.pageOf(_next(last)) == end)) {
-      problem(
-        'ends on page ${r.pageToShow(_mushaf)}, not ${_endPage[last]}',
-      );
+      problem('ends on page ${r.pageToShow(_mushaf)}, not ${_endPage[last]}');
     }
   } else {
     if (mistakes.length > 2 * noise.total + 2) {
@@ -298,9 +296,9 @@ void main() {
       for (var a = 1; a <= s.ayahs.length; a++) {
         final ayah = AyahRef(s.number, a);
         final r = alignRecitation(
-          wordsToRecite([
-            (s.number, a, s.ayahs[a - 1]),
-          ]).where((w) => w.kind == WordKind.ayah).toList(),
+          wordsToRecite([(s.number, a, s.ayahs[a - 1])])
+              .where((w) => w.kind == WordKind.ayah)
+              .toList(),
           _plain.ayah(ayah),
         );
         if (r.mistakeCount > 0 || !r.isComplete) wrong.add(ayah);
@@ -373,8 +371,7 @@ void main() {
                 ? offlineEvents(words, rnd)
                 : googleEvents(words, rnd),
             offline: offline,
-            start: (c) =>
-                c.read(pageRecitationProvider.notifier).start(page),
+            start: (c) => c.read(pageRecitationProvider.notifier).start(page),
           );
         });
       });
