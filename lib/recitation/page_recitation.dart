@@ -10,6 +10,7 @@ import '../data/quran_repository.dart';
 import '../data/reading_state.dart';
 import '../data/recitation_history.dart';
 import 'alert_sound.dart';
+import 'arabic_normalizer.dart';
 import 'handover_listener.dart';
 import 'quran_finder.dart';
 import 'recitation_matcher.dart';
@@ -722,7 +723,11 @@ class PageRecitationController extends Notifier<PageRecitation?> {
       if (answered) _save();
       return;
     }
-    if (_findPlace && _moveToPlaceRecited(session)) return;
+    if (_findPlace) {
+      if (_moveToPlaceRecited(session)) return;
+    } else if (current.portion == null && _moveIfRecitedElsewhere(session)) {
+      return;
+    }
     // Done once it stops listening: it may still go on into the next surah.
     if (session.result.isComplete && !session.isListening) {
       _save();
@@ -765,17 +770,102 @@ class PageRecitationController extends Notifier<PageRecitation?> {
       return false;
     }
     // Near where the reciter is expected, the recitation follows by itself.
-    final at = session.expected.indexWhere(
-      (w) => w.surah == found.ayah.surah && w.ayah == found.ayah.ayah,
-    );
-    if (at >= 0 && at <= session.result.end + _nearWords) {
+    if (_isNear(session, found)) {
       _stayOnPage();
       return false;
     }
     _findPlace = false;
     // What was heard belongs to the place found, not to this page.
     if (_progressWhenSearching == 0) _saved = true;
-    listener.handOverFrom(found.heardStart);
+    _moveTo(session, listener, found, found.heardStart);
+    return true;
+  }
+
+  /// The last words heard that are looked for in the whole Quran once the
+  /// recitation follows the page: few, so the words recited before them
+  /// do not outvote those of another surah the reciter went on to.
+  static const _recentWords = 10;
+
+  /// How many words lost or added by the recognizer still let words
+  /// heard fit the words to recite.
+  static const _lostWords = 3;
+
+  /// Whether the place [found] is where the reciter is expected, or near
+  /// after it, where the recitation follows by itself.
+  static bool _isNear(RecitationSession session, FoundPlace found) {
+    final at = session.expected.indexWhere(
+      (w) => w.surah == found.ayah.surah && w.ayah == found.ayah.ayah,
+    );
+    return at >= 0 && at <= session.result.end + _nearWords;
+  }
+
+  /// At any time while reciting, when the last words heard are not of the
+  /// surah recited but clearly of another place in the Quran, as when the
+  /// reciter goes on to another surah, moves the recitation there with
+  /// the same listening. Words that fit the surah recited as well as
+  /// another place are not clear, so they do not move it. Returns whether
+  /// it moved.
+  bool _moveIfRecitedElsewhere(RecitationSession session) {
+    final listener = session.listener;
+    if (!session.isListening || listener is! HandoverListener) return false;
+    final finder = ref.read(quranFinderProvider).value;
+    if (finder == null) return false;
+    final heard = listener.heard;
+    if (heard.length < QuranFinder.minWords) return false;
+    final recent = heard.length > _recentWords
+        ? heard.length - _recentWords
+        : 0;
+    final found = finder.find(heard.sublist(recent));
+    if (found == null || _isNear(session, found)) return false;
+    final start = recent + found.heardStart;
+    // Words that fit the recitation where the reciter is are recited
+    // here, though they fit another place better, as an ayah's words
+    // with the end of the ayah before it, found together elsewhere.
+    if (_fitsHere(session, heard.sublist(start))) return false;
+    _moveTo(session, listener, found, start);
+    return true;
+  }
+
+  /// Whether half of [words] or more are, in order, words to recite near
+  /// where the reciter is: each word that matches votes for its shift
+  /// from the word to recite, as in [QuranFinder.find], nearby shifts
+  /// counting together for words the recognizer lost or added.
+  static bool _fitsHere(RecitationSession session, List<String> words) {
+    final expected = session.expected;
+    final end = session.result.end;
+    final from = end > 2 * _recentWords ? end - 2 * _recentWords : 0;
+    final to = end + _nearWords < expected.length
+        ? end + _nearWords
+        : expected.length;
+    final keys = [for (final w in words) normalizeWord(w)];
+    final votes = <int, Set<int>>{};
+    for (var i = from; i < to; i++) {
+      for (var j = 0; j < keys.length; j++) {
+        if (wordsMatch(expected[i].key, keys[j], RecitationMode.lenient)) {
+          (votes[i - j] ??= {}).add(j);
+        }
+      }
+    }
+    var best = 0;
+    for (final shift in votes.keys) {
+      final agree = {
+        for (var d = shift - _lostWords; d <= shift + _lostWords; d++)
+          ...?votes[d],
+      };
+      if (agree.length > best) best = agree.length;
+    }
+    return 2 * best >= keys.length;
+  }
+
+  /// Recites on from [found], with what [listener] heard from word
+  /// [heardStart] on.
+  void _moveTo(
+    RecitationSession session,
+    HandoverListener listener,
+    FoundPlace found,
+    int heardStart,
+  ) {
+    listener.handOverFrom(heardStart);
     final mode = session.mode;
     // Not while the session is still telling its listeners.
     Future.microtask(
@@ -786,7 +876,6 @@ class PageRecitationController extends Notifier<PageRecitation?> {
         listener: listener,
       ),
     );
-    return true;
   }
 
   /// Stops looking for the place recited.
