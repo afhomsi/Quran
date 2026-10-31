@@ -257,7 +257,7 @@ void main() {
         );
       }
 
-    expect(session.result.progress, greaterThan(words.length));
+      expect(session.result.progress, greaterThan(words.length));
       // The first word is settled as heard when it is, one way or the
       // other.
       expect(mistakes.length, lessThanOrEqualTo(1));
@@ -345,17 +345,17 @@ void main() {
       await tester.pump(const Duration(milliseconds: 350));
     });
 
-    test('stops showing the ayat at the wrong word until it is recited '
-        'again', () {
+    test('keeps only the wrong word hidden while it is not recited again', () {
       final said = [
         ...withMistake(),
         ...ayahs[1].split(' ').skip(3),
         ...ayahs[2].split(' '),
       ];
       listener.say(said.join(' '));
-      var page = PageRecitation(2, session, 0);
-      expect(page.recitedWords[const AyahRef(2, 2)], 2);
-      expect(page.recitedWords[const AyahRef(2, 3)], isNull);
+      final page = PageRecitation(2, session, 0);
+      expect(page.recitedWords[const AyahRef(2, 2)], PageRecitation.allWords);
+      expect(page.wrongWords, {(const AyahRef(2, 2), 3)});
+      expect(page.recitedWords[const AyahRef(2, 3)], PageRecitation.allWords);
       expect(session.isListening, isTrue);
       expect(page.ayahStates[const AyahRef(2, 2)], AyahRecitation.mistake);
     });

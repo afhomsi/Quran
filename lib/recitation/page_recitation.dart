@@ -10,6 +10,7 @@ import '../data/quran_repository.dart';
 import '../data/reading_state.dart';
 import '../data/recitation_history.dart';
 import 'alert_sound.dart';
+import 'arabic_normalizer.dart';
 import 'handover_listener.dart';
 import 'quran_finder.dart';
 import 'recitation_matcher.dart';
@@ -37,7 +38,13 @@ class PageRecitation {
     this.wentOn = false,
     this.startWord = 0,
     this.exam,
+    this.shownAyat = const {},
   }) : lastPage = lastPage ?? page;
+
+  /// The ayat shown whole so far: they stay shown while the recognizer
+  /// takes back or rewrites its last words, as Google's does when it
+  /// starts over with the same word, until the recitation starts again.
+  final Set<AyahRef> shownAyat;
 
   /// The hifz exam this recites a question of, if any.
   final ExamRun? exam;
@@ -80,21 +87,6 @@ class PageRecitation {
   /// [RecitationSession.settledResult].
   (AyahRef, int) get settledWord => _wordAt(session.settledResult);
 
-  /// The word the page follows while reciting: the [settledWord], or
-  /// while the text is hidden the first word that stops showing the ayat
-  /// (see [stopIndex]) when it comes before it, so the page stays where
-  /// the mistake is to be put right.
-  (AyahRef, int) get followedWord {
-    if (hideText) {
-      final settled = session.settledResult;
-      final stop = _firstStop(settled.words);
-      if (stop != null && stop < settled.end) {
-        return _positionOf(settled.words, stop);
-      }
-    }
-    return settledWord;
-  }
-
   (AyahRef, int) _wordAt(RecitationResult result) {
     final words = result.words;
     var k = result.end;
@@ -126,7 +118,7 @@ class PageRecitation {
   /// the page shown is recited to its end, and not when the recognizer
   /// guesses words ahead of the reciter and then takes them back.
   int pageToShow(Mushaf mushaf) {
-    final (ayah, position) = followedWord;
+    final (ayah, position) = settledWord;
     var p = mushaf.pageOf(ayah);
     // An ayah may go on over the next page.
     while (p < lastPage &&
@@ -152,6 +144,7 @@ class PageRecitation {
     int? lastPage,
     bool? wentOn,
     ExamRun? exam,
+    Set<AyahRef>? shownAyat,
   }) => PageRecitation(
     page,
     session,
@@ -164,26 +157,37 @@ class PageRecitation {
     wentOn: wentOn ?? this.wentOn,
     startWord: startWord,
     exam: exam ?? this.exam,
+    shownAyat: shownAyat ?? this.shownAyat,
+  );
+
+  /// This recitation with the ayat recited whole now added to the
+  /// [shownAyat], or none of them once it starts again from nothing.
+  PageRecitation withShownAyat() => copyWith(
+    shownAyat: session.result.progress == 0
+        ? const {}
+        : {
+            ...shownAyat,
+            for (final e in _countsRecited().entries)
+              if (e.value == allWords) e.key,
+          },
   );
 
   /// How many words of each ayah show while the text is hidden: those up
-  /// to the last one recited, stopping before the first word said wrong,
-  /// left out or with a wrong haraka (see [stopIndex]) until it is
-  /// recited again correctly. An ayah recited to its end shows all its
-  /// words, whatever the count, so a word printed apart on the page does
-  /// not stay hidden.
-  Map<AyahRef, int> get recitedWords {
+  /// to the last one recited, except the [wrongWords]. An ayah recited to
+  /// its end shows all its words, whatever the count, so a word printed
+  /// apart on the page does not stay hidden.
+  Map<AyahRef, int> get recitedWords => {
+    ..._countsRecited(),
+    for (final a in shownAyat) a: allWords,
+  };
+
+  Map<AyahRef, int> _countsRecited() {
     final counts = <AyahRef, int>{
       if (from case final from? when startWord > 0) from: startWord,
     };
     final unfinished = <AyahRef>{};
     final hints = session.hints;
-    final stop = stopIndex;
     _forEachAyahWord((ayah, position, w, i) {
-      if (stop != null && i >= stop) {
-        unfinished.add(ayah);
-        return;
-      }
       if (w.status == WordStatus.pending) unfinished.add(ayah);
       // A word shown by a hint shows like one recited.
       if (w.status != WordStatus.pending || hints.contains(i)) {
@@ -197,11 +201,10 @@ class PageRecitation {
   }
 
   /// The first word said wrong, left out or with a wrong haraka and not
-  /// shown by a hint, as its index in the session's words: while the text
-  /// is hidden, no word from it on shows until it is recited again right.
-  int? get stopIndex => _firstStop(session.result.words);
-
-  int? _firstStop(List<WordResult> words) {
+  /// shown by a hint, as its index in the session's words: one of the
+  /// [wrongWords], still hidden while the text is.
+  int? get stopIndex {
+    final words = session.result.words;
     final hints = session.hints;
     for (var i = 0; i < words.length; i++) {
       final w = words[i];
@@ -226,14 +229,17 @@ class PageRecitation {
     return words;
   }
 
-  /// The words said wrong or left out, as their ayah and position: they
-  /// stay hidden until recited again correctly, while the rest of their
-  /// ayah shows and the reciting goes on, or until shown by a hint.
+  /// The words said wrong, left out or with a wrong haraka, as their ayah
+  /// and position: while the text is hidden they stay hidden, with no
+  /// colour, until recited again correctly or shown by a hint, while the
+  /// rest of their ayah shows and the reciting goes on.
   Set<(AyahRef, int)> get wrongWords {
     final wrong = <(AyahRef, int)>{};
     final hints = session.hints;
     _forEachAyahWord((ayah, position, w, i) {
-      if ((w.status == WordStatus.wrong || w.status == WordStatus.skipped) &&
+      if ((w.status == WordStatus.wrong ||
+              w.status == WordStatus.skipped ||
+              w.isHarakatMistake) &&
           !hints.contains(i)) {
         wrong.add((ayah, position));
       }
@@ -576,8 +582,7 @@ class PageRecitationController extends Notifier<PageRecitation?> {
         _lastPage = mushaf.pageOf(AyahRef(surah, ayahs.length));
         return [
           for (final w in wordsToRecite([
-            for (var a = from; a <= ayahs.length; a++)
-              (surah, a, ayahs[a - 1]),
+            for (var a = from; a <= ayahs.length; a++) (surah, a, ayahs[a - 1]),
           ]))
             if (w.kind != WordKind.istiadha) w,
         ];
@@ -718,7 +723,11 @@ class PageRecitationController extends Notifier<PageRecitation?> {
       if (answered) _save();
       return;
     }
-    if (_findPlace && _moveToPlaceRecited(session)) return;
+    if (_findPlace) {
+      if (_moveToPlaceRecited(session)) return;
+    } else if (current.portion == null && _moveIfRecitedElsewhere(session)) {
+      return;
+    }
     // Done once it stops listening: it may still go on into the next surah.
     if (session.result.isComplete && !session.isListening) {
       _save();
@@ -730,11 +739,13 @@ class PageRecitationController extends Notifier<PageRecitation?> {
       }
     }
     _keepPlace(current);
-    state = current.copyWith(
-      version: current.version + 1,
-      lastPage: _lastPage,
-      wentOn: _lastPage != null,
-    );
+    state = current
+        .copyWith(
+          version: current.version + 1,
+          lastPage: _lastPage,
+          wentOn: _lastPage != null,
+        )
+        .withShownAyat();
   }
 
   /// How far after the word the reciter is at a place found is still
@@ -759,17 +770,102 @@ class PageRecitationController extends Notifier<PageRecitation?> {
       return false;
     }
     // Near where the reciter is expected, the recitation follows by itself.
-    final at = session.expected.indexWhere(
-      (w) => w.surah == found.ayah.surah && w.ayah == found.ayah.ayah,
-    );
-    if (at >= 0 && at <= session.result.end + _nearWords) {
+    if (_isNear(session, found)) {
       _stayOnPage();
       return false;
     }
     _findPlace = false;
     // What was heard belongs to the place found, not to this page.
     if (_progressWhenSearching == 0) _saved = true;
-    listener.handOverFrom(found.heardStart);
+    _moveTo(session, listener, found, found.heardStart);
+    return true;
+  }
+
+  /// The last words heard that are looked for in the whole Quran once the
+  /// recitation follows the page: few, so the words recited before them
+  /// do not outvote those of another surah the reciter went on to.
+  static const _recentWords = 10;
+
+  /// How many words lost or added by the recognizer still let words
+  /// heard fit the words to recite.
+  static const _lostWords = 3;
+
+  /// Whether the place [found] is where the reciter is expected, or near
+  /// after it, where the recitation follows by itself.
+  static bool _isNear(RecitationSession session, FoundPlace found) {
+    final at = session.expected.indexWhere(
+      (w) => w.surah == found.ayah.surah && w.ayah == found.ayah.ayah,
+    );
+    return at >= 0 && at <= session.result.end + _nearWords;
+  }
+
+  /// At any time while reciting, when the last words heard are not of the
+  /// surah recited but clearly of another place in the Quran, as when the
+  /// reciter goes on to another surah, moves the recitation there with
+  /// the same listening. Words that fit the surah recited as well as
+  /// another place are not clear, so they do not move it. Returns whether
+  /// it moved.
+  bool _moveIfRecitedElsewhere(RecitationSession session) {
+    final listener = session.listener;
+    if (!session.isListening || listener is! HandoverListener) return false;
+    final finder = ref.read(quranFinderProvider).value;
+    if (finder == null) return false;
+    final heard = listener.heard;
+    if (heard.length < QuranFinder.minWords) return false;
+    final recent = heard.length > _recentWords
+        ? heard.length - _recentWords
+        : 0;
+    final found = finder.find(heard.sublist(recent));
+    if (found == null || _isNear(session, found)) return false;
+    final start = recent + found.heardStart;
+    // Words that fit the recitation where the reciter is are recited
+    // here, though they fit another place better, as an ayah's words
+    // with the end of the ayah before it, found together elsewhere.
+    if (_fitsHere(session, heard.sublist(start))) return false;
+    _moveTo(session, listener, found, start);
+    return true;
+  }
+
+  /// Whether half of [words] or more are, in order, words to recite near
+  /// where the reciter is: each word that matches votes for its shift
+  /// from the word to recite, as in [QuranFinder.find], nearby shifts
+  /// counting together for words the recognizer lost or added.
+  static bool _fitsHere(RecitationSession session, List<String> words) {
+    final expected = session.expected;
+    final end = session.result.end;
+    final from = end > 2 * _recentWords ? end - 2 * _recentWords : 0;
+    final to = end + _nearWords < expected.length
+        ? end + _nearWords
+        : expected.length;
+    final keys = [for (final w in words) normalizeWord(w)];
+    final votes = <int, Set<int>>{};
+    for (var i = from; i < to; i++) {
+      for (var j = 0; j < keys.length; j++) {
+        if (wordsMatch(expected[i].key, keys[j], RecitationMode.lenient)) {
+          (votes[i - j] ??= {}).add(j);
+        }
+      }
+    }
+    var best = 0;
+    for (final shift in votes.keys) {
+      final agree = {
+        for (var d = shift - _lostWords; d <= shift + _lostWords; d++)
+          ...?votes[d],
+      };
+      if (agree.length > best) best = agree.length;
+    }
+    return 2 * best >= keys.length;
+  }
+
+  /// Recites on from [found], with what [listener] heard from word
+  /// [heardStart] on.
+  void _moveTo(
+    RecitationSession session,
+    HandoverListener listener,
+    FoundPlace found,
+    int heardStart,
+  ) {
+    listener.handOverFrom(heardStart);
     final mode = session.mode;
     // Not while the session is still telling its listeners.
     Future.microtask(
@@ -780,7 +876,6 @@ class PageRecitationController extends Notifier<PageRecitation?> {
         listener: listener,
       ),
     );
-    return true;
   }
 
   /// Stops looking for the place recited.
