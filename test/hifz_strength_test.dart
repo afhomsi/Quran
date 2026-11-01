@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hifz/app.dart';
 import 'package:hifz/audio/audio_store.dart';
 import 'package:hifz/audio/ayah_audio.dart';
+import 'package:hifz/data/hifz_exam.dart';
 import 'package:hifz/data/hifz_strength.dart';
 import 'package:hifz/data/mushaf_models.dart';
 import 'package:hifz/data/mushaf_repository.dart';
@@ -47,6 +49,7 @@ DateTime _later(int days, [int hours = 0]) =>
     _day1.add(Duration(days: days, hours: hours));
 
 void main() {
+  drillTests();
   test('a page recited right waits longer each day it is recited', () {
     var pages = pageHifzOf([_recited(_day1, 1, 1)], _mushaf);
     expect(pages.keys, [1]);
@@ -130,6 +133,8 @@ void main() {
     expect(container.read(appTabProvider), AppTab.khatma);
     expect(find.byType(TodayCard), findsOneWidget);
     expect(find.text('ابدأ المراجعة'), findsOneWidget);
+    expect(find.text('سمّع أخطائي (1)'), findsOneWidget);
+    expect(find.text('ربط الصفحات'), findsOneWidget);
     expect(find.text('الفاتحة'), findsOneWidget);
 
     await tester.tap(find.text('خريطة حفظي'));
@@ -184,4 +189,54 @@ Future<ProviderContainer> _start(
   );
   await tester.pumpAndSettle();
   return ProviderScope.containerOf(tester.element(find.byType(MaterialApp)));
+}
+
+void drillTests() {
+  test('a mistake stays until the ayah is recited right', () {
+    final wrong = _recited(_day1, 2, 3, mistakes: [const AyahRef(2, 10)]);
+    expect(pendingMistakes([wrong]), [const AyahRef(2, 10)]);
+    // A recitation that did not reach it leaves it.
+    expect(pendingMistakes([wrong, _recited(_later(1), 1, 1)]), [
+      const AyahRef(2, 10),
+    ]);
+    expect(pendingMistakes([wrong, _recited(_later(1), 3, 3)]), isEmpty);
+    expect(
+      pendingMistakes([
+        wrong,
+        _recited(_later(1), 3, 3, mistakes: [const AyahRef(2, 10)]),
+      ]),
+      [const AyahRef(2, 10)],
+    );
+    expect(mistakeQuestions([const AyahRef(2, 10)]), [
+      const ExamQuestion(2, 10, 10),
+    ]);
+  });
+
+  test('counts the days in a row with a recitation', () {
+    final now = _later(5, 3);
+    expect(recitationStreak([], now), 0);
+    expect(
+      recitationStreak([
+        _recited(_later(5), 1, 1),
+        _recited(_later(4), 1, 1),
+        _recited(_later(4, 2), 1, 1),
+        _recited(_later(3), 1, 1),
+        _recited(_later(1), 1, 1),
+      ], now),
+      3,
+    );
+    // Not yet today: counts up to yesterday.
+    expect(recitationStreak([_recited(_later(4), 1, 1)], now), 1);
+    expect(recitationStreak([_recited(_later(3), 1, 1)], now), 0);
+  });
+
+  test('page linking asks the last ayah of a page and the next', () {
+    final questions = linkingQuestions(_mushaf, [2, 49, 604], Random(1));
+    // Page 49 ends Al-Baqarah; 604 is the last page.
+    expect(questions, hasLength(1));
+    final q = questions.single;
+    expect(q.surah, 2);
+    expect(AyahRef(2, q.from), _mushaf.page(2).words.last.ayah);
+    expect(AyahRef(2, q.to), _mushaf.page(3).firstAyah);
+  });
 }

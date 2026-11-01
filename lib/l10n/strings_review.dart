@@ -72,4 +72,29 @@ extension ReviewStrings on S {
       '${n(days)} دن پہلے سنایا',
     ),
   };
+  String streakDays(int days) => _(
+    days == 1
+        ? 'يوم واحد من التسميع، واصل غدًا'
+        : '${n(days)} أيام تسميع متتالية، ما شاء الله',
+    days == 1
+        ? '1 day of reciting, keep going tomorrow'
+        : '${n(days)} days of reciting in a row',
+    'টানা ${n(days)} দিন শোনানো',
+    'لگاتار ${n(days)} دن سنانا',
+  );
+  String get drills => _('تدريبات', 'Drills', 'অনুশীলন', 'مشقیں');
+  String reciteMistakes(int count) => _(
+    'سمّع أخطائي (${n(count)})',
+    'Recite my mistakes (${n(count)})',
+    'আমার ভুলগুলো শোনান (${n(count)})',
+    'اپنی غلطیاں سنائیں (${n(count)})',
+  );
+  String get linkPages =>
+      _('ربط الصفحات', 'Link the pages', 'পৃষ্ঠা জোড়া', 'صفحات جوڑیں');
+  String get reciteMorePages => _(
+    'سمّع صفحات متتالية أكثر أولًا، ثم جرّب ربطها',
+    'Recite more pages in a row first, then link them',
+    'প্রথমে আরও পরপর পৃষ্ঠা শোনান, তারপর জোড়া দিন',
+    'پہلے مزید لگاتار صفحات سنائیں، پھر جوڑیں',
+  );
 }
