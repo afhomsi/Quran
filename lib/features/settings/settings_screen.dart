@@ -11,6 +11,7 @@ import '../../data/recitation_history.dart';
 import '../../data/reading_state.dart';
 import '../../l10n/strings.dart';
 import '../../recitation/recitation_matcher.dart';
+import '../../reminders/daily_reminder.dart';
 import '../../settings/app_settings.dart';
 import '../mushaf/text_size_sheet.dart';
 import '../recitation/offline_model_tile.dart';
@@ -137,6 +138,23 @@ class SettingsScreen extends ConsumerWidget {
           _SectionTitle(t.reciteSection, Icons.record_voice_over_rounded),
           _Group(
             children: [
+              if (ref.watch(reminderSchedulerProvider).supported)
+                _Switch(
+                  icon: Icons.notifications_active_rounded,
+                  title: t.dailyReminder,
+                  subtitle: settings.reminderOn
+                      ? t.reminderAt(
+                          MaterialLocalizations.of(context).formatTimeOfDay(
+                            TimeOfDay(
+                              hour: settings.reminderMinutes ~/ 60,
+                              minute: settings.reminderMinutes % 60,
+                            ),
+                          ),
+                        )
+                      : null,
+                  value: settings.reminderOn,
+                  onChanged: (v) => setReminder(context, v),
+                ),
               _Switch(
                 icon: Icons.today_rounded,
                 title: t.openOnToday,

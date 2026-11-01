@@ -15,6 +15,7 @@ import 'package:hifz/data/mushaf_repository.dart';
 import 'package:hifz/data/mutashabihat.dart';
 import 'package:hifz/data/quran_repository.dart';
 import 'package:hifz/data/reading_state.dart';
+import 'package:hifz/reminders/daily_reminder.dart';
 import 'package:hifz/data/recitation_history.dart';
 import 'package:hifz/features/review/hifz_map_screen.dart';
 import 'package:hifz/features/review/today_card.dart';
@@ -51,6 +52,7 @@ DateTime _later(int days, [int hours = 0]) =>
 
 void main() {
   drillTests();
+  reminderTests();
   test('a page recited right waits longer each day it is recited', () {
     var pages = pageHifzOf([_recited(_day1, 1, 1)], _mushaf);
     expect(pages.keys, [1]);
@@ -262,5 +264,14 @@ void drillTests() {
     expect(q.surah, 2);
     expect(AyahRef(2, q.from), _mushaf.page(2).words.last.ayah);
     expect(AyahRef(2, q.to), _mushaf.page(3).firstAyah);
+  });
+}
+
+void reminderTests() {
+  test('the reminder is next due today, or tomorrow once past', () {
+    final now = DateTime(2026, 11, 1, 19, 30);
+    expect(nextReminder(now, 20 * 60), DateTime(2026, 11, 1, 20));
+    expect(nextReminder(now, 6 * 60), DateTime(2026, 11, 2, 6));
+    expect(nextReminder(now, 19 * 60 + 30), DateTime(2026, 11, 2, 19, 30));
   });
 }
