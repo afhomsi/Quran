@@ -12,6 +12,7 @@ import 'package:hifz/data/hifz_exam.dart';
 import 'package:hifz/data/hifz_strength.dart';
 import 'package:hifz/data/mushaf_models.dart';
 import 'package:hifz/data/mushaf_repository.dart';
+import 'package:hifz/data/mutashabihat.dart';
 import 'package:hifz/data/quran_repository.dart';
 import 'package:hifz/data/reading_state.dart';
 import 'package:hifz/data/recitation_history.dart';
@@ -135,6 +136,7 @@ void main() {
     expect(find.text('ابدأ المراجعة'), findsOneWidget);
     expect(find.text('سمّع أخطائي (1)'), findsOneWidget);
     expect(find.text('ربط الصفحات'), findsOneWidget);
+    expect(find.text('المتشابهات'), findsOneWidget);
     expect(find.text('الفاتحة'), findsOneWidget);
 
     await tester.tap(find.text('خريطة حفظي'));
@@ -228,6 +230,28 @@ void drillTests() {
     // Not yet today: counts up to yesterday.
     expect(recitationStreak([_recited(_later(4), 1, 1)], now), 1);
     expect(recitationStreak([_recited(_later(3), 1, 1)], now), 0);
+  });
+
+  test('finds ayat that start alike, and asks each with one alike', () {
+    final surahs = parseSurahs(File(quranAssetPath).readAsStringSync());
+    final similar = findSimilarAyat(surahs);
+    expect(similar[const AyahRef(2, 5)], [const AyahRef(31, 5)]);
+    expect(similar[const AyahRef(109, 3)], [const AyahRef(109, 5)]);
+    // A common opening is not taken for ayat alike.
+    expect(similar[const AyahRef(2, 104)], isNull);
+    for (final e in similar.entries) {
+      expect(e.value, isNot(contains(e.key)));
+      expect(e.value.length, lessThan(maxSimilarGroup));
+    }
+
+    final questions = similarQuestions(
+      similar,
+      {_mushaf.pageOf(const AyahRef(2, 5))},
+      _mushaf.pageOf,
+      Random(1),
+    );
+    expect(questions, const [ExamQuestion(2, 5, 5), ExamQuestion(31, 5, 5)]);
+    expect(similarQuestions(similar, {}, _mushaf.pageOf, Random(1)), isEmpty);
   });
 
   test('page linking asks the last ayah of a page and the next', () {
