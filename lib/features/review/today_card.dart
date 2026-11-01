@@ -7,6 +7,7 @@ import '../../data/hifz_exam.dart';
 import '../../data/hifz_strength.dart';
 import '../../data/khatma.dart';
 import '../../data/mushaf_models.dart';
+import '../../data/mutashabihat.dart';
 import '../../data/mushaf_repository.dart';
 import '../../data/quran_models.dart';
 import '../../data/quran_repository.dart';
@@ -193,6 +194,19 @@ class TodayCard extends ConsumerWidget {
                     onPressed: mistakes.isEmpty
                         ? null
                         : () => startDrill(context, mistakeQuestions(mistakes)),
+                  ),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.compare_arrows_rounded),
+                    label: Text(t.similarAyat),
+                    onPressed: () => startDrill(
+                      context,
+                      similarQuestions(
+                        ref.read(similarAyatProvider),
+                        pages.keys.toSet(),
+                        mushaf.pageOf,
+                        Random(),
+                      ),
+                    ),
                   ),
                   OutlinedButton.icon(
                     icon: const Icon(Icons.link_rounded),

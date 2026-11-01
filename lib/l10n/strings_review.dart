@@ -92,9 +92,11 @@ extension ReviewStrings on S {
   String get linkPages =>
       _('ربط الصفحات', 'Link the pages', 'পৃষ্ঠা জোড়া', 'صفحات جوڑیں');
   String get reciteMorePages => _(
-    'سمّع صفحات متتالية أكثر أولًا، ثم جرّب ربطها',
-    'Recite more pages in a row first, then link them',
-    'প্রথমে আরও পরপর পৃষ্ঠা শোনান, তারপর জোড়া দিন',
-    'پہلے مزید لگاتار صفحات سنائیں، پھر جوڑیں',
+    'سمّع صفحات أكثر أولًا، ثم جرّب هذا التدريب',
+    'Recite more pages first, then try this drill',
+    'প্রথমে আরও পৃষ্ঠা শোনান, তারপর এই অনুশীলন করুন',
+    'پہلے مزید صفحات سنائیں، پھر یہ مشق کریں',
   );
+  String get similarAyat =>
+      _('المتشابهات', 'Similar ayat', 'সদৃশ আয়াত', 'متشابہ آیات');
 }
