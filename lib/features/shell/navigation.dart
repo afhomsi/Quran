@@ -5,7 +5,7 @@ import '../../data/mushaf_models.dart';
 import '../../l10n/strings.dart';
 
 /// The tabs of the bottom bar, in order.
-enum AppTab { mushaf, khatma, quranIndex, bookmarks, more }
+enum AppTab { mushaf, khatma, quranIndex, more }
 
 /// The tab shown in the bottom bar.
 class AppTabNotifier extends Notifier<AppTab> {
@@ -122,7 +122,7 @@ class AppNavigationBar extends ConsumerWidget {
         }
         ref.read(appTabProvider.notifier).select(AppTab.values[i]);
       },
-      // Every tab is outlined, and filled when chosen, so all five weigh the
+      // Every tab is outlined, and filled when chosen, so all of them weigh the
       // same.
       destinations: [
         NavigationDestination(
@@ -144,11 +144,6 @@ class AppNavigationBar extends ConsumerWidget {
         NavigationDestination(
           icon: const Icon(Icons.format_list_bulleted_rounded),
           label: t.tabIndex,
-        ),
-        NavigationDestination(
-          icon: const Icon(Icons.bookmark_border_rounded),
-          selectedIcon: const Icon(Icons.bookmark_rounded),
-          label: t.tabBookmarks,
         ),
         NavigationDestination(
           icon: const Icon(Icons.handyman_outlined),

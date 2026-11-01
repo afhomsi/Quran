@@ -6,15 +6,14 @@ import '../../data/mushaf_repository.dart';
 import '../../data/reading_state.dart';
 import '../../settings/app_settings.dart';
 import '../review/today_card.dart';
-import '../bookmarks/bookmarks_screen.dart';
 import '../home/home_screen.dart';
 import '../khatma/khatma_screen.dart';
 import '../more/more_screen.dart';
 import '../mushaf/mushaf_screen.dart';
 import 'navigation.dart';
 
-/// The app's main screen: the mushaf, khatma plans, index, bookmarks and
-/// more, switched with the bottom bar. Each tab keeps its state.
+/// The app's main screen: the mushaf, today's wird and khatma plans, the
+/// index and the tools (with the bookmarks), switched with the bottom bar. Each tab keeps its state.
 ///
 /// The mushaf draws the bottom bar over its page, and hides it with a tap.
 class AppShell extends ConsumerStatefulWidget {
@@ -55,7 +54,6 @@ class _AppShellState extends ConsumerState<AppShell> {
           MushafScreen(initialPage: _startPage),
           const KhatmaScreen(),
           const HomeScreen(),
-          const BookmarksScreen(),
           const MoreScreen(),
         ],
       ),

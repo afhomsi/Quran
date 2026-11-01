@@ -22,7 +22,14 @@ enum KhatmaType {
 
   /// The whole Quran in a number of days the user picks.
   custom,
+
+  /// New hifz: half a page, a page or two pages a day, from a page the
+  /// user picks to the end of the mushaf, each recited from memory.
+  hifz,
 }
+
+/// What a new-hifz plan may take a day, in half pages.
+const hifzHalfPagesChoices = [1, 2, 4];
 
 /// Colors of the plan's bookmark, from the plan form.
 const khatmaColors = [
@@ -84,6 +91,8 @@ class KhatmaPlan {
     required this.created,
     this.done = const {},
     this.recite = false,
+    this.startPage = 1,
+    this.halfPages = 2,
   });
 
   final String id;
@@ -104,14 +113,27 @@ class KhatmaPlan {
   /// ticked off once recited to its end, instead of read.
   final bool recite;
 
+  /// For a new-hifz plan: the page it starts on, and how much to learn a
+  /// day, in half pages.
+  final int startPage;
+  final int halfPages;
+
   /// Number of days a plan of [type] takes; [customDays] is used for
   /// custom plans.
-  static int daysFor(KhatmaType type, {int customDays = 30}) => switch (type) {
+  static int daysFor(
+    KhatmaType type, {
+    int customDays = 30,
+    int startPage = 1,
+    int halfPages = 2,
+  }) => switch (type) {
     KhatmaType.salaf => 7,
     KhatmaType.ramadan => 30,
     // 604 pages at 10 a day.
     KhatmaType.dailyWird => 61,
     KhatmaType.custom => customDays.clamp(1, mushafPageCount),
+    // Half pages are counted as two a page, for the rounding up.
+    KhatmaType.hifz =>
+      ((mushafPageCount - startPage + 1) * 2 / halfPages).ceil(),
   };
 
   /// The portions of the plan, worked out once: the mushaf redraws its
@@ -149,7 +171,27 @@ class KhatmaPlan {
           until: d + 1 == days ? null : m.page(_customStart(d + 1)).firstAyah,
         ),
     ],
+    KhatmaType.hifz => _hifzPortions(m),
   };
+
+  /// The portions of a new-hifz plan: [halfPages] half pages a day from
+  /// [startPage]. A half page ends at the middle ayah of the page.
+  List<KhatmaPortion> _hifzPortions(Mushaf m) {
+    final starts = <AyahRef>[];
+    for (var p = startPage; p <= mushafPageCount; p += halfPages == 4 ? 2 : 1) {
+      starts.add(m.page(p).firstAyah);
+      if (halfPages == 1) {
+        final ayat = [
+          for (final w in m.page(p).words)
+            if (w.position == 1) w.ayah,
+        ];
+        if (ayat.length >= 2 && ayat[ayat.length ~/ 2] != starts.last) {
+          starts.add(ayat[ayat.length ~/ 2]);
+        }
+      }
+    }
+    return _between(starts, (i) => i + 1);
+  }
 
   int _customStart(int day) => (day * mushafPageCount / days).round() + 1;
 
@@ -188,6 +230,8 @@ class KhatmaPlan {
         created: created,
         done: done ?? this.done,
         recite: recite,
+        startPage: startPage,
+        halfPages: halfPages,
       );
 
   Map<String, Object> toJson() => {
@@ -199,6 +243,10 @@ class KhatmaPlan {
     'created': created.toIso8601String(),
     'done': done.toList()..sort(),
     if (recite) 'recite': true,
+    if (type == KhatmaType.hifz) ...{
+      'startPage': startPage,
+      'halfPages': halfPages,
+    },
   };
 
   /// Reads what [toJson] wrote. The length is kept within what the plan
@@ -206,15 +254,29 @@ class KhatmaPlan {
   /// the mushaf.
   factory KhatmaPlan.fromJson(Map<String, dynamic> json) {
     final type = KhatmaType.values.byName(json['type'] as String);
+    final startPage = ((json['startPage'] as int?) ?? 1).clamp(
+      1,
+      mushafPageCount,
+    );
+    final halfPages = hifzHalfPagesChoices.contains(json['halfPages'])
+        ? json['halfPages'] as int
+        : 2;
     return KhatmaPlan(
       id: json['id'] as String,
       title: json['title'] as String,
       type: type,
       color: json['color'] as int,
-      days: daysFor(type, customDays: json['days'] as int),
+      days: daysFor(
+        type,
+        customDays: json['days'] as int,
+        startPage: startPage,
+        halfPages: halfPages,
+      ),
       created: DateTime.parse(json['created'] as String),
       done: {for (final i in json['done'] as List) i as int},
-      recite: json['recite'] == true,
+      recite: json['recite'] == true || type == KhatmaType.hifz,
+      startPage: startPage,
+      halfPages: halfPages,
     );
   }
 }
@@ -249,6 +311,8 @@ class KhatmaPlansNotifier extends Notifier<List<KhatmaPlan>> {
     required int color,
     int customDays = 30,
     bool recite = false,
+    int startPage = 1,
+    int halfPages = 2,
     DateTime? now,
   }) {
     final created = now ?? DateTime.now();
@@ -257,9 +321,17 @@ class KhatmaPlansNotifier extends Notifier<List<KhatmaPlan>> {
       title: title,
       type: type,
       color: color,
-      days: KhatmaPlan.daysFor(type, customDays: customDays),
+      days: KhatmaPlan.daysFor(
+        type,
+        customDays: customDays,
+        startPage: startPage,
+        halfPages: halfPages,
+      ),
       created: created,
-      recite: recite,
+      // New hifz is always recited from memory to be ticked off.
+      recite: recite || type == KhatmaType.hifz,
+      startPage: startPage,
+      halfPages: halfPages,
     );
     _save([plan, ...state]);
     return plan;

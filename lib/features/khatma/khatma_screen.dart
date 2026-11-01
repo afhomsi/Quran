@@ -18,6 +18,7 @@ IconData khatmaTypeIcon(KhatmaType type) => switch (type) {
   KhatmaType.ramadan => Icons.nightlight_round,
   KhatmaType.dailyWird => Icons.mosque_rounded,
   KhatmaType.custom => Icons.tune_rounded,
+  KhatmaType.hifz => Icons.psychology_rounded,
 };
 
 /// "Reading plans": the user's plans to read the whole Quran, each with a
@@ -90,7 +91,10 @@ Future<void> startNewKhatma(BuildContext context) async {
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    builder: (_) => _PlanForm(type: choice.$1, recite: choice.$2),
+    builder: (_) => _PlanForm(
+      type: choice.$1,
+      recite: choice.$2 || choice.$1 == KhatmaType.hifz,
+    ),
   );
 }
 
@@ -278,6 +282,10 @@ class _PlanFormState extends ConsumerState<_PlanForm> {
   final _days = TextEditingController(text: '30');
   var _color = 0;
 
+  /// For new hifz: the surah to start from, and half pages a day.
+  var _startSurah = 78;
+  var _halfPages = 2;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -287,7 +295,9 @@ class _PlanFormState extends ConsumerState<_PlanForm> {
         '${'${now.day}'.padLeft(2, '0')}';
     final t = S.of(context);
     _title ??= TextEditingController(
-      text: widget.recite
+      text: widget.type == KhatmaType.hifz
+          ? '${t.khatmaTitle(KhatmaType.hifz)} $date'
+          : widget.recite
           ? t.defaultRecitePlanTitle(date)
           : t.defaultPlanTitle(date),
     );
@@ -414,6 +424,7 @@ class _PlanFormState extends ConsumerState<_PlanForm> {
                 ),
               ),
             ),
+            if (widget.type == KhatmaType.hifz) ..._hifzFields(t, labelStyle),
             if (widget.type == KhatmaType.custom) ...[
               const SizedBox(height: 24),
               Text(t.khatmaDays, style: labelStyle),
@@ -444,6 +455,51 @@ class _PlanFormState extends ConsumerState<_PlanForm> {
     );
   }
 
+  int get _startPage =>
+      ref.read(mushafProvider).value?.surahStartPage(_startSurah) ?? 1;
+
+  List<Widget> _hifzFields(S t, TextStyle? labelStyle) {
+    final surahs = ref.watch(surahsProvider).value ?? const <Surah>[];
+    ref.watch(mushafProvider);
+    return [
+      const SizedBox(height: 24),
+      Text(t.hifzStartSurah, style: labelStyle),
+      DropdownButton<int>(
+        isExpanded: true,
+        value: _startSurah,
+        items: [
+          for (final s in surahs)
+            DropdownMenuItem(
+              value: s.number,
+              child: Text('${t.n(s.number)}. ${t.surahName(s)}'),
+            ),
+        ],
+        onChanged: (v) => setState(() => _startSurah = v ?? _startSurah),
+      ),
+      const SizedBox(height: 16),
+      Text(t.hifzPerDay, style: labelStyle),
+      const SizedBox(height: 8),
+      SegmentedButton<int>(
+        segments: [
+          for (final h in hifzHalfPagesChoices)
+            ButtonSegment(value: h, label: Text(t.hifzAmount(h))),
+        ],
+        selected: {_halfPages},
+        onSelectionChanged: (v) => setState(() => _halfPages = v.single),
+      ),
+      const SizedBox(height: 8),
+      Text(
+        t.hifzDaysLeft(
+          KhatmaPlan.daysFor(
+            KhatmaType.hifz,
+            startPage: _startPage,
+            halfPages: _halfPages,
+          ),
+        ),
+      ),
+    ];
+  }
+
   void _create() {
     ref
         .read(khatmaPlansProvider.notifier)
@@ -453,6 +509,8 @@ class _PlanFormState extends ConsumerState<_PlanForm> {
           color: _color,
           customDays: _customDays ?? 30,
           recite: widget.recite,
+          startPage: _startPage,
+          halfPages: _halfPages,
         );
     Navigator.pop(context);
   }

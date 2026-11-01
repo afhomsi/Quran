@@ -219,6 +219,7 @@ extension FeatureStrings on S {
       'নিজের গতিতে',
       'اپنی رفتار سے',
     ),
+    KhatmaType.hifz => _('حفظ جديد', 'New hifz', 'নতুন হিফজ', 'نیا حفظ'),
   };
   String khatmaSubtitle(KhatmaType type) => switch (type) {
     KhatmaType.salaf => _(
@@ -244,6 +245,12 @@ extension FeatureStrings on S {
       'Choose the days, the portion is worked out for you',
       'নিজের মতো দিন বেছে নিন',
       'اپنی مرضی کے دن چنیں',
+    ),
+    KhatmaType.hifz => _(
+      'مقدار تحفظه كل يوم ثم تسمّعه، من الموضع الذي تختاره',
+      'A portion to learn a day and recite, from where you choose',
+      'প্রতিদিন একটু মুখস্থ করে শোনান',
+      'روزانہ کچھ حفظ کر کے سنائیں',
     ),
   };
   String get createPlan =>

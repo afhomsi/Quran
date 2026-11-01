@@ -99,4 +99,27 @@ extension ReviewStrings on S {
   );
   String get similarAyat =>
       _('المتشابهات', 'Similar ayat', 'সদৃশ আয়াত', 'متشابہ آیات');
+  String get hifzStartSurah => _(
+    'أبدأ الحفظ من سورة',
+    'Start learning from surah',
+    'যে সূরা থেকে শুরু',
+    'اس سورت سے شروع',
+  );
+  String get hifzPerDay => _(
+    'مقدار الحفظ كل يوم',
+    'To learn each day',
+    'প্রতিদিন কতটুকু',
+    'روزانہ کتنا',
+  );
+  String hifzAmount(int halfPages) => switch (halfPages) {
+    1 => _('نصف صفحة', 'Half a page', 'আধা পৃষ্ঠা', 'آدھا صفحہ'),
+    2 => _('صفحة', 'A page', 'এক পৃষ্ঠা', 'ایک صفحہ'),
+    _ => _('صفحتان', 'Two pages', 'দুই পৃষ্ঠা', 'دو صفحے'),
+  };
+  String hifzDaysLeft(int days) => _(
+    'تصل إلى آخر المصحف في حوالي ${n(days)} يوم',
+    'You reach the end of the mushaf in about ${n(days)} days',
+    'প্রায় ${n(days)} দিনে মুসহাফের শেষে পৌঁছাবেন',
+    'تقریباً ${n(days)} دن میں مصحف کے آخر تک',
+  );
 }

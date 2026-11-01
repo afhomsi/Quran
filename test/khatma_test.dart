@@ -30,6 +30,59 @@ void main() {
     }
   }
 
+  KhatmaPlan hifz(int startPage, int halfPages) => KhatmaPlan(
+    id: '2',
+    title: 'h',
+    type: KhatmaType.hifz,
+    color: 0,
+    days: KhatmaPlan.daysFor(
+      KhatmaType.hifz,
+      startPage: startPage,
+      halfPages: halfPages,
+    ),
+    created: DateTime(2026, 11, 1),
+    recite: true,
+    startPage: startPage,
+    halfPages: halfPages,
+  );
+
+  test('new hifz: a page, two or half a page a day, to the end', () {
+    final naba = mushaf.surahStartPage(78);
+    final page = hifz(naba, 2);
+    expect(page.days, 604 - naba + 1);
+    final pages = page.portions(mushaf);
+    expect(pages, hasLength(604 - naba + 1));
+    expect(pages.first.from, const AyahRef(78, 1));
+    expect(pages.first.lastPage(mushaf), naba);
+    expect(pages.last.until, isNull);
+
+    final two = hifz(naba, 4).portions(mushaf);
+    expect(two.first.lastPage(mushaf), naba + 1);
+    expect(two, hasLength(((604 - naba + 1) / 2).ceil()));
+
+    final half = hifz(1, 1).portions(mushaf);
+    // Al-Fatiha's page and the next are split at their middle ayah.
+    expect(half.first.from, const AyahRef(1, 1));
+    expect(half[1].from, const AyahRef(1, 4));
+    expect(half[2].from, const AyahRef(2, 1));
+    expect(half[1].day, 2);
+    expectWholeQuran(half);
+    for (var i = 1; i < half.length; i++) {
+      expect(half[i - 1].from < half[i].from, isTrue);
+    }
+  });
+
+  test('a new-hifz plan is kept with its start and pace', () {
+    final json = hifz(50, 1).toJson();
+    final back = KhatmaPlan.fromJson(json);
+    expect(back.startPage, 50);
+    expect(back.halfPages, 1);
+    expect(back.recite, isTrue);
+    // A damaged pace falls back to a page a day.
+    final bad = KhatmaPlan.fromJson({...json, 'halfPages': 3});
+    expect(bad.halfPages, 2);
+  });
+
   test('hizb of the Salaf is 7 manzils', () {
     final p = plan(KhatmaType.salaf);
     final portions = p.portions(mushaf);
