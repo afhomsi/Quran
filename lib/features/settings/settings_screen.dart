@@ -138,6 +138,12 @@ class SettingsScreen extends ConsumerWidget {
           _Group(
             children: [
               _Switch(
+                icon: Icons.today_rounded,
+                title: t.openOnToday,
+                value: settings.openOnToday,
+                onChanged: (v) => update((s) => s.copyWith(openOnToday: v)),
+              ),
+              _Switch(
                 icon: Icons.mic_off_rounded,
                 title: t.hideRecitationButton,
                 value: settings.hideRecitationButton,

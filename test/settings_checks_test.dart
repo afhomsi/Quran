@@ -90,6 +90,12 @@ final _switches =
         (t) => t.hideWhileListening,
       ),
       (
+        'openOnToday',
+        (s) => s.openOnToday,
+        (s, v) => s.copyWith(openOnToday: v),
+        (t) => t.openOnToday,
+      ),
+      (
         'askRecitationMode',
         (s) => s.askRecitationMode,
         (s, v) => s.copyWith(askRecitationMode: v),

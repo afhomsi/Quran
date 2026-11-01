@@ -10,6 +10,7 @@ import '../../l10n/strings.dart';
 import '../../recitation/page_recitation.dart';
 import '../../theme/app_theme.dart';
 import '../recitation/recitation_mode.dart';
+import '../review/today_card.dart';
 import '../shell/navigation.dart';
 
 IconData khatmaTypeIcon(KhatmaType type) => switch (type) {
@@ -42,33 +43,32 @@ class KhatmaScreen extends ConsumerWidget {
             ),
       body: mushaf == null || surahs == null
           ? const Center(child: CircularProgressIndicator())
-          : plans.isEmpty
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const IconBadge(Icons.event_note_rounded, size: 88),
-                    const SizedBox(height: 20),
-                    Text(
-                      t.noKhatma,
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyLarge,
-                    ),
-                    const SizedBox(height: 20),
-                    FilledButton.icon(
-                      icon: const Icon(Icons.add_rounded),
-                      label: Text(t.newKhatma),
-                      onPressed: () => startNewKhatma(context),
-                    ),
-                  ],
-                ),
-              ),
-            )
           : ListView(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
               children: [
+                // Today's review and recitation come first.
+                const TodayCard(),
+                if (plans.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      children: [
+                        const IconBadge(Icons.event_note_rounded, size: 72),
+                        const SizedBox(height: 16),
+                        Text(
+                          t.noKhatma,
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodyLarge,
+                        ),
+                        const SizedBox(height: 16),
+                        FilledButton.icon(
+                          icon: const Icon(Icons.add_rounded),
+                          label: Text(t.newKhatma),
+                          onPressed: () => startNewKhatma(context),
+                        ),
+                      ],
+                    ),
+                  ),
                 for (final p in plans)
                   _PlanCard(plan: p, mushaf: mushaf, surahs: surahs),
               ],
