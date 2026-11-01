@@ -6,6 +6,7 @@ import '../../audio/ayah_audio.dart';
 import '../../l10n/strings.dart';
 import '../../theme/app_theme.dart';
 import '../audio/downloads_screen.dart';
+import '../bookmarks/bookmarks_screen.dart';
 import '../audio/reciters_screen.dart';
 import '../notes/notes_screen.dart';
 import '../profile/profile_screen.dart';
@@ -14,7 +15,6 @@ import '../hifz_exam/hifz_exam_screen.dart';
 import '../self_test/self_test_screen.dart';
 import '../settings/settings_screen.dart';
 import 'sources_screen.dart';
-import '../shell/navigation.dart';
 
 /// "More": the hifz profile, self-test, recitation check, notes, bookmarks,
 /// settings and the sources of the app's content.
@@ -76,7 +76,7 @@ class MoreScreen extends ConsumerWidget {
         icon: Icons.bookmark_rounded,
         label: t.tabBookmarks,
         color: const Color(0xFF2F72D9),
-        onTap: () => ref.read(appTabProvider.notifier).select(AppTab.bookmarks),
+        onTap: () => push(const BookmarksScreen()),
       ),
       _MoreTile(
         icon: Icons.tune_rounded,

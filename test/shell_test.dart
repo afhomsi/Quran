@@ -81,19 +81,21 @@ Future<void> _tap(WidgetTester tester, Finder finder) async {
 }
 
 void main() {
-  testWidgets('the bottom bar switches between the five tabs', (tester) async {
+  testWidgets('the bottom bar switches between the four tabs', (tester) async {
     await _start(tester);
     // Opens on the mushaf, at the first page.
     expect(find.text('1 الفاتحة (7)'), findsWidgets);
     for (final (tab, title) in [
       ('ختمة', 'خطط الختم'),
       ('الفهرس', 'الربع'),
-      ('إشاراتي', 'آيات محفوظة'),
       ('أدواتي', 'اختبار ذاتي للحفظ'),
     ]) {
       await _tap(tester, find.text(tab));
       expect(find.text(title), findsOneWidget, reason: tab);
     }
+    // The bookmarks are among the tools.
+    await _tap(tester, find.text('إشاراتي'));
+    expect(find.text('آيات محفوظة'), findsOneWidget);
   });
 
   testWidgets('the word card opens the tafsir of its ayah', (tester) async {
@@ -144,6 +146,7 @@ void main() {
       ),
     );
 
+    await _tap(tester, find.text('أدواتي'));
     await _tap(tester, find.text('إشاراتي'));
     expect(find.text('الفاتحة : الآية 1'), findsWidgets);
     expect(find.text('الصفحة 1 - الآية 1'), findsWidgets);
@@ -173,6 +176,27 @@ void main() {
     expect(container.read(lastPageProvider), 22);
     // The plan's ribbon is on the page where it stands.
     expect(find.byTooltip(plan.title), findsOneWidget);
+  });
+
+  testWidgets('creates a new-hifz plan from a surah, a page a day', (
+    tester,
+  ) async {
+    final (container, _) = await _start(tester);
+    await _tap(tester, find.text('ختمة'));
+    await _tap(tester, find.widgetWithText(FilledButton, 'خطة جديدة'));
+    await _tap(tester, find.text('حفظ جديد'));
+    await _tap(tester, find.text('التالي'));
+    // Starts from An-Naba unless another surah is chosen.
+    expect(find.textContaining('78. '), findsOneWidget);
+    await _tap(tester, find.text('صفحتان'));
+    await _tap(tester, find.widgetWithText(FilledButton, 'ابدأ الخطة'));
+
+    final plan = container.read(khatmaPlansProvider).single;
+    expect(plan.type, KhatmaType.hifz);
+    expect(plan.recite, isTrue);
+    expect(plan.halfPages, 4);
+    expect(plan.startPage, 582);
+    expect(find.textContaining('الصفحات 582 – 583'), findsWidgets);
   });
 
   testWidgets('plays from an ayah and follows it to the next page', (
