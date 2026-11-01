@@ -83,6 +83,7 @@ class AppSettings {
     this.mushafTextScale = 1.0,
     this.askRecitationMode = true,
     this.recitationMode = RecitationMode.strict,
+    this.openOnToday = true,
   });
 
   final AppLanguage language;
@@ -134,6 +135,9 @@ class AppSettings {
   /// How strictly recitations are checked, the last one chosen.
   final RecitationMode recitationMode;
 
+  /// Open the app on today's wird, not the mushaf, when a review is due.
+  final bool openOnToday;
+
   AppSettings copyWith({
     AppLanguage? language,
     bool? nightMode,
@@ -155,6 +159,7 @@ class AppSettings {
     double? mushafTextScale,
     bool? askRecitationMode,
     RecitationMode? recitationMode,
+    bool? openOnToday,
   }) => AppSettings(
     language: language ?? this.language,
     nightMode: nightMode ?? this.nightMode,
@@ -176,6 +181,7 @@ class AppSettings {
     mushafTextScale: mushafTextScale ?? this.mushafTextScale,
     askRecitationMode: askRecitationMode ?? this.askRecitationMode,
     recitationMode: recitationMode ?? this.recitationMode,
+    openOnToday: openOnToday ?? this.openOnToday,
   );
 
   Map<String, Object> toJson() => {
@@ -199,6 +205,7 @@ class AppSettings {
     'mushafTextScale': mushafTextScale,
     'askRecitationMode': askRecitationMode,
     'recitationMode': recitationMode.name,
+    'openOnToday': openOnToday,
   };
 
   /// Reads what [toJson] wrote. Missing or unknown values keep their
@@ -249,6 +256,7 @@ class AppSettings {
         RecitationMode.values,
         d.recitationMode,
       ),
+      openOnToday: pick('openOnToday', d.openOnToday),
     );
   }
 }

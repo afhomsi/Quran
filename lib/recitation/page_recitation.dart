@@ -424,6 +424,25 @@ class PageRecitationController extends Notifier<PageRecitation?> {
     );
   }
 
+  /// Recites the pages [firstPage] to [lastPage] from memory, for the
+  /// daily review; each page's strength follows from how it went.
+  Future<void> startPages(
+    int firstPage,
+    int lastPage, {
+    RecitationMode mode = RecitationMode.strict,
+  }) async {
+    final mushaf = ref.read(mushafProvider).value;
+    if (mushaf == null) return;
+    await _start(
+      firstPage,
+      until: lastPage < mushafPageCount
+          ? mushaf.page(lastPage + 1).firstAyah
+          : null,
+      mode: mode,
+      restart: true,
+    );
+  }
+
   /// Whether starting on [page] only stops listening to it.
   bool isListeningTo(int page) =>
       state?.covers(page) == true && state!.session.isListening;
@@ -576,8 +595,7 @@ class PageRecitationController extends Notifier<PageRecitation?> {
         _lastPage = mushaf.pageOf(AyahRef(surah, ayahs.length));
         return [
           for (final w in wordsToRecite([
-            for (var a = from; a <= ayahs.length; a++)
-              (surah, a, ayahs[a - 1]),
+            for (var a = from; a <= ayahs.length; a++) (surah, a, ayahs[a - 1]),
           ]))
             if (w.kind != WordKind.istiadha) w,
         ];
