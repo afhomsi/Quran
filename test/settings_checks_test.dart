@@ -9,6 +9,7 @@ import 'package:hifz/data/mushaf_repository.dart';
 import 'package:hifz/data/quran_repository.dart';
 import 'package:hifz/data/reading_state.dart';
 import 'package:hifz/l10n/strings.dart';
+import 'package:hifz/reminders/daily_reminder.dart';
 import 'package:hifz/settings/app_settings.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -88,6 +89,12 @@ final _switches =
         (s) => s.hideWhileListening,
         (s, v) => s.copyWith(hideWhileListening: v),
         (t) => t.hideWhileListening,
+      ),
+      (
+        'reminderOn',
+        (s) => s.reminderOn,
+        (s, v) => s.copyWith(reminderOn: v),
+        (t) => t.dailyReminder,
       ),
       (
         'openOnToday',
@@ -225,12 +232,14 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     final mushaf = parseMushaf(File(mushafLayoutAssetPath).readAsStringSync());
     final surahs = parseSurahs(File(quranAssetPath).readAsStringSync());
+    final reminders = FakeReminders();
     final container = ProviderContainer(
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
         mushafProvider.overrideWith((ref) async => mushaf),
         surahsProvider.overrideWith((ref) async => surahs),
         screenWakeProvider.overrideWithValue((on) async {}),
+        reminderSchedulerProvider.overrideWithValue(reminders),
       ],
     );
     addTearDown(container.dispose);
@@ -255,6 +264,12 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(tile);
       await tester.pumpAndSettle();
+      // Turning the reminder on asks for its time first.
+      if (name == 'reminderOn' && !before) {
+        await tester.tap(find.byType(TextButton).last);
+        await tester.pumpAndSettle();
+        expect(reminders.minutes, 20 * 60);
+      }
       final after = container.read(settingsProvider);
       expect(read(after), !before, reason: name);
       final saved = AppSettings.fromJson(
@@ -268,4 +283,25 @@ void main() {
         .update((s) => s.copyWith(autoPageTurn: false));
     await tester.pumpAndSettle();
   });
+}
+
+/// Keeps the reminder set, instead of the phone's notifications.
+class FakeReminders implements ReminderScheduler {
+  int? minutes;
+  String? body;
+
+  @override
+  bool get supported => true;
+
+  @override
+  Future<bool> requestPermission() async => true;
+
+  @override
+  Future<void> schedule(int minutes, String title, String body) async {
+    this.minutes = minutes;
+    this.body = body;
+  }
+
+  @override
+  Future<void> cancel() async => minutes = null;
 }

@@ -14,6 +14,8 @@ import '../../data/quran_repository.dart';
 import '../../data/recitation_history.dart';
 import '../../l10n/strings.dart';
 import '../../recitation/page_recitation.dart';
+import '../../reminders/daily_reminder.dart';
+import '../../settings/app_settings.dart';
 import '../../theme/app_theme.dart';
 import '../khatma/khatma_screen.dart';
 import '../recitation/recitation_mode.dart';
@@ -73,6 +75,7 @@ class TodayCard extends ConsumerWidget {
     final mushaf = ref.watch(mushafProvider).value;
     final surahs = ref.watch(surahsProvider).value;
     final pages = ref.watch(pageHifzProvider);
+    final reminderOn = ref.watch(settingsProvider.select((s) => s.reminderOn));
     final history = ref.watch(recitationHistoryProvider);
     final plans = [
       for (final p in ref.watch(khatmaPlansProvider))
@@ -117,6 +120,16 @@ class TodayCard extends ConsumerWidget {
                     ),
                   ),
                 ),
+                if (ref.watch(reminderSchedulerProvider).supported)
+                  IconButton(
+                    tooltip: t.dailyReminder,
+                    isSelected: reminderOn,
+                    icon: const Icon(Icons.notifications_none_rounded),
+                    selectedIcon: const Icon(
+                      Icons.notifications_active_rounded,
+                    ),
+                    onPressed: () => setReminder(context, !reminderOn),
+                  ),
                 TextButton.icon(
                   icon: const Icon(Icons.grid_view_rounded),
                   label: Text(t.hifzMap),

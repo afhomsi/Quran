@@ -315,7 +315,8 @@ void main() {
       expect(config, isNot(contains('src="user"')));
     });
 
-    test('Android asks only for the microphone and the internet', () {
+    test('Android asks only for the microphone, the internet and the '
+        'restart notice for the daily reminder', () {
       final manifest = File('android/app/src/main/AndroidManifest.xml')
           .readAsStringSync();
       final permissions = RegExp(r'uses-permission android:name="([^"]+)"')
@@ -325,6 +326,8 @@ void main() {
       expect(permissions, {
         'android.permission.RECORD_AUDIO',
         'android.permission.INTERNET',
+        // To set the daily reminder again after the phone restarts.
+        'android.permission.RECEIVE_BOOT_COMPLETED',
       });
     });
 

@@ -84,6 +84,8 @@ class AppSettings {
     this.askRecitationMode = true,
     this.recitationMode = RecitationMode.strict,
     this.openOnToday = true,
+    this.reminderOn = false,
+    this.reminderMinutes = 20 * 60,
   });
 
   final AppLanguage language;
@@ -138,6 +140,10 @@ class AppSettings {
   /// Open the app on today's wird, not the mushaf, when a review is due.
   final bool openOnToday;
 
+  /// A daily reminder notification, at [reminderMinutes] after midnight.
+  final bool reminderOn;
+  final int reminderMinutes;
+
   AppSettings copyWith({
     AppLanguage? language,
     bool? nightMode,
@@ -160,6 +166,8 @@ class AppSettings {
     bool? askRecitationMode,
     RecitationMode? recitationMode,
     bool? openOnToday,
+    bool? reminderOn,
+    int? reminderMinutes,
   }) => AppSettings(
     language: language ?? this.language,
     nightMode: nightMode ?? this.nightMode,
@@ -182,6 +190,8 @@ class AppSettings {
     askRecitationMode: askRecitationMode ?? this.askRecitationMode,
     recitationMode: recitationMode ?? this.recitationMode,
     openOnToday: openOnToday ?? this.openOnToday,
+    reminderOn: reminderOn ?? this.reminderOn,
+    reminderMinutes: reminderMinutes ?? this.reminderMinutes,
   );
 
   Map<String, Object> toJson() => {
@@ -206,6 +216,8 @@ class AppSettings {
     'askRecitationMode': askRecitationMode,
     'recitationMode': recitationMode.name,
     'openOnToday': openOnToday,
+    'reminderOn': reminderOn,
+    'reminderMinutes': reminderMinutes,
   };
 
   /// Reads what [toJson] wrote. Missing or unknown values keep their
@@ -257,6 +269,11 @@ class AppSettings {
         d.recitationMode,
       ),
       openOnToday: pick('openOnToday', d.openOnToday),
+      reminderOn: pick('reminderOn', d.reminderOn),
+      reminderMinutes: pick(
+        'reminderMinutes',
+        d.reminderMinutes,
+      ).clamp(0, 24 * 60 - 1),
     );
   }
 }

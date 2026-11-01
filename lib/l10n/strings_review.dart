@@ -122,4 +122,30 @@ extension ReviewStrings on S {
     'প্রায় ${n(days)} দিনে মুসহাফের শেষে পৌঁছাবেন',
     'تقریباً ${n(days)} دن میں مصحف کے آخر تک',
   );
+  String get dailyReminder =>
+      _('تذكير يومي', 'Daily reminder', 'দৈনিক অনুস্মারক', 'روزانہ یاد دہانی');
+  String get reminderTime => _(
+    'وقت التذكير اليومي',
+    'Time of the daily reminder',
+    'দৈনিক অনুস্মারকের সময়',
+    'روزانہ یاد دہانی کا وقت',
+  );
+  String get reminderBody => _(
+    'حان وقت وردك: راجع حفظك وسمّع وردك اليوم.',
+    'Time for your wird: review and recite today.',
+    'ওয়ির্দের সময়: আজ রিভিউ করুন ও শোনান।',
+    'ورد کا وقت: آج دہرائیں اور سنائیں۔',
+  );
+  String get reminderNotAllowed => _(
+    'اسمح للتطبيق بالإشعارات من إعدادات الجوال حتى يصلك التذكير.',
+    'Allow notifications for the app in the phone settings to get the reminder.',
+    'অনুস্মারক পেতে ফোনের সেটিংসে নোটিফিকেশন চালু করুন।',
+    'یاد دہانی کے لیے فون کی ترتیبات میں اطلاعات کی اجازت دیں۔',
+  );
+  String reminderAt(String time) => _(
+    'كل يوم الساعة $time',
+    'Every day at $time',
+    'প্রতিদিন $time-এ',
+    'روزانہ $time بجے',
+  );
 }

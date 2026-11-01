@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/hifz_strength.dart';
 import '../../data/mushaf_repository.dart';
 import '../../data/reading_state.dart';
+import '../../l10n/strings.dart';
+import '../../reminders/daily_reminder.dart';
 import '../../settings/app_settings.dart';
 import '../review/today_card.dart';
 import '../home/home_screen.dart';
@@ -30,6 +32,13 @@ class _AppShellState extends ConsumerState<AppShell> {
   @override
   void initState() {
     super.initState();
+    // Sets the daily reminder again, as the phone may have dropped it.
+    if (ref.read(settingsProvider).reminderOn) {
+      final container = ProviderScope.containerOf(context, listen: false);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) syncReminder(container, S.of(context));
+      });
+    }
     // Once the mushaf is loaded, opens on today's wird when a review is
     // due, if chosen; only at the start, never while the app is in use.
     ProviderSubscription<AsyncValue<Mushaf>>? sub;
