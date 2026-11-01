@@ -1,11 +1,16 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/hifz_exam.dart';
 import '../../data/hifz_strength.dart';
 import '../../data/khatma.dart';
+import '../../data/mushaf_models.dart';
 import '../../data/mushaf_repository.dart';
 import '../../data/quran_models.dart';
 import '../../data/quran_repository.dart';
+import '../../data/recitation_history.dart';
 import '../../l10n/strings.dart';
 import '../../recitation/page_recitation.dart';
 import '../../theme/app_theme.dart';
@@ -23,6 +28,29 @@ Future<void> reciteReviewRun(BuildContext context, ReviewRun run) async {
   await container
       .read(pageRecitationProvider.notifier)
       .startPages(run.firstPage, run.lastPage, mode: mode);
+}
+
+/// Recites [questions] one by one in the mushaf, each after the ayat
+/// before it, as in the hifz exam.
+Future<void> startDrill(
+  BuildContext context,
+  List<ExamQuestion> questions,
+) async {
+  if (questions.isEmpty) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(S.of(context).reciteMorePages)));
+    return;
+  }
+  final container = ProviderScope.containerOf(context, listen: false);
+  final mushaf = container.read(mushafProvider).value;
+  if (mushaf == null) return;
+  final mode = await chooseRecitationMode(context);
+  if (mode == null || !context.mounted) return;
+  final q = questions.first;
+  openMushaf(context, mushaf.pageOf(AyahRef(q.surah, q.from)));
+  await container
+      .read(pageRecitationProvider.notifier)
+      .startExam(questions, mode: mode);
 }
 
 /// Whether there is something to review on [now], for opening the app on
@@ -44,6 +72,7 @@ class TodayCard extends ConsumerWidget {
     final mushaf = ref.watch(mushafProvider).value;
     final surahs = ref.watch(surahsProvider).value;
     final pages = ref.watch(pageHifzProvider);
+    final history = ref.watch(recitationHistoryProvider);
     final plans = [
       for (final p in ref.watch(khatmaPlansProvider))
         if (p.recite) p,
@@ -54,6 +83,8 @@ class TodayCard extends ConsumerWidget {
     final chosen = runs.fold(0, (sum, r) => sum + r.pageCount);
     final more = duePageCount(pages, now) - chosen;
     final counts = strengthCounts(pages);
+    final streak = recitationStreak(history, now);
+    final mistakes = pendingMistakes(history);
 
     Widget title(String text) => Padding(
       padding: const EdgeInsets.only(top: 14, bottom: 6),
@@ -94,6 +125,28 @@ class TodayCard extends ConsumerWidget {
                 ),
               ],
             ),
+            if (streak > 0)
+              Padding(
+                padding: const EdgeInsetsDirectional.only(top: 8),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.local_fire_department_rounded,
+                      color: Color(0xFFE8772E),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        t.streakDays(streak),
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          color: const Color(0xFFE8772E),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             if (pages.isNotEmpty) ...[
               const SizedBox(height: 12),
               StrengthBar(counts),
@@ -126,6 +179,30 @@ class TodayCard extends ConsumerWidget {
                 icon: const Icon(Icons.mic_rounded),
                 label: Text(t.startReview),
                 onPressed: () => reciteReviewRun(context, runs.first),
+              ),
+            ],
+            if (pages.isNotEmpty) ...[
+              title(t.drills),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.replay_rounded),
+                    label: Text(t.reciteMistakes(mistakes.length)),
+                    onPressed: mistakes.isEmpty
+                        ? null
+                        : () => startDrill(context, mistakeQuestions(mistakes)),
+                  ),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.link_rounded),
+                    label: Text(t.linkPages),
+                    onPressed: () => startDrill(
+                      context,
+                      linkingQuestions(mushaf, pages.keys, Random()),
+                    ),
+                  ),
+                ],
               ),
             ],
             title(t.newRecitation),

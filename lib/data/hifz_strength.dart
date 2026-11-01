@@ -1,4 +1,8 @@
+import 'dart:math';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'hifz_exam.dart';
 
 import 'mushaf_models.dart';
 import 'mushaf_repository.dart';
@@ -200,3 +204,70 @@ final pageHifzProvider = Provider<Map<int, PageHifz>>((ref) {
   if (mushaf == null) return const {};
   return pageHifzOf(ref.watch(recitationHistoryProvider), mushaf);
 });
+
+/// The ayat recited with a mistake that were not recited right since,
+/// in reading order: a later recitation that reached the ayah without a
+/// mistake in it puts it right.
+List<AyahRef> pendingMistakes(List<RecitationRecord> records) {
+  final sorted = [...records]..sort((a, b) => a.date.compareTo(b.date));
+  final pending = <AyahRef>{};
+  for (final r in sorted) {
+    final wrong = r.mistakeAyat.toSet();
+    pending.removeWhere(
+      (a) => !wrong.contains(a) && !(a < r.first) && !(r.last < a),
+    );
+    pending.addAll(wrong);
+  }
+  return pending.toList()..sort();
+}
+
+/// Days in a row, up to today or yesterday, with at least one
+/// recitation; 0 when the last one was before yesterday.
+int recitationStreak(List<RecitationRecord> records, DateTime now) {
+  final days = {for (final r in records) _day(r.date)};
+  var day = _day(now);
+  if (!days.contains(day)) day = DateTime(day.year, day.month, day.day - 1);
+  var count = 0;
+  while (days.contains(day)) {
+    count++;
+    day = DateTime(day.year, day.month, day.day - 1);
+  }
+  return count;
+}
+
+/// How many pages the page-linking drill asks about.
+const linkingQuestionCount = 5;
+
+/// Questions for the page-linking drill: for some of [pages], the last
+/// ayah of the page and the first of the next, so the reciter goes from
+/// the end of one page into the next without a pause. Only pages whose
+/// next page goes on in the same surah are asked, in mushaf order.
+List<ExamQuestion> linkingQuestions(
+  Mushaf m,
+  Iterable<int> pages,
+  Random random, {
+  int count = linkingQuestionCount,
+}) {
+  final candidates = [
+    for (final p in pages.toSet())
+      if (p < mushafPageCount &&
+          m.page(p).words.last.ayah.surah == m.page(p + 1).firstAyah.surah &&
+          m.page(p).words.last.ayah != m.page(p + 1).firstAyah)
+        p,
+  ]..shuffle(random);
+  final chosen = candidates.take(count).toList()..sort();
+  return [
+    for (final p in chosen)
+      ExamQuestion(
+        m.page(p).words.last.ayah.surah,
+        m.page(p).words.last.ayah.ayah,
+        m.page(p + 1).firstAyah.ayah,
+      ),
+  ];
+}
+
+/// Questions to recite [ayat] again one by one, each after the ayat
+/// before it.
+List<ExamQuestion> mistakeQuestions(List<AyahRef> ayat) => [
+  for (final a in ayat) ExamQuestion(a.surah, a.ayah, a.ayah),
+];
