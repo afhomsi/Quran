@@ -269,5 +269,5 @@ extension StudyStrings on S {
       _('مشاركة PDF', 'Share PDF', 'PDF শেয়ার', 'PDF شیئر');
   String get sharePreview =>
       _('معاينة المشاركة', 'Preview', 'প্রিভিউ', 'پیش نظارہ');
-  String get appName => _('حفظ القرآن', 'Hifz', 'হিফজ', 'حفظ قرآن');
+  String get appName => _('احفظ القرآن', 'Ihfaz Al-Quran', 'ইহফাজ আল-কুরআন', 'احفظ القرآن');
 }
