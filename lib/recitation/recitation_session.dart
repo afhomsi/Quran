@@ -119,6 +119,14 @@ class RecitationSession extends ChangeNotifier {
   /// reciter, as Whisper may, then takes those words back.
   RecitationResult get settledResult =>
       RecitationResult(words: _base, endAt: _pos);
+
+  /// Where the reciter stopped last, as the end of [result] once the
+  /// recognizer sent nothing new for a while: the reciter paused there,
+  /// so the words up to it are no recognizer's guess ahead. The page may
+  /// turn to it, though the last words are not settled yet.
+  int get pausedEnd => _pausedEnd;
+  int _pausedEnd = 0;
+
   bool get isListening => _wantListening;
   List<Mistake> get mistakes => List.unmodifiable(_mistakes);
 
@@ -209,7 +217,12 @@ class RecitationSession extends ChangeNotifier {
           _quiet?.cancel();
           if (!isFinal) {
             _quiet = Timer(quietDelayOf(listener), () {
-              if (id == _sessionId) _update(settled: true);
+              if (id != _sessionId) return;
+              _update(settled: true);
+              if (_result.end > _pausedEnd) {
+                _pausedEnd = _result.end;
+                notifyListeners();
+              }
             });
           }
           if (isFinal) _restart();
@@ -221,6 +234,7 @@ class RecitationSession extends ChangeNotifier {
   }
 
   void _clear() {
+    _pausedEnd = 0;
     _committed.clear();
     _current = '';
     _frozen = 0;

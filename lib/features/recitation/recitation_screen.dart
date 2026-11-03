@@ -565,6 +565,12 @@ class _Word extends StatelessWidget {
         Colors.orange.shade900,
         '${S.of(context).wrongHarakatNote}: ${word.wrongHarakat}',
       ),
+      // Shown by the help button: blue, apart from the words recited.
+      WordStatus.correct when hinted => (
+        Colors.blue.withValues(alpha: 0.15),
+        Colors.blue.shade700,
+        null,
+      ),
       WordStatus.correct => (null, Colors.green.shade700, null),
       WordStatus.wrong => (
         scheme.errorContainer,
@@ -578,8 +584,8 @@ class _Word extends StatelessWidget {
       ),
       WordStatus.pending when showText => (null, scheme.onSurface, null),
       WordStatus.pending when hinted => (
-        Colors.amber.withValues(alpha: 0.3),
-        scheme.onSurface,
+        Colors.blue.withValues(alpha: 0.15),
+        Colors.blue.shade700,
         null,
       ),
       WordStatus.pending => (

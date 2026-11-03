@@ -404,6 +404,90 @@ void main() {
       expect(shownPage(tester), 3);
     });
 
+    testWidgets('a pause at the end of the page turns it', (tester) async {
+      final listener = FakeListener();
+      await recite(tester, listener);
+      // One listening session, with no final result at the pause, as
+      // Google's recognizer goes on listening.
+      final words = ayat(1, 5).split(' ');
+      for (var k = 1; k <= words.length; k++) {
+        listener.say(words.take(k).join(' '));
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(shownPage(tester), 2);
+      await tester.pump(RecitationSession.quietDelay);
+      await tester.pumpAndSettle();
+      expect(shownPage(tester), 3);
+    });
+
+    group('stuck at the first words of the next page, help', () {
+      Future<FakeListener> stuck(WidgetTester tester) async {
+        final listener = FakeListener();
+        await recite(tester, listener);
+        final words = ayat(1, 5).split(' ');
+        for (var k = 1; k <= words.length; k++) {
+          listener.say(words.take(k).join(' '));
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+        // Help at once, before the pause turns the page.
+        await tester.tap(find.text('مساعدة'));
+        await tester.pumpAndSettle();
+        return listener;
+      }
+
+      MushafPageView page3(WidgetTester tester) => tester
+          .widgetList<MushafPageView>(find.byType(MushafPageView))
+          .singleWhere((v) => v.page.number == 3);
+
+      testWidgets('turns to the word shown, in blue', (tester) async {
+        await stuck(tester);
+        expect(shownPage(tester), 3);
+        expect(page3(tester).hintWords, {(const AyahRef(2, 6), 1)});
+        expect(page3(tester).recitedWords![const AyahRef(2, 6)], 1);
+        expect(
+          find.byWidgetPredicate(
+            (w) =>
+                w is RichText && w.text.style?.color == const Color(0xFF1E88E5),
+          ),
+          findsOneWidget,
+        );
+      });
+
+      for (final (name, from) in [
+        ('saying the word shown', 0),
+        ('going on after the word shown', 1),
+      ]) {
+        testWidgets('then $name, each word recited shows at once', (
+          tester,
+        ) async {
+          final listener = await stuck(tester);
+          // Google's recognizer starts over after the pause: its results
+          // hold only the words said since.
+          final words = ayat(6, 7).split(' ').skip(from).toList();
+          for (var k = 1; k <= words.length; k++) {
+            listener.say(words.take(k).join(' '));
+            await tester.pump(const Duration(milliseconds: 100));
+            final shown = page3(tester).recitedWords!;
+            final recited = from + k;
+            final inAyah6 = baqarah[5].split(' ').length;
+            if (recited < inAyah6) {
+              expect(shown[const AyahRef(2, 6)], recited, reason: 'word $k');
+            } else if (recited > inAyah6) {
+              expect(shown[const AyahRef(2, 6)], PageRecitation.allWords);
+              expect(
+                shown[const AyahRef(2, 7)],
+                anyOf(recited - inAyah6, PageRecitation.allWords),
+                reason: 'word $k',
+              );
+            }
+            expect(shownPage(tester), 3);
+          }
+          expect(page3(tester).hintWords, {(const AyahRef(2, 6), 1)});
+          expect(page3(tester).wrongWords, isEmpty);
+        });
+      }
+    });
+
     testWidgets('and the page does not turn on its own while reciting', (
       tester,
     ) async {

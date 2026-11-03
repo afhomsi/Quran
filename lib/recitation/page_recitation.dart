@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../audio/ayah_audio.dart';
@@ -87,6 +89,18 @@ class PageRecitation {
   /// [RecitationSession.settledResult].
   (AyahRef, int) get settledWord => _wordAt(session.settledResult);
 
+  /// The word the mushaf follows: the [settledWord], or further on where
+  /// the reciter paused (see [RecitationSession.pausedEnd]) or a word
+  /// shown by the help button is, so the page with that word shows.
+  (AyahRef, int) get followedWord {
+    final settled = session.settledResult;
+    var end = max(settled.end, session.pausedEnd);
+    for (final i in session.hints) {
+      if (i > end) end = i;
+    }
+    return _wordAt(RecitationResult(words: settled.words, endAt: end));
+  }
+
   (AyahRef, int) _wordAt(RecitationResult result) {
     final words = result.words;
     var k = result.end;
@@ -114,11 +128,13 @@ class PageRecitation {
   }
 
   /// The page to show while reciting: the one with the next word to
-  /// recite. It follows only the settled words, so the page turns once
-  /// the page shown is recited to its end, and not when the recognizer
-  /// guesses words ahead of the reciter and then takes them back.
+  /// recite. It follows only the settled words, or those up to where the
+  /// reciter paused, so the page turns once the page shown is recited to
+  /// its end, and not when the recognizer guesses words ahead of the
+  /// reciter and then takes them back. A word shown by the help button
+  /// on the next page turns to it too. See [followedWord].
   int pageToShow(Mushaf mushaf) {
-    final (ayah, position) = settledWord;
+    final (ayah, position) = followedWord;
     var p = mushaf.pageOf(ayah);
     // An ayah may go on over the next page.
     while (p < lastPage &&
@@ -198,6 +214,17 @@ class PageRecitation {
       for (final e in counts.entries)
         e.key: unfinished.contains(e.key) ? e.value : allWords,
     };
+  }
+
+  /// The words shown by the help button, as their ayah and position:
+  /// while the text is hidden they show in a colour of their own.
+  Set<(AyahRef, int)> get hintWords {
+    final hinted = <(AyahRef, int)>{};
+    final hints = session.hints;
+    _forEachAyahWord((ayah, position, _, i) {
+      if (hints.contains(i)) hinted.add((ayah, position));
+    });
+    return hinted;
   }
 
   /// The words said with a wrong haraka, as their ayah and position:

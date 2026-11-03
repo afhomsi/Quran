@@ -253,7 +253,7 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
     });
     // The pages turn with the reciter, as they do when listening, once
     // the page shown is recited to its end.
-    ref.listen(pageRecitationProvider.select((r) => r?.settledWord), (_, _) {
+    ref.listen(pageRecitationProvider.select((r) => r?.followedWord), (_, _) {
       final m = ref.read(mushafProvider).value;
       final recitation = ref.read(pageRecitationProvider);
       if (recitation == null || m == null) return;
@@ -815,6 +815,9 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
       wrongWords: !audio.visible && recitation?.covers(page) == true
           ? recitation!.wrongWords
           : const {},
+      hintWords: !audio.visible && recitation?.covers(page) == true
+          ? recitation!.hintWords
+          : const {},
       harakatWords: recitation?.covers(page) == true && !recitation!.hideText
           ? recitation.harakatWords
           : const {},
@@ -1029,6 +1032,7 @@ class _PageSlot extends ConsumerWidget {
     this.wordColors = const {},
     this.recitedWords,
     this.wrongWords = const {},
+    this.hintWords = const {},
     this.harakatWords = const {},
     required this.bookmarks,
     required this.showHizbMarks,
@@ -1051,6 +1055,7 @@ class _PageSlot extends ConsumerWidget {
   final Map<(AyahRef, int), Color> wordColors;
   final Map<AyahRef, int>? recitedWords;
   final Set<(AyahRef, int)> wrongWords;
+  final Set<(AyahRef, int)> hintWords;
   final Set<(AyahRef, int)> harakatWords;
 
   /// Markers and khatma plans that stand on this page: their color and
@@ -1164,6 +1169,7 @@ class _PageSlot extends ConsumerWidget {
                   wordColors: wordColors,
                   recitedWords: recitedWords,
                   wrongWords: wrongWords,
+                  hintWords: hintWords,
                   harakatWords: harakatWords,
                   showHizbMarks: showHizbMarks,
                   textScale: textScale,
