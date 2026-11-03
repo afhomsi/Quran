@@ -50,6 +50,7 @@ class MushafPageView extends StatelessWidget {
     this.wordColors = const {},
     this.recitedWords,
     this.wrongWords = const {},
+    this.hintWords = const {},
     this.harakatWords = const {},
     this.showHizbMarks = false,
     this.tajweed,
@@ -83,6 +84,11 @@ class MushafPageView extends StatelessWidget {
   /// while the page is recited from memory: they show in a light red,
   /// so the reciter sees the right word.
   final Set<(AyahRef, int)> wrongWords;
+
+  /// Words, as their ayah and position, shown by the help button while
+  /// the page is recited from memory: they show in blue, apart from the
+  /// words recited.
+  final Set<(AyahRef, int)> hintWords;
 
   /// Words, as their ayah and position, recited with a wrong haraka:
   /// shown in orange.
@@ -183,6 +189,10 @@ class MushafPageView extends StatelessWidget {
     wordSelected: selectedWord == (w.ayah, w.position),
     highlight: wordColors[(w.ayah, w.position)] ?? highlights[w.ayah],
     wrongHarakat: harakatWords.contains((w.ayah, w.position)),
+    hinted:
+        recitedWords != null &&
+        !w.isAyahEnd &&
+        hintWords.contains((w.ayah, w.position)),
     wrong:
         recitedWords != null &&
         !w.isAyahEnd &&
@@ -261,6 +271,7 @@ class _Word extends StatelessWidget {
     this.highlight,
     this.wrongHarakat = false,
     this.wrong = false,
+    this.hinted = false,
     this.hidden = false,
     this.hizbMark = false,
     this.onTap,
@@ -283,6 +294,10 @@ class _Word extends StatelessWidget {
   /// Recited wrong or not heard well while reciting from memory, so shown
   /// in a light red.
   final bool wrong;
+
+  /// Shown by the help button while reciting from memory, so shown in
+  /// blue.
+  final bool hinted;
 
   /// Not recited yet, so drawn as a block of the word's size: grey, or
   /// in the ayah's highlight colour.
@@ -342,6 +357,8 @@ class _Word extends StatelessWidget {
               ? harakatColor.withValues(alpha: dark ? 0.7 : 1)
               : wrong
               ? _wrongColor(dark).withValues(alpha: 0.15)
+              : hinted
+              ? _hintColor(dark).withValues(alpha: 0.15)
               : selected
               ? colors.primaryContainer
               // Highlighter colors are light, so tone them down at night.
@@ -357,7 +374,7 @@ class _Word extends StatelessWidget {
                       style: TextStyle(color: colors.primary),
                     )
                   : TextSpan(
-                      children: wordSelected || wrong
+                      children: wordSelected || wrong || hinted
                           ? [TextSpan(text: _display(word.text))]
                           : _colouredSpans(word.text, tajweed, jalala, dark),
                     ),
@@ -370,6 +387,8 @@ class _Word extends StatelessWidget {
                     ? _wordColor(dark)
                     : wrong
                     ? _wrongColor(dark)
+                    : hinted
+                    ? _hintColor(dark)
                     : colors.onSurface,
               ),
             ),
@@ -397,6 +416,11 @@ class _Word extends StatelessWidget {
 /// The light red of a word recited wrong while reciting from memory.
 Color _wrongColor(bool dark) =>
     dark ? const Color(0xFFEF9A9A) : const Color(0xFFE57373);
+
+/// The blue of a word shown by the help button while reciting from
+/// memory.
+Color _hintColor(bool dark) =>
+    dark ? const Color(0xFF90CAF9) : const Color(0xFF1E88E5);
 
 /// [text] as the mushaf font draws it, without the ۞ that the page shows
 /// apart.
