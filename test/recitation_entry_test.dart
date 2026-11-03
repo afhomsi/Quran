@@ -14,6 +14,7 @@ import 'package:hifz/data/quran_repository.dart';
 import 'package:hifz/data/reading_state.dart';
 import 'package:hifz/data/recitation_history.dart';
 import 'package:hifz/features/mushaf/mushaf_screen.dart';
+import 'package:hifz/features/recitation/recitation_bar.dart';
 import 'package:hifz/recitation/alert_sound.dart';
 import 'package:hifz/recitation/page_recitation.dart';
 import 'package:hifz/recitation/recitation_matcher.dart';
@@ -193,8 +194,8 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     listener.say('رب الناس', isFinal: true);
     await tester.pump();
-    // Only the word recited wrongly stays hidden, with no colour; the
-    // rest of its ayah shows and the microphone keeps listening.
+    // The word recited wrongly shows in a light red, the rest of its ayah
+    // shows plain and the microphone keeps listening.
     expect(container.read(pageRecitationProvider)!.recitedWords, {
       const AyahRef(1, 1): PageRecitation.allWords,
       const AyahRef(1, 2): PageRecitation.allWords,
@@ -202,6 +203,12 @@ void main() {
     expect(
       tester.widget<MushafPageView>(find.byType(MushafPageView)).wrongWords,
       {(const AyahRef(1, 2), 4)},
+    );
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is RichText && w.text.style?.color == const Color(0xFFE57373),
+      ),
+      findsOneWidget,
     );
     expect(
       tester.widget<MushafPageView>(find.byType(MushafPageView)).wordColors,
@@ -469,13 +476,43 @@ void main() {
       );
     });
 
-    testWidgets('the help button shows the word said wrong', (tester) async {
+    testWidgets('a tap on the page makes the reciting bar small, and back', (
+      tester,
+    ) async {
+      await recite(tester);
+      expect(find.byType(RecitationBar), findsOneWidget);
+      final before = tester.getSize(find.byType(MushafPageView)).height;
+      await tester.tapAt(tester.getCenter(find.byType(MushafPageView)));
+      await tester.pumpAndSettle();
+      expect(find.byType(RecitationBar), findsNothing);
+      expect(find.byType(RecitationMiniBar), findsOneWidget);
+      // The page takes the room the bar had.
+      expect(
+        tester.getSize(find.byType(MushafPageView)).height,
+        greaterThan(before),
+      );
+      // Help and the microphone stay at hand.
+      expect(find.text('مساعدة'), findsOneWidget);
+      expect(find.byTooltip('إيقاف'), findsOneWidget);
+      await tester.tapAt(tester.getCenter(find.byType(MushafPageView)));
+      await tester.pumpAndSettle();
+      expect(find.byType(RecitationBar), findsOneWidget);
+      expect(find.byType(RecitationMiniBar), findsNothing);
+    });
+
+    testWidgets('a wrong word shows in light red, help shows the next', (
+      tester,
+    ) async {
       final listener = await recite(tester);
       listener.say(([...ayah4]..[4] = 'كتب').join(' '));
       await tester.pumpAndSettle();
+      expect(shown(tester).wrongWords, {(const AyahRef(2, 4), 5)});
       await tester.tap(find.text('مساعدة'));
       await tester.pump();
-      expect(shown(tester).wrongWords, isEmpty);
+      // The wrong word still shows in red; help shows the next word, the
+      // first of ayah 5, not the earlier mistake.
+      expect(shown(tester).wrongWords, {(const AyahRef(2, 4), 5)});
+      expect(shown(tester).recitedWords![const AyahRef(2, 5)], 1);
       expect(shown(tester).wordColors, isEmpty);
     });
 
@@ -930,7 +967,7 @@ void _modeTests() {
     expect(recitation.ayahStates[const AyahRef(1, 2)], AyahRecitation.harakat);
     expect(recitation.ayahStates[const AyahRef(1, 3)], AyahRecitation.correct);
     expect(recitation.harakatWords, {(const AyahRef(1, 2), 1)});
-    // Hidden, only that word stays hidden, with no colour.
+    // Hidden, only that word shows apart, in a light red.
     var view = tester.widget<MushafPageView>(find.byType(MushafPageView));
     expect(view.wrongWords, {(const AyahRef(1, 2), 1)});
     expect(view.harakatWords, isEmpty);

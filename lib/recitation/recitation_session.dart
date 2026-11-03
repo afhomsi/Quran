@@ -126,31 +126,19 @@ class RecitationSession extends ChangeNotifier {
   Set<int> get hints => Set.unmodifiable(_hints);
   final Set<int> _hints = {};
 
-  /// Shows a word the reciter is stuck on: the word just said wrong or
-  /// left out when it is still hidden, else the next word to recite, even
-  /// when it starts the next ayah. Each press shows one more word. Returns
-  /// false when nothing is left to show. [at] shows that word instead.
-  bool hint({int? at}) {
-    if (at != null && !_hints.contains(at)) {
-      _hints.add(at);
-      notifyListeners();
-      return true;
-    }
+  /// Shows the word the reciter is stuck on: the next word to recite
+  /// after the last one said, right or wrong, even when it starts the next
+  /// ayah. A word said wrong already shows, in red, so it is not shown
+  /// again. Each press shows one more word, never one before where the
+  /// reciter is. Returns false when nothing is left to show.
+  bool hint() {
     final words = _result.words;
-    final end = _result.end;
-    var i = end - 1;
-    if (i < 0 ||
-        _hints.contains(i) ||
-        words[i].word.kind != WordKind.ayah ||
-        (words[i].status != WordStatus.wrong &&
-            words[i].status != WordStatus.skipped)) {
-      i = end;
-      while (i < words.length &&
-          (words[i].word.kind != WordKind.ayah ||
-              words[i].status != WordStatus.pending ||
-              _hints.contains(i))) {
-        i++;
-      }
+    var i = _result.end;
+    while (i < words.length &&
+        (words[i].word.kind != WordKind.ayah ||
+            words[i].status != WordStatus.pending ||
+            _hints.contains(i))) {
+      i++;
     }
     if (i >= words.length) return false;
     _hints.add(i);

@@ -364,7 +364,7 @@ void main() {
       final said = [...withMistake(), ...ayahs[1].split(' ').skip(3)];
       listener.say([...said, ...ayahs[1].split(' ')].join(' '));
       final page = PageRecitation(2, session, 0);
-      expect(page.stopIndex, isNull);
+      expect(page.wrongWords, isEmpty);
       expect(page.recitedWords[const AyahRef(2, 2)], PageRecitation.allWords);
     });
 
@@ -388,16 +388,32 @@ void main() {
       expect(page.ayahStates[const AyahRef(2, 2)], isNull);
     });
 
-    test('help shows the word just said wrong, then the next one', () {
+    test('help shows the word after the one said wrong', () {
       listener.say(withMistake().join(' '));
       var page = PageRecitation(2, session, 0);
       expect(page.wrongWords, {(const AyahRef(2, 2), 3)});
       session.hint();
       page = PageRecitation(2, session, 0);
-      expect(page.wrongWords, isEmpty);
+      // The wrong word shows in red already; help shows the next one.
+      expect(page.wrongWords, {(const AyahRef(2, 2), 3)});
+      expect(page.recitedWords[const AyahRef(2, 2)], 4);
       session.hint();
       page = PageRecitation(2, session, 0);
-      expect(page.recitedWords[const AyahRef(2, 2)], 4);
+      expect(page.recitedWords[const AyahRef(2, 2)], 5);
+    });
+
+    test('help never goes back to a mistake made earlier', () {
+      final said = [
+        ...withMistake(),
+        ...ayahs[1].split(' ').skip(3),
+        ...ayahs[2].split(' '),
+      ];
+      listener.say(said.join(' '));
+      session.hint();
+      final page = PageRecitation(2, session, 0);
+      // The mistake in ayah 2 stays as it was; ayah 4's first word shows.
+      expect(page.wrongWords, {(const AyahRef(2, 2), 3)});
+      expect(page.recitedWords[const AyahRef(2, 4)], 1);
     });
   });
 

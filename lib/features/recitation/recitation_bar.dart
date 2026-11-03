@@ -177,3 +177,65 @@ class RecitationBar extends ConsumerWidget {
     );
   }
 }
+
+/// The reciting controls made small, while the bars are hidden by a tap on
+/// the page: only close, the microphone and help, floating over the page so it
+/// keeps its full size. A tap on the page, or on the arrow, shows the whole
+/// [RecitationBar] again.
+class RecitationMiniBar extends ConsumerWidget {
+  const RecitationMiniBar({super.key, required this.onExpand});
+
+  final VoidCallback onExpand;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final recitation = ref.watch(pageRecitationProvider);
+    if (recitation == null) return const SizedBox();
+    final controller = ref.read(pageRecitationProvider.notifier);
+    final session = recitation.session;
+    final colors = Theme.of(context).colorScheme;
+    final t = S.of(context);
+    return Material(
+      color: colors.surfaceContainerHigh.withValues(alpha: 0.94),
+      elevation: 3,
+      shape: StadiumBorder(side: BorderSide(color: colors.outlineVariant)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              tooltip: t.closeRecitation,
+              icon: Icon(Icons.cancel_rounded, color: colors.primary),
+              onPressed: controller.close,
+            ),
+            IconButton(
+              tooltip: t.moreRecitationButtons,
+              icon: Icon(
+                Icons.keyboard_arrow_up_rounded,
+                color: colors.primary,
+              ),
+              onPressed: onExpand,
+            ),
+            if (recitation.hideText && !session.result.isComplete)
+              Tooltip(
+                message: t.hintTooltip,
+                child: TextButton.icon(
+                  icon: const Icon(Icons.lightbulb_rounded),
+                  label: Text(t.hint),
+                  onPressed: controller.hint,
+                ),
+              ),
+            IconButton.filled(
+              tooltip: session.isListening ? t.stop : t.startRecitation,
+              icon: Icon(
+                session.isListening ? Icons.stop_rounded : Icons.mic_rounded,
+              ),
+              onPressed: controller.toggleListening,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

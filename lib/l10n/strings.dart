@@ -271,6 +271,12 @@ class S {
     'পরের শব্দ দেখান',
     'اگلا لفظ دکھائیں',
   );
+  String get moreRecitationButtons => _(
+    'كل أزرار التسميع',
+    'All reciting buttons',
+    'সব তিলাওয়াতের বোতাম',
+    'تسمیع کے سب بٹن',
+  );
   String get hideAyat =>
       _('إخفاء الآيات', 'Hide ayat', 'আয়াত লুকান', 'آیات چھپائیں');
   String get hideText =>

@@ -200,25 +200,6 @@ class PageRecitation {
     };
   }
 
-  /// The first word said wrong, left out or with a wrong haraka and not
-  /// shown by a hint, as its index in the session's words: one of the
-  /// [wrongWords], still hidden while the text is.
-  int? get stopIndex {
-    final words = session.result.words;
-    final hints = session.hints;
-    for (var i = 0; i < words.length; i++) {
-      final w = words[i];
-      if (w.word.kind == WordKind.ayah &&
-          (w.status == WordStatus.wrong ||
-              w.status == WordStatus.skipped ||
-              w.isHarakatMistake) &&
-          !hints.contains(i)) {
-        return i;
-      }
-    }
-    return null;
-  }
-
   /// The words said with a wrong haraka, as their ayah and position:
   /// they show in orange.
   Set<(AyahRef, int)> get harakatWords {
@@ -230,9 +211,9 @@ class PageRecitation {
   }
 
   /// The words said wrong, left out or with a wrong haraka, as their ayah
-  /// and position: while the text is hidden they stay hidden, with no
-  /// colour, until recited again correctly or shown by a hint, while the
-  /// rest of their ayah shows and the reciting goes on.
+  /// and position: while the text is hidden they show in a light red,
+  /// until recited again correctly, while the rest of their ayah shows and
+  /// the reciting goes on.
   Set<(AyahRef, int)> get wrongWords {
     final wrong = <(AyahRef, int)>{};
     final hints = session.hints;
@@ -699,13 +680,8 @@ class PageRecitationController extends Notifier<PageRecitation?> {
     await session.start();
   }
 
-  /// Shows the word the reciter is stuck on: the word the ayat stop
-  /// showing at, if any, else see [RecitationSession.hint].
-  void hint() {
-    final current = state;
-    if (current == null) return;
-    current.session.hint(at: current.hideText ? current.stopIndex : null);
-  }
+  /// Shows the word the reciter is stuck on: see [RecitationSession.hint].
+  void hint() => state?.session.hint();
 
   /// Keeps the try so far and recites the page again from the start.
   Future<void> restart() async {
