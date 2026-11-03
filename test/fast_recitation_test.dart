@@ -145,7 +145,7 @@ Future<List<String>> _recite(
                   'expected to ${r.session.expected.last.surah}:${r.session.expected.last.ayah} '
                   'mistakes ${r.session.mistakes.length} '
                   'shown ${[for (final e in r.recitedWords.entries) '${e.key.ayah}:${e.value == PageRecitation.allWords ? 'all' : e.value}'].join(',')} '
-                  'stop ${r.stopIndex}'}',
+                  'wrong ${r.wrongWords.length}'}',
       );
     }
     if (r == null) continue;

@@ -79,9 +79,9 @@ class MushafPageView extends StatelessWidget {
   /// are grey blocks. The ayah numbers always show.
   final Map<AyahRef, int>? recitedWords;
 
-  /// Words, as their ayah and position, that stay grey blocks while the
-  /// page is recited from memory, though words after them show: those
-  /// recited wrong.
+  /// Words, as their ayah and position, recited wrong or not heard well
+  /// while the page is recited from memory: they show in a light red,
+  /// so the reciter sees the right word.
   final Set<(AyahRef, int)> wrongWords;
 
   /// Words, as their ayah and position, recited with a wrong haraka:
@@ -183,11 +183,15 @@ class MushafPageView extends StatelessWidget {
     wordSelected: selectedWord == (w.ayah, w.position),
     highlight: wordColors[(w.ayah, w.position)] ?? highlights[w.ayah],
     wrongHarakat: harakatWords.contains((w.ayah, w.position)),
+    wrong:
+        recitedWords != null &&
+        !w.isAyahEnd &&
+        wrongWords.contains((w.ayah, w.position)),
     hidden:
         recitedWords != null &&
         !w.isAyahEnd &&
-        ((recitedWords![w.ayah] ?? 0) < w.position ||
-            wrongWords.contains((w.ayah, w.position))),
+        (recitedWords![w.ayah] ?? 0) < w.position &&
+        !wrongWords.contains((w.ayah, w.position)),
     hizbMark:
         showHizbMarks && w.position == 1 && _quarterStarts.contains(w.ayah),
     onTap: onAyahTap,
@@ -256,6 +260,7 @@ class _Word extends StatelessWidget {
     this.wordSelected = false,
     this.highlight,
     this.wrongHarakat = false,
+    this.wrong = false,
     this.hidden = false,
     this.hizbMark = false,
     this.onTap,
@@ -275,8 +280,12 @@ class _Word extends StatelessWidget {
   /// Recited with a wrong haraka, so shown on orange.
   final bool wrongHarakat;
 
-  /// Not recited yet, or recited wrongly, so drawn as a block of the
-  /// word's size: grey, or in the ayah's highlight colour.
+  /// Recited wrong or not heard well while reciting from memory, so shown
+  /// in a light red.
+  final bool wrong;
+
+  /// Not recited yet, so drawn as a block of the word's size: grey, or
+  /// in the ayah's highlight colour.
   final bool hidden;
   final bool hizbMark;
   final WordCallback? onTap;
@@ -331,6 +340,8 @@ class _Word extends StatelessWidget {
               ? _wordColor(dark).withValues(alpha: 0.18)
               : wrongHarakat
               ? harakatColor.withValues(alpha: dark ? 0.7 : 1)
+              : wrong
+              ? _wrongColor(dark).withValues(alpha: 0.15)
               : selected
               ? colors.primaryContainer
               // Highlighter colors are light, so tone them down at night.
@@ -346,7 +357,7 @@ class _Word extends StatelessWidget {
                       style: TextStyle(color: colors.primary),
                     )
                   : TextSpan(
-                      children: wordSelected
+                      children: wordSelected || wrong
                           ? [TextSpan(text: _display(word.text))]
                           : _colouredSpans(word.text, tajweed, jalala, dark),
                     ),
@@ -355,7 +366,11 @@ class _Word extends StatelessWidget {
                 fontFamily: mushafFont,
                 fontSize: fontSize,
                 height: _linePitchEm,
-                color: wordSelected ? _wordColor(dark) : colors.onSurface,
+                color: wordSelected
+                    ? _wordColor(dark)
+                    : wrong
+                    ? _wrongColor(dark)
+                    : colors.onSurface,
               ),
             ),
             if (hizbMark)
@@ -378,6 +393,10 @@ class _Word extends StatelessWidget {
     );
   }
 }
+
+/// The light red of a word recited wrong while reciting from memory.
+Color _wrongColor(bool dark) =>
+    dark ? const Color(0xFFEF9A9A) : const Color(0xFFE57373);
 
 /// [text] as the mushaf font draws it, without the ۞ that the page shows
 /// apart.
