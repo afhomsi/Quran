@@ -44,7 +44,7 @@ class _HifzAppState extends ConsumerState<HifzApp> {
     final settings = ref.watch(settingsProvider);
     final strings = S(settings.language, westernDigits: settings.westernDigits);
     return MaterialApp(
-      title: 'حفظ',
+      title: 'احفظ القرآن',
       debugShowCheckedModeBanner: false,
       locale: settings.language.locale,
       supportedLocales: [for (final l in AppLanguage.values) l.locale],
