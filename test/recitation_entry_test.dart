@@ -14,6 +14,7 @@ import 'package:hifz/data/quran_repository.dart';
 import 'package:hifz/data/reading_state.dart';
 import 'package:hifz/data/recitation_history.dart';
 import 'package:hifz/features/mushaf/mushaf_screen.dart';
+import 'package:hifz/features/recitation/recitation_bar.dart';
 import 'package:hifz/recitation/alert_sound.dart';
 import 'package:hifz/recitation/page_recitation.dart';
 import 'package:hifz/recitation/recitation_matcher.dart';
@@ -473,6 +474,30 @@ void main() {
         shown(tester).recitedWords![const AyahRef(2, 4)],
         PageRecitation.allWords,
       );
+    });
+
+    testWidgets('a tap on the page makes the reciting bar small, and back', (
+      tester,
+    ) async {
+      await recite(tester);
+      expect(find.byType(RecitationBar), findsOneWidget);
+      final before = tester.getSize(find.byType(MushafPageView)).height;
+      await tester.tapAt(tester.getCenter(find.byType(MushafPageView)));
+      await tester.pumpAndSettle();
+      expect(find.byType(RecitationBar), findsNothing);
+      expect(find.byType(RecitationMiniBar), findsOneWidget);
+      // The page takes the room the bar had.
+      expect(
+        tester.getSize(find.byType(MushafPageView)).height,
+        greaterThan(before),
+      );
+      // Help and the microphone stay at hand.
+      expect(find.text('مساعدة'), findsOneWidget);
+      expect(find.byTooltip('إيقاف'), findsOneWidget);
+      await tester.tapAt(tester.getCenter(find.byType(MushafPageView)));
+      await tester.pumpAndSettle();
+      expect(find.byType(RecitationBar), findsOneWidget);
+      expect(find.byType(RecitationMiniBar), findsNothing);
     });
 
     testWidgets('a wrong word shows in light red, help shows the next', (

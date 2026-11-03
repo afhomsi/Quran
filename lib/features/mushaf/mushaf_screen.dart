@@ -306,8 +306,13 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
     final background = dark ? null : settings.pageTheme.color;
     final vertical = settings.verticalScroll;
     final appDirection = settings.language.direction;
+    // While the bars are hidden by a tap on the page, the reciting
+    // controls shrink to a small floating bar, so the page keeps its full
+    // size; the hifz exam keeps them whole, for its question and buttons.
+    final miniRecitation =
+        recitation != null && !chrome && recitation.exam == null;
     final bars = <Widget>[
-      if (recitation != null) const RecitationBar(),
+      if (recitation != null && !miniRecitation) const RecitationBar(),
       if (ref.watch(autoRecitationProvider) != null) const AutoRecitationBar(),
       if (audio.visible) const AudioBar(),
       if (ref.watch(pageNavigatorProvider))
@@ -425,6 +430,18 @@ class _MushafScreenState extends ConsumerState<MushafScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: bars,
+                        ),
+                      ),
+                    if (miniRecitation)
+                      LayoutId(
+                        id: _Part.mini,
+                        child: Directionality(
+                          textDirection: appDirection,
+                          child: RecitationMiniBar(
+                            onExpand: () => ref
+                                .read(mushafChromeProvider.notifier)
+                                .set(true),
+                          ),
                         ),
                       ),
                     if (chrome)
@@ -1206,7 +1223,7 @@ class _HeaderLink extends StatelessWidget {
 }
 
 /// The parts of the mushaf screen.
-enum _Part { page, bars, bottomChrome, topChrome }
+enum _Part { page, bars, mini, bottomChrome, topChrome }
 
 /// Lays the bars over the page, so that showing or hiding them does not
 /// move it. The page leaves room only for the bars that stay open (the
@@ -1239,6 +1256,17 @@ class _MushafLayout extends MultiChildLayoutDelegate {
     );
     layoutChild(_Part.page, BoxConstraints.tight(Size(size.width, pageHeight)));
     positionChild(_Part.page, Offset.zero);
+    // Floats over the foot of the page, which keeps its size.
+    if (hasChild(_Part.mini)) {
+      final mini = layoutChild(_Part.mini, BoxConstraints.loose(size));
+      positionChild(
+        _Part.mini,
+        Offset(
+          (size.width - mini.width) / 2,
+          size.height - bottomInset - barsHeight - mini.height - 8,
+        ),
+      );
+    }
     if (hasChild(_Part.topChrome)) {
       layoutChild(_Part.topChrome, loose);
       positionChild(_Part.topChrome, Offset.zero);
